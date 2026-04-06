@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="740" viewBox="0 0 960 740">
+  <rect width="960" height="740" fill="#f3efe7" />
+  <text x="40" y="24" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#222">d6 constructor net preview</text>
+  <text x="40" y="728" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#444">This net is a design/debug surface. The runtime still renders a UV-mapped atlas on the real 3D mesh.</text>
+  
+    <g data-slot="ypos" data-value="1">
+      <rect x="260" y="40" width="220" height="220" rx="16" ry="16" fill="#fffdfa" stroke="#1c1c1c" stroke-width="4" />
+      <text x="274" y="66" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#444">ypos  u=[0.834,0.996] v=[0.004,0.165]</text>
+      <text x="370" y="242" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#444">value 1</text>
+      <rect x="299.6" y="88.4" width="127.6" height="134.2" rx="12" ry="12" fill="none" stroke="#17130f" stroke-width="4" /><line x1="299.6" y1="155.5" x2="427.2" y2="155.5" stroke="#17130f" stroke-width="3" /><line x1="363.4" y1="88.4" x2="363.4" y2="222.6" stroke="#17130f" stroke-width="3" /><circle cx="363.4" cy="155.5" r="8" fill="#17130f" /><text x="363.4" y="204.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700" fill="#17130f">1</text>
+    </g>
+
+    <g data-slot="xneg" data-value="4">
+      <rect x="40" y="260" width="220" height="220" rx="16" ry="16" fill="#fffdfa" stroke="#1c1c1c" stroke-width="4" />
+      <text x="54" y="286" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#444">xneg  u=[0.219,0.381] v=[0.819,0.979]</text>
+      <text x="150" y="462" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#444">value 4</text>
+      <rect x="79.6" y="304" width="129.8" height="138.6" rx="12" ry="12" fill="none" stroke="#17130f" stroke-width="4" /><line x1="79.6" y1="373.3" x2="209.4" y2="373.3" stroke="#17130f" stroke-width="3" /><line x1="144.5" y1="304" x2="144.5" y2="442.6" stroke="#17130f" stroke-width="3" /><circle cx="144.5" cy="373.3" r="8" fill="#17130f" /><text x="144.5" y="424.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700" fill="#17130f">4</text>
+    </g>
+
+    <g data-slot="zpos" data-value="2">
+      <rect x="260" y="260" width="220" height="220" rx="16" ry="16" fill="#fffdfa" stroke="#1c1c1c" stroke-width="4" />
+      <text x="274" y="286" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#444">zpos  u=[0.834,0.995] v=[0.185,0.345]</text>
+      <text x="370" y="462" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#444">value 2</text>
+      <rect x="299.6" y="306.2" width="127.6" height="136.4" rx="12" ry="12" fill="none" stroke="#17130f" stroke-width="4" /><line x1="299.6" y1="374.4" x2="427.2" y2="374.4" stroke="#17130f" stroke-width="3" /><line x1="363.4" y1="306.2" x2="363.4" y2="442.6" stroke="#17130f" stroke-width="3" /><circle cx="363.4" cy="374.4" r="8" fill="#17130f" /><text x="363.4" y="424.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700" fill="#17130f">2</text>
+    </g>
+
+    <g data-slot="xpos" data-value="3">
+      <rect x="480" y="260" width="220" height="220" rx="16" ry="16" fill="#fffdfa" stroke="#1c1c1c" stroke-width="4" />
+      <text x="494" y="286" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#444">xpos  u=[0.834,0.995] v=[0.355,0.515]</text>
+      <text x="590" y="462" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#444">value 3</text>
+      <rect x="519.6" y="306.2" width="127.6" height="136.4" rx="12" ry="12" fill="none" stroke="#17130f" stroke-width="4" /><line x1="519.6" y1="374.4" x2="647.2" y2="374.4" stroke="#17130f" stroke-width="3" /><line x1="583.4" y1="306.2" x2="583.4" y2="442.6" stroke="#17130f" stroke-width="3" /><circle cx="583.4" cy="374.4" r="8" fill="#17130f" /><text x="583.4" y="424.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700" fill="#17130f">3</text>
+    </g>
+
+    <g data-slot="zneg" data-value="5">
+      <rect x="700" y="260" width="220" height="220" rx="16" ry="16" fill="#fffdfa" stroke="#1c1c1c" stroke-width="4" />
+      <text x="714" y="286" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#444">zneg  u=[0.388,0.55] v=[0.819,0.979]</text>
+      <text x="810" y="462" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#444">value 5</text>
+      <rect x="737.4" y="304" width="132" height="140.8" rx="12" ry="12" fill="none" stroke="#17130f" stroke-width="4" /><line x1="737.4" y1="374.4" x2="869.4" y2="374.4" stroke="#17130f" stroke-width="3" /><line x1="803.4" y1="304" x2="803.4" y2="444.8" stroke="#17130f" stroke-width="3" /><circle cx="803.4" cy="374.4" r="8" fill="#17130f" /><text x="803.4" y="426.8" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700" fill="#17130f">5</text>
+    </g>
+
+    <g data-slot="yneg" data-value="6">
+      <rect x="260" y="480" width="220" height="220" rx="16" ry="16" fill="#fffdfa" stroke="#1c1c1c" stroke-width="4" />
+      <text x="274" y="506" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#444">yneg  u=[0.833,0.995] v=[0.525,0.685]</text>
+      <text x="370" y="682" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#444">value 6</text>
+      <rect x="299.6" y="532.8" width="123.2" height="132" rx="12" ry="12" fill="none" stroke="#17130f" stroke-width="4" /><line x1="299.6" y1="598.8" x2="422.8" y2="598.8" stroke="#17130f" stroke-width="3" /><line x1="361.2" y1="532.8" x2="361.2" y2="664.8" stroke="#17130f" stroke-width="3" /><circle cx="361.2" cy="598.8" r="8" fill="#17130f" /><text x="361.2" y="646.8" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700" fill="#17130f">6</text>
+    </g>
+</svg>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#b92929" />
+  
+    <g data-slot="ypos" data-value="1">
+      <rect
+        x="838.016"
+        y="-11.904"
+        width="197.888"
+        height="196.864"
+        rx="14"
+        ry="14"
+        fill="#c83333"
+      />
+      
+      <text x="936.96" y="86.528" text-anchor="middle" dominant-baseline="central" font-family="Georgia, Times New Roman, serif" font-size="74.793" font-weight="700" fill="#fff7ef">J</text>
+    </g>
+
+    <g data-slot="zpos" data-value="2">
+      <rect
+        x="838.016"
+        y="173.44"
+        width="196.864"
+        height="195.84"
+        rx="14"
+        ry="14"
+        fill="#c83333"
+      />
+      
+      <circle cx="904.31" cy="239.504" r="15.986" fill="#fff7ef" /><circle cx="968.586" cy="303.216" r="15.986" fill="#fff7ef" />
+    </g>
+
+    <g data-slot="xpos" data-value="3">
+      <rect
+        x="838.016"
+        y="347.52"
+        width="196.864"
+        height="195.84"
+        rx="14"
+        ry="14"
+        fill="#c83333"
+      />
+      
+      <circle cx="904.31" cy="413.584" r="15.986" fill="#fff7ef" /><circle cx="936.448" cy="445.44" r="15.986" fill="#fff7ef" /><circle cx="968.586" cy="477.296" r="15.986" fill="#fff7ef" />
+    </g>
+
+    <g data-slot="xneg" data-value="4">
+      <rect
+        x="208.256"
+        y="822.656"
+        width="197.888"
+        height="195.84"
+        rx="14"
+        ry="14"
+        fill="#c83333"
+      />
+      
+      <circle cx="274.781" cy="888.72" r="15.986" fill="#fff7ef" /><circle cx="339.619" cy="888.72" r="15.986" fill="#fff7ef" /><circle cx="274.781" cy="952.432" r="15.986" fill="#fff7ef" /><circle cx="339.619" cy="952.432" r="15.986" fill="#fff7ef" />
+    </g>
+
+    <g data-slot="zneg" data-value="5">
+      <rect
+        x="381.312"
+        y="822.656"
+        width="197.888"
+        height="195.84"
+        rx="14"
+        ry="14"
+        fill="#c83333"
+      />
+      
+      <circle cx="447.837" cy="888.72" r="15.986" fill="#fff7ef" /><circle cx="512.675" cy="888.72" r="15.986" fill="#fff7ef" /><circle cx="480.256" cy="920.576" r="15.986" fill="#fff7ef" /><circle cx="447.837" cy="952.432" r="15.986" fill="#fff7ef" /><circle cx="512.675" cy="952.432" r="15.986" fill="#fff7ef" />
+    </g>
+
+    <g data-slot="yneg" data-value="6">
+      <rect
+        x="836.992"
+        y="521.6"
+        width="197.888"
+        height="195.84"
+        rx="14"
+        ry="14"
+        fill="#c83333"
+      />
+      
+      <circle cx="903.517" cy="587.664" r="15.986" fill="#fff7ef" /><circle cx="968.355" cy="587.664" r="15.986" fill="#fff7ef" /><circle cx="903.517" cy="619.52" r="15.986" fill="#fff7ef" /><circle cx="968.355" cy="619.52" r="15.986" fill="#fff7ef" /><circle cx="903.517" cy="651.376" r="15.986" fill="#fff7ef" /><circle cx="968.355" cy="651.376" r="15.986" fill="#fff7ef" />
+    </g>
+</svg>

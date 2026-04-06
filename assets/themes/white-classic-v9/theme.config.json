@@ -1,0 +1,18 @@
+{
+    "name":  "white-classic-v9",
+    "systemName":  "white-classic-v9",
+    "author":  "Codex Spike",
+    "version":  "0.9.0",
+    "meshFile":  "default.json",
+    "material":  {
+                     "type":  "color",
+                     "diffuseTexture":  {
+                                            "light":  "diffuse-light.png",
+                                            "dark":  "diffuse-dark.png"
+                                        },
+                     "diffuseLevel":  1
+                 },
+    "diceAvailable":  [
+                          "d6"
+                      ]
+}

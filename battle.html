@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dice-a-Lot — Battle</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0f;color:#e8e8e8;font-family:"Segoe UI",system-ui,sans-serif;height:100vh;overflow:hidden}
+
+/* ── Fullscreen Canvas ─────────────────────────── */
+.canvas-wrap{position:fixed;inset:0;z-index:0}
+#renderCanvas{width:100%;height:100%;display:block;touch-action:none;outline:none}
+
+/* ── Banner / Toast ─────────────────────────────── */
+.banner{position:fixed;top:-60px;left:50%;transform:translateX(-50%);padding:12px 36px;border-radius:0 0 14px 14px;font-size:1.15rem;font-weight:700;letter-spacing:.04em;z-index:999;transition:top .35s ease;pointer-events:none;white-space:nowrap;text-align:center}
+.banner.show{top:0}
+.banner.bust{background:#c0392b;color:#fff}
+.banner.bank{background:linear-gradient(135deg,#d4a017,#f0c040);color:#1a1a1a}
+.banner.hot{background:linear-gradient(135deg,#e67e22,#f1c40f);color:#1a1a1a}
+.banner.victory{background:#27ae60;color:#fff}
+.banner.defeat{background:#8e1e1e;color:#fff}
+
+/* ── UI Overlay (3-col grid) ───────────────────── */
+.battle-scene{position:fixed;inset:0;z-index:1;display:grid;grid-template-columns:240px 1fr 240px;grid-template-rows:1fr;gap:14px;padding:14px;pointer-events:none}
+
+.side{display:flex;flex-direction:column;gap:14px;pointer-events:auto}
+
+/* ── Combatant Card ─────────────────────────────── */
+.combatant-card{background:rgba(10,10,15,.82);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px}
+.combatant-name{font-size:.95rem;font-weight:700;margin-bottom:10px;letter-spacing:.03em}
+.combatant-label{font-size:.7rem;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+
+/* ── HP Bar ─────────────────────────────────────── */
+.hp-bar-wrap{margin-bottom:4px}
+.hp-bar{position:relative;height:22px;background:#1a1a1a;border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.06)}
+.hp-fill{height:100%;background:linear-gradient(90deg,#c0392b,#e74c3c);border-radius:5px;transition:width .6s ease}
+.hp-fill-enemy{background:linear-gradient(90deg,#8e44ad,#9b59b6)}
+.hp-text{font-size:.78rem;color:#aaa;text-align:center;margin-top:3px}
+.hp-text span{font-weight:700;color:#ddd}
+
+/* ── Center Column ──────────────────────────────── */
+.center{display:flex;flex-direction:column;justify-content:space-between;height:100%;overflow:hidden}
+
+.info-bar{display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:auto;background:rgba(10,10,15,.7);backdrop-filter:blur(6px);border-radius:0 0 12px 12px;padding:10px 20px;align-self:center}
+.turn-indicator{font-size:1rem;font-weight:700;letter-spacing:.06em;color:#ffc91c;text-transform:uppercase}
+.round-score-wrap{display:flex;align-items:baseline;gap:8px}
+.round-label{font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.06em}
+.round-value{font-size:2.2rem;font-weight:800;color:#ffc91c;font-variant-numeric:tabular-nums}
+.selection-info{font-size:.85rem;color:#bbb;min-height:22px}
+.status-text{font-size:.8rem;color:#666;min-height:20px}
+
+/* ── Action Buttons ─────────────────────────────── */
+.actions{display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:auto;background:rgba(10,10,15,.7);backdrop-filter:blur(6px);border-radius:12px 12px 0 0;padding:10px 20px;align-self:center;min-height:52px}
+.primary-row,.secondary-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.btn{padding:10px 28px;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:background .12s,opacity .12s,transform .1s}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.4;cursor:default;transform:none}
+.btn-roll{background:#e74c3c;color:#fff;min-width:160px}
+.btn-roll:hover:not(:disabled){background:#ff5544}
+.btn-score{background:#27ae60;color:#fff;min-width:170px}
+.btn-score:hover:not(:disabled){background:#2ecc71}
+.btn-bank{background:linear-gradient(135deg,#d4a017,#e8b820);color:#1a1a1a;min-width:170px}
+.btn-bank:hover:not(:disabled){background:linear-gradient(135deg,#e8b820,#f0c040)}
+.btn-ability{background:#34495e;color:#ccc;font-size:.82rem;padding:7px 18px}
+.btn-ability:hover:not(:disabled){background:#3d566e}
+.btn-restart{background:#555;color:#eee;margin-top:4px}
+.btn-restart:hover{background:#666}
+
+/* ── History ────────────────────────────────────── */
+.history-card{background:rgba(10,10,15,.82);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;flex:1;display:flex;flex-direction:column;min-height:200px}
+.history-title{font-size:.78rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.history-log{flex:1;overflow-y:auto;font-size:.8rem;color:#aaa;display:flex;flex-direction:column;gap:4px;max-height:340px}
+.log-entry{padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.log-entry.bust{color:#e74c3c}
+.log-entry.bank{color:#ffc91c}
+.log-entry.hot{color:#e67e22}
+.log-entry.damage{color:#c0392b}
+
+/* ── Responsive ─────────────────────────────────── */
+@media(max-width:1100px){
+  .battle-scene{grid-template-columns:1fr;padding:10px}
+  .side-left{order:1} .center{order:0} .side-right{order:2}
+}
+
+/* ── Camera debug (orbit + copy view) ───────────── */
+.cam-debug-wrap{
+  position:fixed;left:12px;bottom:12px;z-index:1000;pointer-events:auto;
+  background:rgba(12,12,18,.94);backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;
+  max-width:min(440px,calc(100vw - 24px));font-size:.72rem;color:#bbb;
+  box-shadow:0 4px 24px rgba(0,0,0,.45);
+}
+.cam-debug-wrap h4{margin:0 0 6px;font-size:.68rem;font-weight:700;color:#888;letter-spacing:.06em;text-transform:uppercase}
+.cam-debug-readout{margin:6px 0;font-family:Consolas,"Cascadia Mono",monospace;font-size:.7rem;color:#7dcea0;line-height:1.35;white-space:pre-wrap;word-break:break-all;max-height:140px;overflow:auto}
+.cam-debug-label{cursor:pointer;display:flex;align-items:center;gap:8px;color:#ddd}
+.cam-debug-copy{margin-top:6px;padding:6px 12px;border-radius:6px;border:1px solid #444;background:#2c2c38;color:#e8e8e8;font:inherit;cursor:pointer;width:100%}
+.cam-debug-copy:hover{background:#38384a}
+.cam-debug-fields{margin:8px 0 4px;display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center}
+.cam-debug-fields label{color:#999;font-size:.68rem;white-space:nowrap}
+.cam-debug-fields input{
+  width:100%;min-width:0;padding:4px 6px;border-radius:5px;border:1px solid #3a3a48;
+  background:#1a1a22;color:#e0e0e8;font-family:Consolas,"Cascadia Mono",monospace;font-size:.72rem;
+}
+.cam-debug-fields input:focus{outline:1px solid #5dade2;border-color:#5dade2}
+.cam-debug-hint{grid-column:1/-1;font-size:.62rem;color:#666;margin:-2px 0 4px;line-height:1.3}
+.cam-debug-apply{margin-bottom:4px;padding:6px 12px;border-radius:6px;border:1px solid #2e6b45;background:#1e3d2a;color:#a8e6b8;font:inherit;cursor:pointer;width:100%}
+.cam-debug-apply:hover{background:#265a3a}
+.cam-debug-reset{margin-top:4px;padding:4px 8px;border-radius:5px;border:1px solid #444;background:transparent;color:#888;font:inherit;cursor:pointer;width:100%;font-size:.65rem}
+.cam-debug-reset:hover{color:#bbb;border-color:#666}
+</style>
+</head>
+<body>
+
+<!-- Fullscreen 3D canvas -->
+<div class="canvas-wrap">
+  <canvas id="renderCanvas"></canvas>
+</div>
+
+<div id="banner" class="banner"></div>
+
+<div id="camDebugWrap" class="cam-debug-wrap" aria-label="Camera debug">
+  <h4>Table view (debug)</h4>
+  <label class="cam-debug-label"><input type="checkbox" id="camDebugOrbit"> Orbit / zoom (mouse on canvas)</label>
+  <div class="cam-debug-fields">
+    <span class="cam-debug-hint">Arc rotate: α, β in degrees (type precisely, then Apply or Enter).</span>
+    <label for="camAlphaDeg">α (alpha °)</label>
+    <input type="number" id="camAlphaDeg" step="0.1" autocomplete="off">
+    <label for="camBetaDeg">β (beta °)</label>
+    <input type="number" id="camBetaDeg" step="0.1" autocomplete="off">
+    <label for="camRadiusInput">radius</label>
+    <input type="number" id="camRadiusInput" step="0.05" min="1" autocomplete="off">
+    <label for="camTX">target X</label>
+    <input type="number" id="camTX" step="0.01" autocomplete="off">
+    <label for="camTY">target Y</label>
+    <input type="number" id="camTY" step="0.01" autocomplete="off">
+    <label for="camTZ">target Z</label>
+    <input type="number" id="camTZ" step="0.01" autocomplete="off">
+  </div>
+  <button type="button" id="camApply" class="cam-debug-apply">Apply typed values</button>
+  <pre id="camDebugReadout" class="cam-debug-readout"></pre>
+  <button type="button" id="camDebugCopy" class="cam-debug-copy">Copy view as JSON</button>
+  <button type="button" id="camReset" class="cam-debug-reset">Reset to default battle view</button>
+</div>
+
+<!-- UI overlay -->
+<div class="battle-scene">
+  <!-- Left: Player -->
+  <aside class="side side-left">
+    <div class="combatant-card">
+      <div class="combatant-label">Player</div>
+      <div class="combatant-name">Hero</div>
+      <div class="hp-bar-wrap">
+        <div class="hp-bar"><div class="hp-fill" id="playerHpFill" style="width:100%"></div></div>
+        <div class="hp-text"><span id="playerHp">3000</span> / <span id="playerHpMax">3000</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Center: info + buttons overlay -->
+  <main class="center">
+    <div class="info-bar">
+      <div class="turn-indicator" id="turnIndicator">Player Turn</div>
+      <div class="round-score-wrap">
+        <span class="round-label">Round Score</span>
+        <span class="round-value" id="roundScore">0</span>
+      </div>
+      <div class="selection-info" id="selectionInfo">&nbsp;</div>
+      <div class="status-text" id="statusText">&nbsp;</div>
+    </div>
+
+    <div class="actions">
+      <div class="primary-row" id="primaryRow">
+        <button id="rollBtn" class="btn btn-roll">ROLL</button>
+        <button id="scorePlayBtn" class="btn btn-score" style="display:none">SCORE'N'PLAY</button>
+        <button id="bankPassBtn" class="btn btn-bank" style="display:none">BANK'N'PASS</button>
+        <button id="restartBtn" class="btn btn-restart" style="display:none">PLAY AGAIN</button>
+      </div>
+      <div class="secondary-row" id="abilityRow" style="display:none">
+        <button class="btn btn-ability" id="jumpBtn">JUMP</button>
+        <button class="btn btn-ability" id="flipBtn">FLIP</button>
+        <button class="btn btn-ability" id="tuneDownBtn">TUNE −1</button>
+        <button class="btn btn-ability" id="tuneUpBtn">TUNE +1</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Right: Enemy + History -->
+  <aside class="side side-right">
+    <div class="combatant-card">
+      <div class="combatant-label">Enemy</div>
+      <div class="combatant-name" id="enemyName">Tutorial Bot</div>
+      <div class="hp-bar-wrap">
+        <div class="hp-bar"><div class="hp-fill hp-fill-enemy" id="botHpFill" style="width:100%"></div></div>
+        <div class="hp-text"><span id="botHp">3000</span> / <span id="botHpMax">3000</span></div>
+      </div>
+    </div>
+    <div class="history-card">
+      <div class="history-title">Round History</div>
+      <div class="history-log" id="log"></div>
+    </div>
+  </aside>
+</div>
+
+<script src="vendor/babylon.js"></script>
+<script type="importmap">{ "imports": { "cannon-es": "./vendor/cannon-es.js" } }</script>
+<script type="module">
+import * as CANNON from 'cannon-es';
+
+// ═══════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════
+const FLOOR_Y = -4;
+const SEGMENTS = 40, EDGE_R = 0.07, NOTCH_R = 0.14, NOTCH_D = 0.12, PIP_OFFSET = 0.23;
+const DIE_SCALE = 0.85;
+/** One die edge length in world units (matches physics box 2×0.48×DIE_SCALE). */
+const DIE_EDGE = 2 * 0.48 * DIE_SCALE;
+
+/**
+ * One table in X: same width for center (roll) and both shelves — three strips stacked along Z (sandwich).
+ * Shelves are shallower in Z (SHELF_DEPTH_Z); center is ROLL_DEPTH_Z. TABLE_WORLD_SCALE scales length; dice = DIE_SCALE.
+ */
+const TABLE_SCALE = 1.5;
+const TABLE_WORLD_SCALE = 1.3;
+
+const TABLE_WIDTH_X = 10 * TABLE_SCALE * TABLE_WORLD_SCALE;
+const ROLL_FLOOR_W = TABLE_WIDTH_X;
+
+const TABLE_CENTER_Z_REF = 1.5;
+const Z_HALF_SPAN = 6.5 * TABLE_WORLD_SCALE;
+const WZ_BOT = TABLE_CENTER_Z_REF - Z_HALF_SPAN;
+const WZ_TOP = TABLE_CENTER_Z_REF + Z_HALF_SPAN;
+const TABLE_TOTAL_Z = WZ_TOP - WZ_BOT;
+
+const SHELF_DEPTH_Z = 2 * TABLE_WORLD_SCALE;
+const ROLL_DEPTH_Z = TABLE_TOTAL_Z - 2 * SHELF_DEPTH_Z;
+const DIVIDER_Z = WZ_BOT + SHELF_DEPTH_Z;
+const BOT_DIVIDER_Z = DIVIDER_Z + ROLL_DEPTH_Z;
+
+const WX = ROLL_FLOOR_W / 2 - 0.5;
+const DIVIDER_BAR_W = ROLL_FLOOR_W - 0.5;
+
+const CAMERA_RADIUS = 16.4 * TABLE_WORLD_SCALE;
+const TABLE_CENTER_Z = (WZ_BOT + WZ_TOP) / 2;
+
+const PHYS = {
+  gravity: -55, restitution: 0.3, friction: 0.6,
+  throwMin: 4, throwMax: 9, mass: 1,
+  sleepTime: 0.3, sleepSpeed: 0.05,
+  linearDamping: 0.05, angularDamping: 0.15,
+};
+
+const BODY_COLOR = '#eae8e3', PIP_COLOR = '#141414';
+
+// ═══════════════════════════════════════════════════
+//  SCORING SYSTEM
+// ═══════════════════════════════════════════════════
+function scoreSelection(values) {
+  if (!values.length) return { valid: false, score: 0 };
+  const sorted = [...values].sort((a, b) => a - b);
+  const key = sorted.join('');
+
+  if (values.length === 6) {
+    if (key === '123456') return { valid: true, score: 1500 };
+    if (sorted[0] === sorted[1] && sorted[2] === sorted[3] && sorted[4] === sorted[5]
+        && sorted[0] !== sorted[2] && sorted[2] !== sorted[4])
+      return { valid: true, score: 1500 };
+  }
+  if (values.length === 5) {
+    if (key === '12345') return { valid: true, score: 500 };
+    if (key === '23456') return { valid: true, score: 750 };
+  }
+
+  const c = new Array(7).fill(0);
+  for (const v of values) c[v]++;
+  let score = 0, used = 0;
+
+  for (let f = 1; f <= 6; f++) {
+    if (c[f] >= 3) {
+      const base = f === 1 ? 1000 : f * 100;
+      score += base * (1 + (c[f] - 3));
+      used += c[f]; c[f] = 0;
+    }
+  }
+  if (c[1]) { score += c[1] * 100; used += c[1]; c[1] = 0; }
+  if (c[5]) { score += c[5] * 50;  used += c[5]; c[5] = 0; }
+
+  return (used === values.length && score > 0) ? { valid: true, score } : { valid: false, score: 0 };
+}
+
+function hasPlayableDice(values) {
+  for (let m = 1; m < (1 << values.length); m++) {
+    const sub = [];
+    for (let i = 0; i < values.length; i++) if (m & (1 << i)) sub.push(values[i]);
+    if (scoreSelection(sub).valid) return true;
+  }
+  return false;
+}
+
+function findBestSubset(values) {
+  let best = null;
+  for (let m = 1; m < (1 << values.length); m++) {
+    const idx = [], sub = [];
+    for (let i = 0; i < values.length; i++) if (m & (1 << i)) { idx.push(i); sub.push(values[i]); }
+    const r = scoreSelection(sub);
+    if (r.valid && (!best || r.score > best.score || (r.score === best.score && idx.length < best.indices.length)))
+      best = { indices: idx, score: r.score };
+  }
+  return best;
+}
+
+// ═══════════════════════════════════════════════════
+//  GAME STATE
+// ═══════════════════════════════════════════════════
+const game = {
+  phase: 'waiting',
+  currentPlayer: 'player',
+  playerHp: 3000, playerMaxHp: 3000,
+  botHp: 3000, botMaxHp: 3000,
+  roundScore: 0,
+  selectedIndices: [],
+};
+
+// ═══════════════════════════════════════════════════
+//  DOM REFS
+// ═══════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const bannerEl = $('banner'), turnEl = $('turnIndicator'), roundScoreEl = $('roundScore');
+const selInfoEl = $('selectionInfo'), statusEl = $('statusText');
+const rollBtn = $('rollBtn'), scorePlayBtn = $('scorePlayBtn'), bankPassBtn = $('bankPassBtn'), restartBtn = $('restartBtn');
+const logEl = $('log');
+
+// ═══════════════════════════════════════════════════
+//  BABYLONJS SCENE
+// ═══════════════════════════════════════════════════
+const canvas = $('renderCanvas');
+const engine = new BABYLON.Engine(canvas, true, { stencil: true });
+const scene  = new BABYLON.Scene(engine);
+scene.useRightHandedSystem = true;
+scene.clearColor = new BABYLON.Color4(0.06, 0.06, 0.06, 1);
+
+const camera = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, 1.05, CAMERA_RADIUS,
+  new BABYLON.Vector3(0, FLOOR_Y + 0.5, TABLE_CENTER_Z), scene);
+
+function lockCameraFromCurrentPosition() {
+  camera.detachControl();
+  camera.lowerRadiusLimit = camera.upperRadiusLimit = camera.radius;
+  camera.lowerBetaLimit = camera.upperBetaLimit = camera.beta;
+  camera.lowerAlphaLimit = camera.upperAlphaLimit = camera.alpha;
+  camera.panningSensibility = 0;
+}
+
+function loadDefaultBattleCamera() {
+  camera.alpha = -Math.PI / 2;
+  camera.beta = 1.05;
+  camera.radius = CAMERA_RADIUS;
+  camera.setTarget(new BABYLON.Vector3(0, FLOOR_Y + 0.5, TABLE_CENTER_Z));
+  lockCameraFromCurrentPosition();
+  syncCamInputsFromCamera();
+}
+
+function unlockDebugOrbit() {
+  camera.lowerRadiusLimit = 6;
+  camera.upperRadiusLimit = 55;
+  camera.lowerBetaLimit = 0.32;
+  camera.upperBetaLimit = Math.PI / 2 - 0.03;
+  camera.lowerAlphaLimit = -Math.PI * 8;
+  camera.upperAlphaLimit = Math.PI * 8;
+  camera.panningSensibility = 0;
+  camera.attachControl(canvas, true);
+}
+
+const camDebugOrbit = $('camDebugOrbit');
+const camDebugReadout = $('camDebugReadout');
+const camDebugCopy = $('camDebugCopy');
+const camAlphaDeg = $('camAlphaDeg');
+const camBetaDeg = $('camBetaDeg');
+const camRadiusInput = $('camRadiusInput');
+const camTX = $('camTX');
+const camTY = $('camTY');
+const camTZ = $('camTZ');
+const camApply = $('camApply');
+const camReset = $('camReset');
+
+const CAM_INPUT_IDS = ['camAlphaDeg', 'camBetaDeg', 'camRadiusInput', 'camTX', 'camTY', 'camTZ'];
+function isCamInputFocused() {
+  const id = document.activeElement && document.activeElement.id;
+  return CAM_INPUT_IDS.includes(id);
+}
+
+function syncCamInputsFromCamera() {
+  const deg = 180 / Math.PI;
+  const t = camera.getTarget();
+  camAlphaDeg.value = (camera.alpha * deg).toFixed(2);
+  camBetaDeg.value = (camera.beta * deg).toFixed(2);
+  camRadiusInput.value = camera.radius.toFixed(3);
+  camTX.value = t.x.toFixed(4);
+  camTY.value = t.y.toFixed(4);
+  camTZ.value = t.z.toFixed(4);
+}
+
+function applyCamInputsFromFields() {
+  const alphaDeg = parseFloat(camAlphaDeg.value);
+  const betaDeg = parseFloat(camBetaDeg.value);
+  const radius = parseFloat(camRadiusInput.value);
+  const tx = parseFloat(camTX.value);
+  const ty = parseFloat(camTY.value);
+  const tz = parseFloat(camTZ.value);
+  if (![alphaDeg, betaDeg, radius, tx, ty, tz].every(Number.isFinite)) return;
+  camera.alpha = alphaDeg * Math.PI / 180;
+  camera.beta = betaDeg * Math.PI / 180;
+  camera.radius = radius;
+  camera.setTarget(new BABYLON.Vector3(tx, ty, tz));
+  if (!camDebugOrbit.checked) lockCameraFromCurrentPosition();
+  camDebugReadout.textContent = formatCameraDebugText();
+}
+
+function formatCameraDebugText() {
+  const t = camera.getTarget();
+  const deg = 180 / Math.PI;
+  return [
+    `alpha  ${camera.alpha.toFixed(5)} rad (${(camera.alpha * deg).toFixed(2)}°)`,
+    `beta   ${camera.beta.toFixed(5)} rad (${(camera.beta * deg).toFixed(2)}°)`,
+    `radius ${camera.radius.toFixed(5)}`,
+    `target ${t.x.toFixed(4)}, ${t.y.toFixed(4)}, ${t.z.toFixed(4)}`,
+  ].join('\n');
+}
+
+function cameraViewJSON() {
+  const t = camera.getTarget();
+  return JSON.stringify({
+    alpha: +camera.alpha.toFixed(6),
+    beta: +camera.beta.toFixed(6),
+    radius: +camera.radius.toFixed(6),
+    target: [+t.x.toFixed(4), +t.y.toFixed(4), +t.z.toFixed(4)],
+  }, null, 2);
+}
+
+camDebugOrbit.addEventListener('change', () => {
+  if (camDebugOrbit.checked) {
+    unlockDebugOrbit();
+    syncCamInputsFromCamera();
+  } else {
+    lockCameraFromCurrentPosition();
+  }
+  camDebugReadout.textContent = formatCameraDebugText();
+});
+
+camApply.addEventListener('click', () => applyCamInputsFromFields());
+
+for (const id of CAM_INPUT_IDS) {
+  $(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); applyCamInputsFromFields(); }
+  });
+}
+
+camReset.addEventListener('click', () => {
+  loadDefaultBattleCamera();
+  camDebugReadout.textContent = formatCameraDebugText();
+});
+
+camDebugCopy.addEventListener('click', async () => {
+  const text = cameraViewJSON();
+  try {
+    await navigator.clipboard.writeText(text);
+    const prev = camDebugCopy.textContent;
+    camDebugCopy.textContent = 'Copied!';
+    setTimeout(() => { camDebugCopy.textContent = prev; }, 1600);
+  } catch {
+    camDebugReadout.textContent = text + '\n\n(clipboard failed — copy from above)';
+  }
+});
+
+scene.onAfterRenderObservable.add(() => {
+  if (camDebugOrbit.checked && !isCamInputFocused()) syncCamInputsFromCamera();
+  if (camDebugOrbit.checked) camDebugReadout.textContent = formatCameraDebugText();
+});
+
+loadDefaultBattleCamera();
+camDebugReadout.textContent = formatCameraDebugText();
+
+const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
+hemi.intensity = 0.45;
+const dir = new BABYLON.DirectionalLight('dir', new BABYLON.Vector3(-1, -3, 1).normalize(), scene);
+dir.position.set(4, 8, -4); dir.intensity = 1.05;
+
+const shadowGen = new BABYLON.ShadowGenerator(1024, dir);
+shadowGen.useBlurExponentialShadowMap = true;
+shadowGen.blurKernel = 16;
+
+const hl = new BABYLON.HighlightLayer('hl', scene);
+
+// ── Floor: three parallel strips, same width in X (table = shelves + center) ──
+const floorRoll = BABYLON.MeshBuilder.CreateGround('floorRoll', { width: ROLL_FLOOR_W, height: ROLL_DEPTH_Z }, scene);
+floorRoll.position.set(0, FLOOR_Y, DIVIDER_Z + ROLL_DEPTH_Z / 2);
+const floorRollMat = new BABYLON.StandardMaterial('fRollMat', scene);
+floorRollMat.diffuseColor = new BABYLON.Color3(0.32, 0.22, 0.13);
+floorRollMat.specularColor = new BABYLON.Color3(0.04, 0.04, 0.04);
+floorRoll.material = floorRollMat; floorRoll.receiveShadows = true;
+
+const floorHeldMat = new BABYLON.StandardMaterial('fHeldMat', scene);
+floorHeldMat.diffuseColor = new BABYLON.Color3(0.22, 0.15, 0.09);
+floorHeldMat.specularColor = new BABYLON.Color3(0.02, 0.02, 0.02);
+
+const floorPlayerHeld = BABYLON.MeshBuilder.CreateGround('floorPlayerHeld', { width: TABLE_WIDTH_X, height: SHELF_DEPTH_Z }, scene);
+floorPlayerHeld.position.set(0, FLOOR_Y, WZ_BOT + SHELF_DEPTH_Z / 2);
+floorPlayerHeld.material = floorHeldMat; floorPlayerHeld.receiveShadows = true;
+
+const floorBotHeld = BABYLON.MeshBuilder.CreateGround('floorBotHeld', { width: TABLE_WIDTH_X, height: SHELF_DEPTH_Z }, scene);
+floorBotHeld.position.set(0, FLOOR_Y, BOT_DIVIDER_Z + SHELF_DEPTH_Z / 2);
+floorBotHeld.material = floorHeldMat; floorBotHeld.receiveShadows = true;
+
+const divMat = new BABYLON.StandardMaterial('divMat', scene);
+divMat.diffuseColor = new BABYLON.Color3(0.55, 0.42, 0.25);
+divMat.specularColor = BABYLON.Color3.Black();
+
+const dividerMesh = BABYLON.MeshBuilder.CreateBox('divider', { width: DIVIDER_BAR_W, height: 0.04, depth: 0.08 }, scene);
+dividerMesh.position.set(0, FLOOR_Y + 0.02, DIVIDER_Z);
+dividerMesh.material = divMat;
+
+const botDividerMesh = BABYLON.MeshBuilder.CreateBox('botDivider', { width: DIVIDER_BAR_W, height: 0.04, depth: 0.08 }, scene);
+botDividerMesh.position.set(0, FLOOR_Y + 0.02, BOT_DIVIDER_Z);
+botDividerMesh.material = divMat;
+
+// ═══════════════════════════════════════════════════
+//  CANNON-ES PHYSICS
+// ═══════════════════════════════════════════════════
+const world = new CANNON.World({ allowSleep: true, gravity: new CANNON.Vec3(0, PHYS.gravity, 0) });
+world.defaultContactMaterial.restitution = PHYS.restitution;
+world.defaultContactMaterial.friction = PHYS.friction;
+
+const floorBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
+floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+floorBody.position.set(0, FLOOR_Y, 0);
+world.addBody(floorBody);
+
+for (const w of [
+  { pos: [WX, 0, 0],  rot: [0, -Math.PI / 2, 0] },
+  { pos: [-WX, 0, 0], rot: [0, Math.PI / 2, 0]  },
+  { pos: [0, 0, WZ_TOP], rot: [0, Math.PI, 0]    },
+  { pos: [0, 0, WZ_BOT], rot: [0, 0, 0]          },
+  { pos: [0, 0, DIVIDER_Z], rot: [0, 0, 0] },
+  { pos: [0, 0, BOT_DIVIDER_Z], rot: [0, Math.PI, 0] },
+]) {
+  const b = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
+  b.position.set(...w.pos); b.quaternion.setFromEuler(...w.rot);
+  world.addBody(b);
+}
+
+// ═══════════════════════════════════════════════════
+//  DICE GEOMETRY (from spike-v2)
+// ═══════════════════════════════════════════════════
+function createDiceVertexData() {
+  const s = SEGMENTS, positions = [], indices = [];
+  const faces = [
+    [1,+.5,0,2],[1,-.5,0,2],[0,+.5,2,1],[0,-.5,2,1],[2,+.5,1,0],[2,-.5,1,0],
+  ];
+  for (const [fA,fV,uA,vA] of faces) {
+    const base = positions.length / 3;
+    for (let i = 0; i <= s; i++) for (let j = 0; j <= s; j++) {
+      const p = [0,0,0]; p[fA]=fV; p[uA]=i/s-.5; p[vA]=j/s-.5;
+      positions.push(p[0],p[1],p[2]);
+    }
+    for (let i = 0; i < s; i++) for (let j = 0; j < s; j++) {
+      const a = base+i*(s+1)+j, b = a+(s+1), c = a+1, d = b+1;
+      if (fV > 0) indices.push(a,c,b,b,c,d); else indices.push(a,b,c,c,b,d);
+    }
+  }
+  const half = 0.5 - EDGE_R;
+  for (let i = 0; i < positions.length; i += 3) {
+    let x=positions[i], y=positions[i+1], z=positions[i+2];
+    const sx=Math.sign(x)*half, sy=Math.sign(y)*half, sz=Math.sign(z)*half;
+    const ax=x-sx, ay=y-sy, az=z-sz;
+    const ox=Math.abs(x)>half, oy=Math.abs(y)>half, oz=Math.abs(z)>half;
+    if(ox&&oy&&oz){const l=Math.hypot(ax,ay,az)||1;x=sx+ax/l*EDGE_R;y=sy+ay/l*EDGE_R;z=sz+az/l*EDGE_R;}
+    else if(ox&&oy){const l=Math.hypot(ax,ay)||1;x=sx+ax/l*EDGE_R;y=sy+ay/l*EDGE_R;}
+    else if(ox&&oz){const l=Math.hypot(ax,az)||1;x=sx+ax/l*EDGE_R;z=sz+az/l*EDGE_R;}
+    else if(oy&&oz){const l=Math.hypot(ay,az)||1;y=sy+ay/l*EDGE_R;z=sz+az/l*EDGE_R;}
+    const nw=v=>{v=v/NOTCH_R;v=Math.PI*Math.max(-1,Math.min(1,v));return NOTCH_D*(Math.cos(v)+1);};
+    const n=(a,b)=>nw(a)*nw(b), o=PIP_OFFSET;
+    if(y===.5)y-=n(x,z);
+    else if(x===.5){x-=n(y+o,z+o);x-=n(y-o,z-o);}
+    else if(z===.5){z-=n(x-o,y+o);z-=n(x,y);z-=n(x+o,y-o);}
+    else if(z===-.5){z+=n(x+o,y+o);z+=n(x+o,y-o);z+=n(x-o,y+o);z+=n(x-o,y-o);}
+    else if(x===-.5){x+=n(y+o,z+o);x+=n(y+o,z-o);x+=n(y,z);x+=n(y-o,z+o);x+=n(y-o,z-o);}
+    else if(y===-.5){y+=n(x+o,z+o);y+=n(x+o,z);y+=n(x+o,z-o);y+=n(x-o,z+o);y+=n(x-o,z);y+=n(x-o,z-o);}
+    positions[i]=x; positions[i+1]=y; positions[i+2]=z;
+  }
+  const normals = [];
+  BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+  let flip = false;
+  for (let i = 0; i < positions.length; i+=3) { if(positions[i]>.45){if(normals[i]<0)flip=true;break;} }
+  if (flip) { for(let i=0;i<indices.length;i+=3){const t=indices[i+1];indices[i+1]=indices[i+2];indices[i+2]=t;} BABYLON.VertexData.ComputeNormals(positions,indices,normals); }
+  const vd = new BABYLON.VertexData(); vd.positions=positions; vd.indices=indices; vd.normals=normals; return vd;
+}
+
+function createPipsVertexData() {
+  const positions=[], indices=[], normals=[], o=PIP_OFFSET, PR=0.1, SEG=16;
+  const pf=[
+    {fA:1,fV:+.5,uA:0,vA:2,pips:[[0,0]]},
+    {fA:1,fV:-.5,uA:0,vA:2,pips:[[-o,-o],[-o,0],[-o,+o],[+o,-o],[+o,0],[+o,+o]]},
+    {fA:0,fV:+.5,uA:2,vA:1,pips:[[-o,-o],[+o,+o]]},
+    {fA:0,fV:-.5,uA:2,vA:1,pips:[[-o,-o],[-o,+o],[0,0],[+o,-o],[+o,+o]]},
+    {fA:2,fV:+.5,uA:1,vA:0,pips:[[+o,-o],[0,0],[-o,+o]]},
+    {fA:2,fV:-.5,uA:1,vA:0,pips:[[-o,-o],[-o,+o],[+o,-o],[+o,+o]]},
+  ];
+  for (const {fA,fV,uA,vA,pips} of pf) {
+    const sign=Math.sign(fV);
+    for (const [cu,cv] of pips) {
+      const base=positions.length/3, nn=[0,0,0]; nn[fA]=sign;
+      const cc=[0,0,0]; cc[fA]=fV; cc[uA]=cu; cc[vA]=cv;
+      positions.push(cc[0],cc[1],cc[2]); normals.push(nn[0],nn[1],nn[2]);
+      for(let i=0;i<SEG;i++){const a=2*Math.PI*i/SEG,v=[0,0,0];v[fA]=fV;v[uA]=cu+Math.cos(a)*PR;v[vA]=cv+Math.sin(a)*PR;positions.push(v[0],v[1],v[2]);normals.push(nn[0],nn[1],nn[2]);}
+      for(let i=0;i<SEG;i++){if(sign>0)indices.push(base,base+1+i,base+1+(i+1)%SEG);else indices.push(base,base+1+(i+1)%SEG,base+1+i);}
+    }
+  }
+  const vd=new BABYLON.VertexData(); vd.positions=positions; vd.indices=indices; vd.normals=normals; return vd;
+}
+
+const cachedOuterVD = createDiceVertexData();
+const cachedPipsVD  = createPipsVertexData();
+
+const pipMat = new BABYLON.StandardMaterial('pipMat', scene);
+pipMat.disableLighting = true;
+pipMat.emissiveColor = BABYLON.Color3.FromHexString(PIP_COLOR);
+pipMat.diffuseColor = BABYLON.Color3.Black();
+pipMat.specularColor = BABYLON.Color3.Black();
+pipMat.zOffset = -2;
+
+const backingMat = new BABYLON.StandardMaterial('backMat', scene);
+backingMat.diffuseColor = new BABYLON.Color3(0.05,0.05,0.05);
+backingMat.specularColor = BABYLON.Color3.Black();
+
+// ═══════════════════════════════════════════════════
+//  DICE MANAGEMENT
+// ═══════════════════════════════════════════════════
+const dice = [];
+const heldDice = [];
+let dieIdCounter = 0;
+
+const _faceTmp = new CANNON.Vec3(), _faceLv = new CANNON.Vec3();
+const _faceLocals = [
+  { x: 0, y: 1, z: 0, val: 1 }, { x: 0, y: -1, z: 0, val: 6 },
+  { x: 1, y: 0, z: 0, val: 2 }, { x: -1, y: 0, z: 0, val: 5 },
+  { x: 0, y: 0, z: 1, val: 3 }, { x: 0, y: 0, z: -1, val: 4 },
+];
+function readFaceValue(body) {
+  const q = body.quaternion;
+  const worldUp = new CANNON.Vec3(0, 1, 0);
+  let bestDot = -2, secondDot = -2, bestVal = null;
+  for (const f of _faceLocals) {
+    _faceLv.set(f.x, f.y, f.z);
+    q.vmult(_faceLv, _faceTmp);
+    const dot = _faceTmp.dot(worldUp);
+    if (dot > bestDot) {
+      secondDot = bestDot;
+      bestDot = dot;
+      bestVal = f.val;
+    } else if (dot > secondDot) secondDot = dot;
+  }
+  if (bestDot < 0.72) return null;
+  if (bestDot - secondDot < 0.06) return null;
+  return bestVal;
+}
+
+function createDie() {
+  const id = dieIdCounter++;
+  const sc = DIE_SCALE;
+  const oMat = new BABYLON.StandardMaterial(`o${id}`, scene);
+  oMat.diffuseColor = BABYLON.Color3.FromHexString(BODY_COLOR);
+  oMat.specularColor = new BABYLON.Color3(0.3,0.3,0.3);
+
+  const root = new BABYLON.TransformNode(`die${id}`, scene);
+  root.rotationQuaternion = BABYLON.Quaternion.Identity();
+  root.scaling.setAll(sc);
+
+  const outer = new BABYLON.Mesh(`outer${id}`, scene);
+  cachedOuterVD.applyToMesh(outer); outer.material = oMat;
+  outer.parent = root; outer.receiveShadows = true; shadowGen.addShadowCaster(outer);
+
+  const pips = new BABYLON.Mesh(`pips${id}`, scene);
+  cachedPipsVD.applyToMesh(pips); pips.material = pipMat; pips.parent = root;
+
+  const backing = BABYLON.MeshBuilder.CreateBox(`back${id}`, {size:0.9}, scene);
+  backing.material = backingMat; backing.parent = root;
+
+  const hs = 0.48 * sc;
+  const body = new CANNON.Body({
+    mass: PHYS.mass, shape: new CANNON.Box(new CANNON.Vec3(hs,hs,hs)),
+    sleepTimeLimit: PHYS.sleepTime, sleepSpeedLimit: PHYS.sleepSpeed,
+    linearDamping: PHYS.linearDamping, angularDamping: PHYS.angularDamping,
+  });
+  world.addBody(body);
+  // New dice start kinematic + hidden under the table so they don't fall at (0,0,0) before the first throw.
+  const stashY = FLOOR_Y - 8;
+  body.type = CANNON.Body.KINEMATIC;
+  body.velocity.setZero();
+  body.angularVelocity.setZero();
+  body.position.set(0, stashY, 0);
+  body.quaternion.set(0, 0, 0, 1);
+  root.position.set(0, stashY, 0);
+  root.rotationQuaternion = BABYLON.Quaternion.Identity();
+  outer.setEnabled(false);
+  pips.setEnabled(false);
+  backing.setEnabled(false);
+
+  const die = { id, root, outer, pips, backing, body, oMat, value: null, settled: false };
+
+  body.addEventListener('sleep', () => {
+    body.allowSleep = false;
+    const v = readFaceValue(body);
+    if (v !== null) { die.value = v; die.settled = true; checkAllSettled(); }
+    else { body.allowSleep = true; }
+  });
+
+  return die;
+}
+
+function disposeDie(d) {
+  hl.removeMesh(d.outer); shadowGen.removeShadowCaster(d.outer);
+  d.pips.dispose(); d.backing.dispose(); d.outer.dispose(); d.root.dispose(); d.oMat.dispose();
+  if (d.body) { world.removeBody(d.body); d.body = null; }
+}
+
+function syncActiveDice(n) {
+  while (dice.length < n) dice.push(createDie());
+  while (dice.length > n) disposeDie(dice.pop());
+}
+
+// ═══════════════════════════════════════════════════
+//  THROW FUNCTIONS
+// ═══════════════════════════════════════════════════
+function throwDice(fromZ, impulseZ, opts = {}) {
+  const spawnYBase = opts.spawnYBase ?? FLOOR_Y + 3;
+  const spawnYStep = opts.spawnYStep ?? 0.3;
+  const zJitter = opts.zJitter ?? 0.55;
+  const impulseYMul = opts.impulseYMul ?? 0.35;
+  const impulseXMul = opts.impulseXMul ?? 0.3;
+
+  game.selectedIndices = [];
+  for (const d of dice) { d.value = null; d.settled = false; hl.removeMesh(d.outer); }
+  game.phase = 'rolling';
+  updateUI();
+
+  for (let i = 0; i < dice.length; i++) {
+    const d = dice[i];
+    d.outer.setEnabled(true);
+    d.pips.setEnabled(true);
+    d.backing.setEnabled(true);
+    d.body.type = CANNON.Body.DYNAMIC;
+    d.body.velocity.setZero(); d.body.angularVelocity.setZero();
+    const xSpread = 1.1 * TABLE_WORLD_SCALE;
+    d.body.position.set(
+      (i - (dice.length - 1) / 2) * xSpread + (Math.random() - .5) * .3 * TABLE_WORLD_SCALE,
+      spawnYBase + i * spawnYStep,
+      fromZ + (Math.random() - .5) * zJitter
+    );
+    d.body.quaternion.set(Math.random()-.5,Math.random()-.5,Math.random()-.5,Math.random()-.5);
+    d.body.quaternion.normalize();
+    const f = PHYS.throwMin + Math.random() * (PHYS.throwMax - PHYS.throwMin);
+    d.body.applyImpulse(
+      new CANNON.Vec3((Math.random()-.5)*f*impulseXMul, f*impulseYMul, impulseZ*f),
+      new CANNON.Vec3((Math.random()-.5)*.3,(Math.random()-.5)*.3,(Math.random()-.5)*.3)
+    );
+    d.body.allowSleep = true; d.body.wakeUp();
+  }
+}
+
+const THROW_Z_INSET = 0.12;
+
+/** Player: toss from the bottom (player-side) edge of the roll zone — low release, impulse into the table. */
+function throwFromBottom() {
+  throwDice(DIVIDER_Z + ROLL_DEPTH_Z * THROW_Z_INSET, 0.95, {
+    spawnYBase: FLOOR_Y + 2.1,
+    spawnYStep: 0.22,
+    impulseYMul: 0.44,
+    impulseXMul: 0.32,
+    zJitter: 0.55 * TABLE_WORLD_SCALE,
+  });
+}
+
+/** Bot: drop from the top (bot-side) edge of the roll zone — higher release, impulse toward the player. */
+function throwFromTop() {
+  throwDice(BOT_DIVIDER_Z - ROLL_DEPTH_Z * THROW_Z_INSET, -0.95, {
+    spawnYBase: FLOOR_Y + 5.5,
+    spawnYStep: 0.32,
+    impulseYMul: 0.4,
+    impulseXMul: 0.28,
+    zJitter: 0.55 * TABLE_WORLD_SCALE,
+  });
+}
+
+// ── Pull-back sling (player): drag on table, release to throw ─────────────
+const SLING_PICK_Y = FLOOR_Y + 0.55;
+const SLING_MIN_PULL = 0.09 * TABLE_WORLD_SCALE;
+let slingDrag = null; // { start:{x,z}, pointerId }
+
+function clampRollXZ(x, z) {
+  const margin = 0.4;
+  const xCl = Math.max(-WX + margin, Math.min(WX - margin, x));
+  const zLo = DIVIDER_Z + margin;
+  const zHi = BOT_DIVIDER_Z - margin;
+  return { x: xCl, z: Math.max(zLo, Math.min(zHi, z)) };
+}
+
+function canvasPickRollXZ(ev) {
+  const rect = canvas.getBoundingClientRect();
+  const rw = engine.getRenderWidth();
+  const rh = engine.getRenderHeight();
+  const sx = ((ev.clientX - rect.left) / Math.max(rect.width, 1)) * rw;
+  const sy = ((ev.clientY - rect.top) / Math.max(rect.height, 1)) * rh;
+  const ray = scene.createPickingRay(sx, sy, null, camera);
+  const oy = ray.origin.y;
+  const dy = ray.direction.y;
+  if (Math.abs(dy) < 1e-5) return null;
+  const t = (SLING_PICK_Y - oy) / dy;
+  if (t < 0) return null;
+  const x = ray.origin.x + ray.direction.x * t;
+  const z = ray.origin.z + ray.direction.z * t;
+  return clampRollXZ(x, z);
+}
+
+function positionKinematicCluster(cx, cz) {
+  const spawnYBase = FLOOR_Y + 2.1;
+  const spawnYStep = 0.22;
+  const xSpread = 0.5 * TABLE_WORLD_SCALE;
+  const zOff = 0.03 * TABLE_WORLD_SCALE;
+  for (let i = 0; i < dice.length; i++) {
+    const d = dice[i];
+    d.body.type = CANNON.Body.KINEMATIC;
+    d.body.velocity.setZero();
+    d.body.angularVelocity.setZero();
+    d.outer.setEnabled(true);
+    d.pips.setEnabled(true);
+    d.backing.setEnabled(true);
+    const ox = (i - (dice.length - 1) / 2) * xSpread;
+    d.body.position.set(cx + ox, spawnYBase + i * spawnYStep, cz + ((i % 3) - 1) * zOff);
+    if (!d._slingPose) {
+      d._slingPose = true;
+      d.body.quaternion.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
+      d.body.quaternion.normalize();
+    }
+    d.body.allowSleep = false;
+  }
+}
+
+/** Keep cluster pose while dragging; same base impulses as throwFromBottom + sling extras. */
+function applyRollImpulsesFromCurrentPositions(slingImpulse) {
+  const impulseZ = 0.95;
+  const impulseYMul = 0.44;
+  const impulseXMul = 0.32;
+  game.selectedIndices = [];
+  for (const d of dice) { d.value = null; d.settled = false; hl.removeMesh(d.outer); }
+  game.phase = 'rolling';
+  updateUI();
+
+  const sx0 = slingImpulse.x;
+  const sz0 = slingImpulse.z;
+  for (let i = 0; i < dice.length; i++) {
+    const d = dice[i];
+    d.body.type = CANNON.Body.DYNAMIC;
+    d.body.velocity.setZero();
+    d.body.angularVelocity.setZero();
+    d.body.quaternion.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
+    d.body.quaternion.normalize();
+    const f = PHYS.throwMin + Math.random() * (PHYS.throwMax - PHYS.throwMin);
+    const sx = sx0 * (0.88 + Math.random() * 0.28);
+    const sz = sz0 * (0.88 + Math.random() * 0.28);
+    d.body.applyImpulse(
+      new CANNON.Vec3(
+        (Math.random() - 0.5) * f * impulseXMul + sx,
+        f * impulseYMul,
+        impulseZ * f + sz
+      ),
+      new CANNON.Vec3((Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3)
+    );
+    d.body.allowSleep = true;
+    d.body.wakeUp();
+  }
+}
+
+function finishPlayerSling(ev) {
+  if (!slingDrag) return;
+  const start = slingDrag.start;
+  slingDrag = null;
+  try { canvas.releasePointerCapture(ev.pointerId); } catch (_) {}
+
+  const end = canvasPickRollXZ(ev) || start;
+  const pullX = start.x - end.x;
+  const pullZ = start.z - end.z;
+  const pullLen = Math.hypot(pullX, pullZ);
+
+  if (pullLen < SLING_MIN_PULL) {
+    throwFromBottom();
+    return;
+  }
+  const nx = pullX / pullLen;
+  const nz = pullZ / pullLen;
+  const power = Math.min(pullLen * 3.1, 16) * TABLE_WORLD_SCALE;
+  applyRollImpulsesFromCurrentPositions({ x: nx * power * 0.5, z: nz * power * 0.72 });
+}
+
+// ═══════════════════════════════════════════════════
+//  SETTLE + BUST CHECK
+// ═══════════════════════════════════════════════════
+function checkAllSettled() {
+  if (!dice.length || !dice.every(d => d.settled)) return;
+  if (game.phase !== 'rolling') return;
+  if (game.currentPlayer !== 'player') return;
+
+  const values = dice.map(d => d.value);
+  if (!hasPlayableDice(values)) {
+    handleBust();
+  } else {
+    game.phase = 'selecting';
+    statusEl.textContent = 'Select scoring dice';
+    updateButtons();
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  SLING + SELECTION (pointer)
+// ═══════════════════════════════════════════════════
+scene.onPointerObservable.add(info => {
+  const ev = info.event;
+  if (!camDebugOrbit.checked && game.currentPlayer === 'player') {
+    if (game.phase === 'waiting' || game.phase === 'aiming') {
+      if (info.type === BABYLON.PointerEventTypes.POINTERDOWN && ev.button === 0) {
+        if (game.phase !== 'waiting') return;
+        const p = canvasPickRollXZ(ev);
+        if (!p) return;
+        if (dice.length === 0) syncActiveDice(6);
+        for (const d of dice) delete d._slingPose;
+        slingDrag = { start: { x: p.x, z: p.z }, pointerId: ev.pointerId };
+        game.phase = 'aiming';
+        positionKinematicCluster(p.x, p.z);
+        updateButtons();
+        try { canvas.setPointerCapture(ev.pointerId); } catch (_) {}
+        return;
+      }
+      if (slingDrag && info.type === BABYLON.PointerEventTypes.POINTERMOVE) {
+        if (ev.pointerType !== 'touch' && !(ev.buttons & 1)) return;
+        const p = canvasPickRollXZ(ev);
+        if (p) positionKinematicCluster(p.x, p.z);
+        return;
+      }
+      if (slingDrag && info.type === BABYLON.PointerEventTypes.POINTERUP && ev.button === 0) {
+        finishPlayerSling(ev);
+        return;
+      }
+    }
+  }
+
+  if (game.phase !== 'selecting' || game.currentPlayer !== 'player') return;
+  if (info.type !== BABYLON.PointerEventTypes.POINTERUP || ev.button !== 0) return;
+  if (!info.pickInfo || !info.pickInfo.hit) return;
+
+  const hit = dice.find(d => d.outer === info.pickInfo.pickedMesh || d.pips === info.pickInfo.pickedMesh || d.backing === info.pickInfo.pickedMesh);
+  if (!hit) return;
+
+  const idx = dice.indexOf(hit);
+  const si = game.selectedIndices;
+  const pos = si.indexOf(idx);
+  if (pos >= 0) {
+    si.splice(pos, 1);
+    hl.removeMesh(hit.outer);
+  } else {
+    si.push(idx);
+    hl.addMesh(hit.outer, new BABYLON.Color3(0.35, 0.85, 0.4));
+  }
+  evaluateSelection();
+});
+
+function evaluateSelection() {
+  const si = game.selectedIndices;
+  if (!si.length) {
+    selInfoEl.textContent = '';
+    scorePlayBtn.style.display = 'none';
+    bankPassBtn.style.display = 'none';
+    return;
+  }
+  const vals = si.map(i => dice[i].value);
+  const r = scoreSelection(vals);
+  if (r.valid) {
+    const remaining = dice.length - si.length;
+    const wouldHotHand = remaining === 0 && (heldDice.length + si.length) >= 6;
+    const label = wouldHotHand ? 'HOT HAND!' : `${r.score} pts`;
+    selInfoEl.textContent = `Selection: ${vals.join(', ')} = ${label}`;
+    selInfoEl.style.color = wouldHotHand ? '#e67e22' : '#ffc91c';
+    scorePlayBtn.style.display = '';
+    scorePlayBtn.textContent = wouldHotHand ? "SCORE — HOT HAND!" : (remaining > 0 ? "SCORE'N'PLAY" : "BANK'N'PASS");
+    bankPassBtn.style.display = wouldHotHand ? 'none' : '';
+  } else {
+    selInfoEl.textContent = `Invalid selection (${vals.join(', ')})`;
+    selInfoEl.style.color = '#e74c3c';
+    scorePlayBtn.style.display = 'none';
+    bankPassBtn.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  HELD ZONE
+// ═══════════════════════════════════════════════════
+function getHeldPos(index, total, who) {
+  const cols = 2;
+  const rows = Math.ceil(total / cols) || 1;
+  const row = Math.floor(index / cols);
+  const col = index % cols;
+  const diceThisRow = Math.min(cols, total - row * cols);
+  const sx = DIE_EDGE + 0.12;
+  const sz = DIE_EDGE + 0.1;
+  const x = (col - (diceThisRow - 1) / 2) * sx;
+  const shelfMidZ = who === 'bot' ? BOT_DIVIDER_Z + SHELF_DEPTH_Z / 2 : WZ_BOT + SHELF_DEPTH_Z / 2;
+  const z = shelfMidZ + (row - (rows - 1) / 2) * sz;
+  return { x, y: FLOOR_Y + 0.5, z };
+}
+
+function scoreAndHold() {
+  const si = [...game.selectedIndices].sort((a, b) => b - a);
+  const vals = game.selectedIndices.map(i => dice[i].value);
+  const r = scoreSelection(vals);
+  if (!r.valid) return null;
+
+  game.roundScore += r.score;
+
+  for (const idx of si) {
+    const d = dice[idx];
+    world.removeBody(d.body); d.body = null;
+    hl.removeMesh(d.outer);
+    dice.splice(idx, 1);
+    d.root.scaling.setAll(DIE_SCALE);
+    d.animTarget = null;
+    heldDice.push(d);
+  }
+
+  for (let i = 0; i < heldDice.length; i++) {
+    heldDice[i].animTarget = getHeldPos(i, heldDice.length, game.currentPlayer);
+  }
+
+  game.selectedIndices = [];
+  addLog(`Scored ${vals.join(',')} = ${r.score}`, 'bank');
+  updateUI();
+
+  if (heldDice.length >= 6) return 'hothand';
+  return r.score;
+}
+
+function clearHeldDice() {
+  for (const d of heldDice) disposeDie(d);
+  heldDice.length = 0;
+}
+
+// ═══════════════════════════════════════════════════
+//  TURN FLOW
+// ═══════════════════════════════════════════════════
+function handleScoreAndPlay() {
+  const result = scoreAndHold();
+  if (result === null) return;
+  if (result === 'hothand') { handleHotHand(); return; }
+
+  setTimeout(() => {
+    if (game.currentPlayer === 'player') throwFromBottom();
+    else throwFromTop();
+  }, 550);
+}
+
+function handleBankAndPass() {
+  if (game.selectedIndices.length) {
+    const vals = game.selectedIndices.map(i => dice[i].value);
+    const r = scoreSelection(vals);
+    if (r.valid) scoreAndHold();
+  }
+
+  const damage = game.roundScore;
+  if (damage <= 0) return;
+  const isPlayer = game.currentPlayer === 'player';
+
+  if (isPlayer) game.botHp = Math.max(0, game.botHp - damage);
+  else          game.playerHp = Math.max(0, game.playerHp - damage);
+
+  showBanner(`BANK! ${damage} damage`, 'bank');
+  addLog(`${isPlayer ? 'Player' : 'Bot'} banked ${damage} damage`, 'bank');
+  updateHP();
+
+  if (game.botHp <= 0 || game.playerHp <= 0) {
+    game.phase = 'ended';
+    setTimeout(() => showBanner(game.botHp <= 0 ? 'VICTORY!' : 'DEFEAT!', game.botHp <= 0 ? 'victory' : 'defeat'), 800);
+    updateButtons();
+    return;
+  }
+
+  game.phase = 'switching';
+  setTimeout(() => endTurn(), 1200);
+}
+
+function handleBust() {
+  game.phase = 'bust';
+  game.roundScore = 0;
+  showBanner('BUST!', 'bust');
+  addLog(`${game.currentPlayer === 'player' ? 'Player' : 'Bot'} busted!`, 'bust');
+  updateUI();
+  setTimeout(() => endTurn(), 1400);
+}
+
+function handleHotHand() {
+  const damage = game.roundScore;
+  const isPlayer = game.currentPlayer === 'player';
+
+  if (isPlayer) game.botHp = Math.max(0, game.botHp - damage);
+  else          game.playerHp = Math.max(0, game.playerHp - damage);
+
+  showBanner(`HOT HAND! ${damage} damage!`, 'hot');
+  addLog(`HOT HAND! ${damage} damage dealt`, 'hot');
+  updateHP();
+
+  if (game.botHp <= 0 || game.playerHp <= 0) {
+    game.phase = 'ended';
+    setTimeout(() => showBanner(game.botHp <= 0 ? 'VICTORY!' : 'DEFEAT!', game.botHp <= 0 ? 'victory' : 'defeat'), 800);
+    updateButtons();
+    return;
+  }
+
+  game.roundScore = 0;
+  clearHeldDice();
+  syncActiveDice(0);
+
+  if (isPlayer) {
+    game.phase = 'waiting';
+    updateUI();
+  } else {
+    syncActiveDice(6);
+    setTimeout(() => runBotTurn(), 900);
+  }
+}
+
+function endTurn() {
+  slingDrag = null;
+  clearHeldDice();
+  syncActiveDice(0);
+  game.currentPlayer = game.currentPlayer === 'player' ? 'bot' : 'player';
+  game.roundScore = 0;
+  game.selectedIndices = [];
+
+  if (game.currentPlayer === 'bot') {
+    syncActiveDice(6);
+    runBotTurn();
+  } else {
+    game.phase = 'waiting';
+    updateUI();
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  BOT AI
+// ═══════════════════════════════════════════════════
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+function waitForSettle() {
+  return new Promise(resolve => {
+    const iv = setInterval(() => {
+      if (dice.every(d => d.settled)) { clearInterval(iv); resolve(); }
+    }, 80);
+  });
+}
+
+async function runBotTurn() {
+  game.phase = 'botTurn';
+  updateUI();
+
+  let keepGoing = true;
+  while (keepGoing) {
+    await delay(600);
+    throwFromTop();
+    await waitForSettle();
+    await delay(400);
+
+    const values = dice.map(d => d.value);
+    if (!hasPlayableDice(values)) { handleBust(); return; }
+
+    const best = findBestSubset(values);
+    if (!best) { handleBust(); return; }
+
+    game.selectedIndices = best.indices;
+    for (const i of best.indices) hl.addMesh(dice[i].outer, new BABYLON.Color3(0.3, 0.7, 1.0));
+    evaluateSelection();
+    await delay(700);
+
+    const remaining = dice.length - best.indices.length;
+    const accumulated = game.roundScore + best.score;
+    const wouldHotHand = remaining === 0 && (heldDice.length + best.indices.length) >= 6;
+
+    if (wouldHotHand) {
+      const result = scoreAndHold();
+      if (result === 'hothand') handleHotHand();
+      keepGoing = false;
+    } else if (accumulated >= 450 || remaining <= 1) {
+      handleBankAndPass();
+      keepGoing = false;
+    } else {
+      const result = scoreAndHold();
+      if (result === 'hothand') { handleHotHand(); keepGoing = false; }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════
+function updateHP() {
+  const pPct = (game.playerHp / game.playerMaxHp) * 100;
+  const bPct = (game.botHp / game.botMaxHp) * 100;
+  $('playerHpFill').style.width = pPct + '%';
+  $('playerHp').textContent = game.playerHp;
+  $('botHpFill').style.width = bPct + '%';
+  $('botHp').textContent = game.botHp;
+}
+
+function updateUI() {
+  turnEl.textContent = game.currentPlayer === 'player' ? 'Player Turn' : 'Bot Turn';
+  turnEl.style.color = game.currentPlayer === 'player' ? '#ffc91c' : '#9b59b6';
+  roundScoreEl.textContent = game.roundScore;
+  selInfoEl.textContent = '';
+  selInfoEl.style.color = '#bbb';
+  updateButtons();
+  updateHP();
+}
+
+function updateButtons() {
+  const p = game.phase;
+  const isPlayer = game.currentPlayer === 'player';
+
+  rollBtn.style.display     = (p === 'waiting' && isPlayer) ? '' : 'none';
+  scorePlayBtn.style.display = 'none';
+  bankPassBtn.style.display  = 'none';
+  restartBtn.style.display   = p === 'ended' ? '' : 'none';
+
+  if (p === 'selecting' && isPlayer) evaluateSelection();
+
+  statusEl.textContent =
+    p === 'waiting' ? 'Drag on the table to throw, or press ROLL' :
+    p === 'aiming' ? 'Pull back, release to throw' :
+    p === 'rolling' ? 'Rolling…' :
+    p === 'selecting' ? (isPlayer ? 'Click dice to select' : '') :
+    p === 'botTurn' ? 'Bot is thinking…' :
+    p === 'bust' ? '' :
+    p === 'ended' ? (game.botHp <= 0 ? 'You win!' : 'You lose!') : '';
+}
+
+let bannerTimer = 0;
+function showBanner(text, cls) {
+  clearTimeout(bannerTimer);
+  bannerEl.textContent = text;
+  bannerEl.className = 'banner ' + (cls || '');
+  requestAnimationFrame(() => bannerEl.classList.add('show'));
+  bannerTimer = setTimeout(() => bannerEl.classList.remove('show'), 2200);
+}
+
+function addLog(text, cls) {
+  const div = document.createElement('div');
+  div.className = 'log-entry' + (cls ? ' ' + cls : '');
+  div.textContent = text;
+  logEl.prepend(div);
+  if (logEl.children.length > 50) logEl.lastChild.remove();
+}
+
+// ═══════════════════════════════════════════════════
+//  BUTTON WIRING
+// ═══════════════════════════════════════════════════
+canvas.addEventListener('pointercancel', ev => {
+  if (!slingDrag || ev.pointerId !== slingDrag.pointerId) return;
+  slingDrag = null;
+  try { canvas.releasePointerCapture(ev.pointerId); } catch (_) {}
+  if (game.phase === 'aiming') {
+    game.phase = 'waiting';
+    syncActiveDice(0);
+    updateButtons();
+  }
+});
+
+rollBtn.addEventListener('click', () => {
+  if (game.phase !== 'waiting' || game.currentPlayer !== 'player') return;
+  if (dice.length === 0) syncActiveDice(6);
+  throwFromBottom();
+});
+
+scorePlayBtn.addEventListener('click', () => {
+  if (game.phase !== 'selecting' || game.currentPlayer !== 'player') return;
+  handleScoreAndPlay();
+});
+
+bankPassBtn.addEventListener('click', () => {
+  if (game.currentPlayer !== 'player') return;
+  if (game.phase !== 'selecting') return;
+  handleBankAndPass();
+});
+
+restartBtn.addEventListener('click', () => {
+  slingDrag = null;
+  game.playerHp = game.playerMaxHp;
+  game.botHp = game.botMaxHp;
+  game.roundScore = 0;
+  game.selectedIndices = [];
+  game.currentPlayer = 'player';
+  game.phase = 'waiting';
+  clearHeldDice();
+  syncActiveDice(0);
+  logEl.innerHTML = '';
+  updateUI();
+});
+
+// ═══════════════════════════════════════════════════
+//  RENDER LOOP
+// ═══════════════════════════════════════════════════
+engine.runRenderLoop(() => {
+  world.fixedStep();
+
+  for (const d of dice) {
+    d.root.position.set(d.body.position.x, d.body.position.y, d.body.position.z);
+    d.root.rotationQuaternion.set(d.body.quaternion.x, d.body.quaternion.y, d.body.quaternion.z, d.body.quaternion.w);
+
+    if (!d.settled) {
+      const spd = d.body.velocity.length() + d.body.angularVelocity.length();
+      if (spd > 0.02 && spd < 1.5) {
+        const {x:qx,y:qy,z:qz,w:qw} = d.body.quaternion;
+        const align = Math.max(
+          Math.abs(2*(qx*qy+qw*qz)),
+          Math.abs(1-2*(qx*qx+qz*qz)),
+          Math.abs(2*(qy*qz-qw*qx))
+        );
+        if (align < 0.92) {
+          d.body.angularVelocity.x += (Math.random()-.5)*3;
+          d.body.angularVelocity.z += (Math.random()-.5)*3;
+        }
+      }
+    }
+  }
+
+  if (game.phase === 'rolling') {
+    for (const d of dice) {
+      if (d.settled) continue;
+      const spd2 = d.body.velocity.lengthSquared() + d.body.angularVelocity.lengthSquared();
+      if (spd2 >= 0.0004) continue;
+      const v = readFaceValue(d.body);
+      if (v !== null) {
+        d.body.allowSleep = false;
+        d.value = v;
+        d.settled = true;
+        checkAllSettled();
+      }
+    }
+  }
+
+  for (const d of heldDice) {
+    if (d.animTarget) {
+      const t = d.animTarget, p = d.root.position;
+      p.x += (t.x - p.x) * 0.12;
+      p.y += (t.y - p.y) * 0.12;
+      p.z += (t.z - p.z) * 0.12;
+      if (Math.abs(p.x-t.x)<.02 && Math.abs(p.y-t.y)<.02 && Math.abs(p.z-t.z)<.02) {
+        p.set(t.x, t.y, t.z); d.animTarget = null;
+      }
+    }
+  }
+
+  scene.render();
+});
+window.addEventListener('resize', () => engine.resize());
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
+syncActiveDice(0);
+updateUI();
+</script>
+</body>
+</html>

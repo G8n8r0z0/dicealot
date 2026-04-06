@@ -1,0 +1,16 @@
+﻿{
+  "name": "White Classic D6",
+  "systemName": "white-classic-v5",
+  "author": "Codex Spike",
+  "version": 0.6,
+  "meshFile": "default.json",
+  "material": {
+    "type": "color",
+    "diffuseTexture": {
+      "light": "diffuse-light.png",
+      "dark": "diffuse-dark.png"
+    },
+    "diffuseLevel": 1
+  },
+  "diceAvailable": ["d6"]
+}

@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dice Spike v2 — BabylonJS + cannon-es</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #1a1a1a; font-family: "Segoe UI", Arial, sans-serif; }
+    #renderCanvas { width: 100vw; height: 100vh; display: block; touch-action: none; }
+
+    .sidebar {
+      position: fixed; top: 0; right: 0; width: 270px; height: 100vh;
+      background: rgba(10,10,10,0.88); border-left: 1px solid rgba(255,255,255,0.08);
+      overflow-y: auto; z-index: 10; padding: 16px; display: flex; flex-direction: column; gap: 14px;
+      backdrop-filter: blur(10px);
+    }
+    .sidebar h3 { color: #ffc91c; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; margin: 0; }
+    .sidebar section { display: flex; flex-direction: column; gap: 6px; }
+
+    .s-row { display: flex; align-items: center; gap: 6px; }
+    .s-row label { flex: 1; color: #aaa; font-size: 0.78rem; }
+    .s-row input[type="range"] { flex: 2; accent-color: #ffc91c; }
+    .s-val { color: #ffc91c; font-family: Consolas, monospace; font-size: 0.78rem; min-width: 36px; text-align: right; }
+
+    .color-row { display: flex; align-items: center; gap: 8px; }
+    .color-row label { color: #aaa; font-size: 0.78rem; flex: 1; }
+    .color-row input[type="color"] {
+      width: 36px; height: 28px; border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px; background: none; cursor: pointer; padding: 0;
+    }
+
+    .presets { display: flex; gap: 5px; flex-wrap: wrap; }
+    .preset-btn {
+      width: 28px; height: 28px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.12);
+      cursor: pointer; transition: border-color 120ms;
+    }
+    .preset-btn:hover { border-color: rgba(255,255,255,0.5); }
+
+    .count-row { display: flex; gap: 4px; }
+    .count-btn {
+      flex: 1; padding: 6px 0; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12);
+      background: #222; color: #ccc; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+      transition: background 100ms, border-color 100ms;
+    }
+    .count-btn.active { background: #ffc91c; color: #111; border-color: #ffc91c; }
+    .count-btn:hover:not(.active) { border-color: rgba(255,255,255,0.3); }
+
+    .roll-btn {
+      width: 100%; padding: 12px; background: #ffc91c; color: #111; border: none;
+      font-size: 1rem; font-weight: 700; border-radius: 10px; cursor: pointer;
+    }
+    .roll-btn:hover { background: #ffda4d; }
+
+    #faceValues { color: #fff; font-size: 1.1rem; font-weight: 700; text-align: center; min-height: 24px; }
+    #statusText { color: #777; font-size: 0.75rem; text-align: center; min-height: 18px; }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <div class="sidebar">
+    <section>
+      <h3>Physics</h3>
+      <div class="s-row"><label>gravity</label><input type="range" id="sGravity" min="-120" max="-5" step="1" value="-50"><span class="s-val" id="vGravity">-50</span></div>
+      <div class="s-row"><label>restitution</label><input type="range" id="sRestitution" min="0" max="1" step="0.01" value="0.3"><span class="s-val" id="vRestitution">0.3</span></div>
+      <div class="s-row"><label>friction</label><input type="range" id="sFriction" min="0" max="2" step="0.05" value="0.6"><span class="s-val" id="vFriction">0.6</span></div>
+      <div class="s-row"><label>throw min</label><input type="range" id="sThrowMin" min="0.5" max="12" step="0.1" value="3"><span class="s-val" id="vThrowMin">3</span></div>
+      <div class="s-row"><label>throw max</label><input type="range" id="sThrowMax" min="1" max="20" step="0.1" value="8"><span class="s-val" id="vThrowMax">8</span></div>
+      <div class="s-row"><label>throw force</label><input type="range" id="sThrowForce" min="0.2" max="3" step="0.1" value="1"><span class="s-val" id="vThrowForce">1</span></div>
+      <div class="s-row"><label>mass</label><input type="range" id="sMass" min="0.1" max="5" step="0.1" value="1"><span class="s-val" id="vMass">1</span></div>
+      <div class="s-row"><label>sleep time</label><input type="range" id="sSleepTime" min="0.05" max="2" step="0.05" value="0.3"><span class="s-val" id="vSleepTime">0.3</span></div>
+      <div class="s-row"><label>sleep speed</label><input type="range" id="sSleepSpeed" min="0.01" max="0.5" step="0.01" value="0.05"><span class="s-val" id="vSleepSpeed">0.05</span></div>
+    </section>
+
+    <section>
+      <h3>Die Size</h3>
+      <div class="s-row"><label>scale</label><input type="range" id="sScale" min="0.5" max="2" step="0.05" value="1"><span class="s-val" id="vScale">1</span></div>
+    </section>
+
+    <section>
+      <h3>Dice Count</h3>
+      <div class="count-row" id="countRow">
+        <button class="count-btn active" data-n="1">1</button>
+        <button class="count-btn" data-n="2">2</button>
+        <button class="count-btn" data-n="3">3</button>
+        <button class="count-btn" data-n="4">4</button>
+        <button class="count-btn" data-n="5">5</button>
+        <button class="count-btn" data-n="6">6</button>
+      </div>
+    </section>
+
+    <section>
+      <h3>Colors</h3>
+      <div class="color-row">
+        <label>body</label><input type="color" id="cBody" value="#eae8e3">
+      </div>
+      <div class="color-row">
+        <label>pips</label><input type="color" id="cPips" value="#141414">
+      </div>
+      <div class="presets" id="presets"></div>
+    </section>
+
+    <section>
+      <h3>Throw Mode</h3>
+      <div class="count-row" id="throwModeRow">
+        <button class="count-btn active" data-mode="drop">Drop</button>
+        <button class="count-btn" data-mode="throw">Throw</button>
+      </div>
+    </section>
+
+    <section>
+      <button class="roll-btn" id="rollBtn">Roll</button>
+      <button class="roll-btn" id="jumpBtn" style="background:#555;color:#fff;margin-top:6px">Jump</button>
+      <div id="faceValues">-</div>
+      <div id="statusText">Loading…</div>
+    </section>
+  </div>
+
+  <script src="vendor/babylon.js"></script>
+  <script type="importmap">
+  { "imports": { "cannon-es": "./vendor/cannon-es.js" } }
+  </script>
+  <script type="module">
+    import * as CANNON from 'cannon-es';
+
+    const canvas = document.getElementById('renderCanvas');
+    const faceValuesEl = document.getElementById('faceValues');
+    const statusEl = document.getElementById('statusText');
+    const rollBtn = document.getElementById('rollBtn');
+
+    // ── Config ───────────────────────────────────────────────
+    const cfg = {
+      gravity: -50, restitution: 0.3, friction: 0.6,
+      throwMin: 3, throwMax: 8, throwForce: 1,
+      mass: 1, sleepTime: 0.3, sleepSpeed: 0.05,
+      diceCount: 1, dieScale: 1,
+      bodyColor: '#eae8e3', pipColor: '#141414',
+      throwMode: 'drop',
+    };
+
+    const SEGMENTS = 40, EDGE_R = 0.07, NOTCH_R = 0.14, NOTCH_D = 0.12, PIP_OFFSET = 0.23, FLOOR_Y = -4;
+
+    const COLOR_PRESETS = [
+      { body: '#eae8e3', pip: '#141414', label: 'Classic' },
+      { body: '#c62f2f', pip: '#fce8b2', label: 'Red' },
+      { body: '#2e8555', pip: '#f0edd4', label: 'Green' },
+      { body: '#2255aa', pip: '#e8e8e8', label: 'Blue' },
+      { body: '#6b3fa0', pip: '#f5e6ff', label: 'Purple' },
+      { body: '#1a1a1a', pip: '#ffc91c', label: 'Dark' },
+      { body: '#ffc91c', pip: '#1a1a1a', label: 'Gold' },
+    ];
+
+    // ── BabylonJS Scene ──────────────────────────────────────
+    const engine = new BABYLON.Engine(canvas, true, { stencil: true });
+    const scene = new BABYLON.Scene(engine);
+    scene.useRightHandedSystem = true;
+    scene.clearColor = new BABYLON.Color4(0.09, 0.09, 0.09, 1);
+
+    const camera = new BABYLON.ArcRotateCamera(
+      'cam', -Math.PI / 3, Math.PI / 3.2, 12, new BABYLON.Vector3(0, FLOOR_Y + 1.5, 0), scene
+    );
+    camera.attachControl(canvas, true);
+    camera.lowerRadiusLimit = 5;
+    camera.upperRadiusLimit = 30;
+    camera.wheelPrecision = 40;
+
+    const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
+    hemi.intensity = 0.5;
+    const dir = new BABYLON.DirectionalLight('dir', new BABYLON.Vector3(-1, -3, 1).normalize(), scene);
+    dir.position = new BABYLON.Vector3(4, 8, -4);
+    dir.intensity = 1;
+
+    const shadowGen = new BABYLON.ShadowGenerator(1024, dir);
+    shadowGen.useBlurExponentialShadowMap = true;
+    shadowGen.blurKernel = 16;
+
+    const hl = new BABYLON.HighlightLayer('hl', scene);
+
+    // ── Dice Geometry (cached) ───────────────────────────────
+
+    function createDiceVertexData() {
+      const s = SEGMENTS;
+      const positions = [];
+      const indices = [];
+      const faces = [
+        [1, +0.5, 0, 2], [1, -0.5, 0, 2],
+        [0, +0.5, 2, 1], [0, -0.5, 2, 1],
+        [2, +0.5, 1, 0], [2, -0.5, 1, 0],
+      ];
+      for (const [fAxis, fVal, uAxis, vAxis] of faces) {
+        const base = positions.length / 3;
+        for (let i = 0; i <= s; i++) {
+          for (let j = 0; j <= s; j++) {
+            const p = [0, 0, 0];
+            p[fAxis] = fVal;
+            p[uAxis] = i / s - 0.5;
+            p[vAxis] = j / s - 0.5;
+            positions.push(p[0], p[1], p[2]);
+          }
+        }
+        for (let i = 0; i < s; i++) {
+          for (let j = 0; j < s; j++) {
+            const a = base + i * (s + 1) + j;
+            const b = a + (s + 1);
+            const c = a + 1;
+            const d = b + 1;
+            if (fVal > 0) { indices.push(a, c, b, b, c, d); }
+            else { indices.push(a, b, c, c, b, d); }
+          }
+        }
+      }
+      const half = 0.5 - EDGE_R;
+      for (let i = 0; i < positions.length; i += 3) {
+        let x = positions[i], y = positions[i + 1], z = positions[i + 2];
+        const sx = Math.sign(x) * half, sy = Math.sign(y) * half, sz = Math.sign(z) * half;
+        const ax = x - sx, ay = y - sy, az = z - sz;
+        const ox = Math.abs(x) > half, oy = Math.abs(y) > half, oz = Math.abs(z) > half;
+        if (ox && oy && oz) { const l = Math.hypot(ax, ay, az) || 1; x = sx + ax / l * EDGE_R; y = sy + ay / l * EDGE_R; z = sz + az / l * EDGE_R; }
+        else if (ox && oy) { const l = Math.hypot(ax, ay) || 1; x = sx + ax / l * EDGE_R; y = sy + ay / l * EDGE_R; }
+        else if (ox && oz) { const l = Math.hypot(ax, az) || 1; x = sx + ax / l * EDGE_R; z = sz + az / l * EDGE_R; }
+        else if (oy && oz) { const l = Math.hypot(ay, az) || 1; y = sy + ay / l * EDGE_R; z = sz + az / l * EDGE_R; }
+
+        const nw = (v) => { v = v / NOTCH_R; v = Math.PI * Math.max(-1, Math.min(1, v)); return NOTCH_D * (Math.cos(v) + 1); };
+        const n = (a, b) => nw(a) * nw(b);
+        const o = PIP_OFFSET;
+
+        if (y === 0.5) { y -= n(x, z); }
+        else if (x === 0.5) { x -= n(y + o, z + o); x -= n(y - o, z - o); }
+        else if (z === 0.5) { z -= n(x - o, y + o); z -= n(x, y); z -= n(x + o, y - o); }
+        else if (z === -0.5) { z += n(x + o, y + o); z += n(x + o, y - o); z += n(x - o, y + o); z += n(x - o, y - o); }
+        else if (x === -0.5) { x += n(y + o, z + o); x += n(y + o, z - o); x += n(y, z); x += n(y - o, z + o); x += n(y - o, z - o); }
+        else if (y === -0.5) { y += n(x + o, z + o); y += n(x + o, z); y += n(x + o, z - o); y += n(x - o, z + o); y += n(x - o, z); y += n(x - o, z - o); }
+
+        positions[i] = x; positions[i + 1] = y; positions[i + 2] = z;
+      }
+      const normals = [];
+      BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+
+      let needFlip = false;
+      for (let i = 0; i < positions.length; i += 3) {
+        if (positions[i] > 0.45) { if (normals[i] < 0) needFlip = true; break; }
+      }
+      if (needFlip) {
+        for (let i = 0; i < indices.length; i += 3) {
+          const tmp = indices[i + 1]; indices[i + 1] = indices[i + 2]; indices[i + 2] = tmp;
+        }
+        BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+        console.log('[dice] normals were flipped');
+      }
+
+      console.log(`[dice] outer geometry: ${positions.length / 3} verts, ${indices.length / 3} tris, flipped=${needFlip}`);
+      const vd = new BABYLON.VertexData();
+      vd.positions = positions; vd.indices = indices; vd.normals = normals;
+      return vd;
+    }
+
+    function createPipsVertexData() {
+      const positions = [], indices = [], normals = [];
+      const o = PIP_OFFSET, PR = 0.1, SEG = 16;
+
+      const pipFaces = [
+        { fA: 1, fV: +0.5, uA: 0, vA: 2, pips: [[0, 0]] },
+        { fA: 1, fV: -0.5, uA: 0, vA: 2, pips: [[-o,-o],[-o,0],[-o,+o],[+o,-o],[+o,0],[+o,+o]] },
+        { fA: 0, fV: +0.5, uA: 2, vA: 1, pips: [[-o,-o],[+o,+o]] },
+        { fA: 0, fV: -0.5, uA: 2, vA: 1, pips: [[-o,-o],[-o,+o],[0,0],[+o,-o],[+o,+o]] },
+        { fA: 2, fV: +0.5, uA: 1, vA: 0, pips: [[+o,-o],[0,0],[-o,+o]] },
+        { fA: 2, fV: -0.5, uA: 1, vA: 0, pips: [[-o,-o],[-o,+o],[+o,-o],[+o,+o]] },
+      ];
+
+      for (const { fA, fV, uA, vA, pips } of pipFaces) {
+        const sign = Math.sign(fV);
+        for (const [cu, cv] of pips) {
+          const base = positions.length / 3;
+          const n = [0, 0, 0]; n[fA] = sign;
+          const c = [0, 0, 0]; c[fA] = fV; c[uA] = cu; c[vA] = cv;
+          positions.push(c[0], c[1], c[2]);
+          normals.push(n[0], n[1], n[2]);
+          for (let i = 0; i < SEG; i++) {
+            const ang = 2 * Math.PI * i / SEG;
+            const v = [0, 0, 0]; v[fA] = fV;
+            v[uA] = cu + Math.cos(ang) * PR;
+            v[vA] = cv + Math.sin(ang) * PR;
+            positions.push(v[0], v[1], v[2]);
+            normals.push(n[0], n[1], n[2]);
+          }
+          for (let i = 0; i < SEG; i++) {
+            if (sign > 0) indices.push(base, base + 1 + i, base + 1 + (i + 1) % SEG);
+            else indices.push(base, base + 1 + (i + 1) % SEG, base + 1 + i);
+          }
+        }
+      }
+
+      const vd = new BABYLON.VertexData();
+      vd.positions = positions; vd.indices = indices; vd.normals = normals;
+      return vd;
+    }
+
+    statusEl.textContent = 'Building geometry…';
+    const cachedOuterVD = createDiceVertexData();
+    const cachedPipsVD = createPipsVertexData();
+
+    const pipMat = new BABYLON.StandardMaterial('pipShared', scene);
+    pipMat.diffuseColor = BABYLON.Color3.FromHexString(cfg.pipColor);
+    pipMat.specularColor = new BABYLON.Color3(0.15, 0.15, 0.15);
+    pipMat.zOffset = -2;
+
+    const backingMat = new BABYLON.StandardMaterial('backingShared', scene);
+    backingMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+    backingMat.specularColor = BABYLON.Color3.Black();
+
+    // ── Floor ────────────────────────────────────────────────
+    const floor = BABYLON.MeshBuilder.CreateGround('floor', { width: 20, height: 20 }, scene);
+    floor.position.y = FLOOR_Y;
+    const floorMat = new BABYLON.StandardMaterial('floorMat', scene);
+    floorMat.diffuseColor = new BABYLON.Color3(0.25, 0.18, 0.12);
+    floorMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+    floor.material = floorMat;
+    floor.receiveShadows = true;
+
+    // ── cannon-es Physics ────────────────────────────────────
+    const world = new CANNON.World({ allowSleep: true, gravity: new CANNON.Vec3(0, cfg.gravity, 0) });
+    world.defaultContactMaterial.restitution = cfg.restitution;
+    world.defaultContactMaterial.friction = cfg.friction;
+
+    const floorBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
+    floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    floorBody.position.set(0, FLOOR_Y, 0);
+    world.addBody(floorBody);
+
+    const wallDist = 5;
+    for (const w of [
+      { pos: [wallDist, 0, 0], rot: [0, -Math.PI / 2, 0] },
+      { pos: [-wallDist, 0, 0], rot: [0, Math.PI / 2, 0] },
+      { pos: [0, 0, wallDist], rot: [0, Math.PI, 0] },
+      { pos: [0, 0, -wallDist], rot: [0, 0, 0] },
+    ]) {
+      const b = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
+      b.position.set(...w.pos);
+      b.quaternion.setFromEuler(...w.rot);
+      world.addBody(b);
+    }
+
+    // ── Dice Management ──────────────────────────────────────
+    const dice = [];
+
+    function readFaceValue(body) {
+      const euler = new CANNON.Vec3();
+      body.quaternion.toEuler(euler);
+      const eps = 0.15;
+      const z0 = Math.abs(euler.z) < eps;
+      const xp = Math.abs(euler.x - Math.PI / 2) < eps;
+      const xn = Math.abs(euler.x + Math.PI / 2) < eps;
+      const x0 = Math.abs(euler.x) < eps;
+      const xpi = Math.abs(Math.PI - Math.abs(euler.x)) < eps;
+      const zp = Math.abs(euler.z - Math.PI / 2) < eps;
+      const zn = Math.abs(euler.z + Math.PI / 2) < eps;
+
+      if (z0) { if (x0) return 1; if (xp) return 4; if (xn) return 3; if (xpi) return 6; }
+      if (zp) return 2;
+      if (zn) return 5;
+      return null;
+    }
+
+    function createDie(index) {
+      const oMat = new BABYLON.StandardMaterial(`outer_${index}`, scene);
+      oMat.diffuseColor = BABYLON.Color3.FromHexString(cfg.bodyColor);
+      oMat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+
+      const sc = cfg.dieScale;
+      const root = new BABYLON.TransformNode(`die_${index}`, scene);
+      root.rotationQuaternion = BABYLON.Quaternion.Identity();
+      root.scaling.setAll(sc);
+
+      const outer = new BABYLON.Mesh(`dieOuter_${index}`, scene);
+      cachedOuterVD.applyToMesh(outer);
+      outer.material = oMat;
+      outer.parent = root;
+      outer.receiveShadows = true;
+      shadowGen.addShadowCaster(outer);
+
+      const pips = new BABYLON.Mesh(`diePips_${index}`, scene);
+      cachedPipsVD.applyToMesh(pips);
+      pips.material = pipMat;
+      pips.parent = root;
+
+      const backing = BABYLON.MeshBuilder.CreateBox(`dieBacking_${index}`, { size: 0.9 }, scene);
+      backing.material = backingMat;
+      backing.parent = root;
+
+      const hs = 0.48 * sc;
+      const body = new CANNON.Body({
+        mass: cfg.mass,
+        shape: new CANNON.Box(new CANNON.Vec3(hs, hs, hs)),
+        sleepTimeLimit: cfg.sleepTime,
+        sleepSpeedLimit: cfg.sleepSpeed,
+        linearDamping: 0.05,
+        angularDamping: 0.15,
+      });
+      world.addBody(body);
+
+      const die = { root, outer, pips, backing, body, oMat, value: null, settled: false };
+
+      body.addEventListener('sleep', () => {
+        body.allowSleep = false;
+        const v = readFaceValue(body);
+        if (v !== null) {
+          die.value = v;
+          die.settled = true;
+          updateFaceDisplay();
+        } else {
+          body.allowSleep = true;
+        }
+      });
+
+      return die;
+    }
+
+    function removeDie(die) {
+      hl.removeMesh(die.outer);
+      shadowGen.removeShadowCaster(die.outer);
+      die.pips.dispose();
+      die.backing.dispose();
+      die.outer.dispose();
+      die.root.dispose();
+      die.oMat.dispose();
+      world.removeBody(die.body);
+    }
+
+    function syncDiceCount(n) {
+      while (dice.length < n) dice.push(createDie(dice.length));
+      while (dice.length > n) removeDie(dice.pop());
+      cfg.diceCount = n;
+    }
+
+    function updateFaceDisplay() {
+      const vals = dice.map(d => d.settled ? d.value : '…');
+      faceValuesEl.textContent = vals.join('  ');
+      const allSettled = dice.every(d => d.settled);
+      if (allSettled) {
+        const sum = dice.reduce((s, d) => s + (d.value || 0), 0);
+        statusEl.textContent = dice.length > 1 ? `All settled — sum ${sum}` : `Settled on ${vals[0]}`;
+      }
+    }
+
+    function throwAll() {
+      for (const d of dice) { d.value = null; d.settled = false; hl.removeMesh(d.outer); }
+      faceValuesEl.textContent = dice.map(() => '…').join('  ');
+      statusEl.textContent = 'Rolling…';
+
+      if (cfg.throwMode === 'throw') {
+        const fwd = camera.target.subtract(camera.position);
+        fwd.y = 0; fwd.normalize();
+        const right = new BABYLON.Vector3(-fwd.z, 0, fwd.x);
+        const startBase = camera.position.clone();
+        startBase.y = FLOOR_Y + 1.5;
+        startBase.addInPlace(fwd.scale(3));
+
+        for (let i = 0; i < dice.length; i++) {
+          const d = dice[i];
+          d.body.velocity.setZero();
+          d.body.angularVelocity.setZero();
+          const lateral = (i - (dice.length - 1) / 2) * 1.2;
+          d.body.position.set(
+            startBase.x + right.x * lateral + (Math.random() - 0.5) * 0.3,
+            startBase.y + i * 0.3,
+            startBase.z + right.z * lateral + (Math.random() - 0.5) * 0.3
+          );
+          d.body.quaternion.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
+          d.body.quaternion.normalize();
+          const f = (cfg.throwMin + Math.random() * (cfg.throwMax - cfg.throwMin)) * cfg.throwForce;
+          d.body.applyImpulse(
+            new CANNON.Vec3(fwd.x * f + (Math.random() - 0.5) * f * 0.3, f * 0.4, fwd.z * f + (Math.random() - 0.5) * f * 0.3),
+            new CANNON.Vec3((Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3)
+          );
+          d.body.allowSleep = true;
+          d.body.wakeUp();
+        }
+      } else {
+        const spread = Math.max(1, dice.length - 1) * 1.2;
+        for (let i = 0; i < dice.length; i++) {
+          const d = dice[i];
+          d.body.velocity.setZero();
+          d.body.angularVelocity.setZero();
+          d.body.position.set(
+            (Math.random() - 0.5) * spread,
+            FLOOR_Y + 5 + i * 0.6,
+            (Math.random() - 0.5) * spread
+          );
+          d.body.quaternion.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
+          d.body.quaternion.normalize();
+          const f = (cfg.throwMin + Math.random() * (cfg.throwMax - cfg.throwMin)) * cfg.throwForce;
+          d.body.applyImpulse(
+            new CANNON.Vec3((Math.random() - 0.5) * f, f * 0.4, (Math.random() - 0.5) * f),
+            new CANNON.Vec3((Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3)
+          );
+          d.body.allowSleep = true;
+          d.body.wakeUp();
+        }
+      }
+    }
+
+    function jumpAll() {
+      for (const d of dice) {
+        d.body.velocity.set((Math.random() - 0.5) * 2, 8 + Math.random() * 4, (Math.random() - 0.5) * 2);
+        d.body.angularVelocity.set((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10);
+        d.body.allowSleep = true;
+        d.body.wakeUp();
+        d.settled = false;
+        d.value = null;
+      }
+      faceValuesEl.textContent = dice.map(() => '…').join('  ');
+      statusEl.textContent = 'Jumping…';
+    }
+
+    function applyColors() {
+      const bc = BABYLON.Color3.FromHexString(cfg.bodyColor);
+      for (const d of dice) d.oMat.diffuseColor = bc;
+      pipMat.diffuseColor = BABYLON.Color3.FromHexString(cfg.pipColor);
+    }
+
+    // ── Drag & Pick ─────────────────────────────────────────
+    let selectedDie = null;
+    let dragState = null;
+
+    function rayToPlane(sx, sy, planeY) {
+      const ray = scene.createPickingRay(sx, sy, BABYLON.Matrix.Identity(), camera);
+      if (Math.abs(ray.direction.y) < 0.0001) return null;
+      const t = (planeY - ray.origin.y) / ray.direction.y;
+      if (t <= 0) return null;
+      return { x: ray.origin.x + ray.direction.x * t, z: ray.origin.z + ray.direction.z * t };
+    }
+
+    function findDieAtPick(pickInfo) {
+      if (!pickInfo || !pickInfo.hit) return null;
+      return dice.find(d => d.outer === pickInfo.pickedMesh || d.pips === pickInfo.pickedMesh || d.backing === pickInfo.pickedMesh) || null;
+    }
+
+    scene.onPointerObservable.add((info) => {
+      const evt = info.event;
+
+      if (info.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+        if (evt.button !== 0) return;
+        const hit = findDieAtPick(info.pickInfo);
+        if (!hit) return;
+        const planeY = Math.max(FLOOR_Y + 1.5, hit.body.position.y);
+        const pt = rayToPlane(scene.pointerX, scene.pointerY, planeY);
+        dragState = {
+          die: hit, startX: scene.pointerX, startY: scene.pointerY,
+          planeY,
+          offX: pt ? hit.body.position.x - pt.x : 0,
+          offZ: pt ? hit.body.position.z - pt.z : 0,
+          velX: 0, velZ: 0, active: false,
+        };
+      }
+
+      else if (info.type === BABYLON.PointerEventTypes.POINTERMOVE) {
+        if (!dragState) return;
+        const dx = scene.pointerX - dragState.startX;
+        const dy = scene.pointerY - dragState.startY;
+
+        if (!dragState.active && (dx * dx + dy * dy) > 36) {
+          dragState.active = true;
+          camera.detachControl();
+          const d = dragState.die;
+          d.body.type = CANNON.Body.KINEMATIC;
+          d.body.velocity.setZero();
+          d.body.angularVelocity.setZero();
+          hl.addMesh(d.outer, new BABYLON.Color3(0.3, 0.9, 1.0));
+          statusEl.textContent = 'Dragging…';
+        }
+
+        if (dragState.active) {
+          const pt = rayToPlane(scene.pointerX, scene.pointerY, dragState.planeY);
+          if (pt) {
+            const nx = pt.x + dragState.offX;
+            const nz = pt.z + dragState.offZ;
+            dragState.velX = (nx - dragState.die.body.position.x) * 60;
+            dragState.velZ = (nz - dragState.die.body.position.z) * 60;
+            dragState.die.body.position.set(nx, dragState.planeY, nz);
+          }
+        }
+      }
+
+      else if (info.type === BABYLON.PointerEventTypes.POINTERUP) {
+        if (!dragState) return;
+
+        if (dragState.active) {
+          const d = dragState.die;
+          hl.removeMesh(d.outer);
+          d.body.type = CANNON.Body.DYNAMIC;
+          d.body.mass = 1;
+          d.body.updateMassProperties();
+          d.body.velocity.set(dragState.velX * 0.3, -2, dragState.velZ * 0.3);
+          d.body.wakeUp();
+          d.body.allowSleep = true;
+          d.settled = false;
+          d.value = null;
+          camera.attachControl(canvas, true);
+          statusEl.textContent = 'Dropped';
+        } else {
+          const hit = dragState.die;
+          if (selectedDie === hit) {
+            hl.removeMesh(hit.outer);
+            selectedDie = null;
+            statusEl.textContent = hit.settled ? `Deselected (face ${hit.value})` : 'Deselected';
+          } else {
+            if (selectedDie) hl.removeMesh(selectedDie.outer);
+            hl.addMesh(hit.outer, new BABYLON.Color3(1, 0.78, 0.1));
+            selectedDie = hit;
+            statusEl.textContent = hit.settled ? `Selected — face ${hit.value}` : 'Selected (moving)';
+          }
+        }
+        dragState = null;
+      }
+    });
+
+    // ── Render Loop ──────────────────────────────────────────
+    engine.runRenderLoop(() => {
+      world.fixedStep();
+      for (const d of dice) {
+        d.root.position.set(d.body.position.x, d.body.position.y, d.body.position.z);
+        d.root.rotationQuaternion.set(d.body.quaternion.x, d.body.quaternion.y, d.body.quaternion.z, d.body.quaternion.w);
+
+        if (!d.settled) {
+          const spd = d.body.velocity.length() + d.body.angularVelocity.length();
+          if (spd > 0.02 && spd < 1.5) {
+            const { x: qx, y: qy, z: qz, w: qw } = d.body.quaternion;
+            const faceAlignY = Math.max(
+              Math.abs(2 * (qx * qy + qw * qz)),
+              Math.abs(1 - 2 * (qx * qx + qz * qz)),
+              Math.abs(2 * (qy * qz - qw * qx))
+            );
+            if (faceAlignY < 0.92) {
+              d.body.angularVelocity.x += (Math.random() - 0.5) * 3;
+              d.body.angularVelocity.z += (Math.random() - 0.5) * 3;
+            }
+          }
+        }
+      }
+      scene.render();
+    });
+    window.addEventListener('resize', () => engine.resize());
+
+    // ── Wire UI ──────────────────────────────────────────────
+
+    // Physics sliders
+    const sliders = [
+      { el: 'sGravity', val: 'vGravity', key: 'gravity', apply: () => world.gravity.set(0, cfg.gravity, 0) },
+      { el: 'sRestitution', val: 'vRestitution', key: 'restitution', apply: () => { world.defaultContactMaterial.restitution = cfg.restitution; } },
+      { el: 'sFriction', val: 'vFriction', key: 'friction', apply: () => { world.defaultContactMaterial.friction = cfg.friction; } },
+      { el: 'sThrowMin', val: 'vThrowMin', key: 'throwMin' },
+      { el: 'sThrowMax', val: 'vThrowMax', key: 'throwMax' },
+      { el: 'sThrowForce', val: 'vThrowForce', key: 'throwForce' },
+      { el: 'sMass', val: 'vMass', key: 'mass', apply: () => { for (const d of dice) { d.body.mass = cfg.mass; d.body.updateMassProperties(); } } },
+      { el: 'sSleepTime', val: 'vSleepTime', key: 'sleepTime', apply: () => { for (const d of dice) d.body.sleepTimeLimit = cfg.sleepTime; } },
+      { el: 'sSleepSpeed', val: 'vSleepSpeed', key: 'sleepSpeed', apply: () => { for (const d of dice) d.body.sleepSpeedLimit = cfg.sleepSpeed; } },
+    ];
+    for (const s of sliders) {
+      const input = document.getElementById(s.el);
+      const valEl = document.getElementById(s.val);
+      input.addEventListener('input', () => {
+        cfg[s.key] = parseFloat(input.value);
+        valEl.textContent = input.value;
+        if (s.apply) s.apply();
+      });
+    }
+
+    // Die scale slider
+    const scaleInput = document.getElementById('sScale');
+    const scaleVal = document.getElementById('vScale');
+    scaleInput.addEventListener('input', () => {
+      cfg.dieScale = parseFloat(scaleInput.value);
+      scaleVal.textContent = scaleInput.value;
+      const n = cfg.diceCount;
+      syncDiceCount(0);
+      syncDiceCount(n);
+    });
+
+    // Dice count buttons
+    document.getElementById('countRow').addEventListener('click', (e) => {
+      const btn = e.target.closest('.count-btn');
+      if (!btn) return;
+      document.querySelectorAll('#countRow .count-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      syncDiceCount(parseInt(btn.dataset.n));
+    });
+
+    // Color pickers
+    document.getElementById('cBody').addEventListener('input', (e) => { cfg.bodyColor = e.target.value; applyColors(); });
+    document.getElementById('cPips').addEventListener('input', (e) => { cfg.pipColor = e.target.value; applyColors(); });
+
+    // Color presets
+    const presetsEl = document.getElementById('presets');
+    for (const pr of COLOR_PRESETS) {
+      const btn = document.createElement('button');
+      btn.className = 'preset-btn';
+      btn.style.background = `linear-gradient(135deg, ${pr.body} 60%, ${pr.pip} 60%)`;
+      btn.title = pr.label;
+      btn.addEventListener('click', () => {
+        cfg.bodyColor = pr.body;
+        cfg.pipColor = pr.pip;
+        document.getElementById('cBody').value = pr.body;
+        document.getElementById('cPips').value = pr.pip;
+        applyColors();
+      });
+      presetsEl.appendChild(btn);
+    }
+
+    // Roll & Jump buttons
+    rollBtn.addEventListener('click', throwAll);
+    document.getElementById('jumpBtn').addEventListener('click', jumpAll);
+
+    // Throw mode buttons
+    document.getElementById('throwModeRow').addEventListener('click', (e) => {
+      const btn = e.target.closest('.count-btn');
+      if (!btn) return;
+      document.querySelectorAll('#throwModeRow .count-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      cfg.throwMode = btn.dataset.mode;
+    });
+
+    // ── Init ─────────────────────────────────────────────────
+    syncDiceCount(1);
+    statusEl.textContent = 'Ready. Click Roll.';
+    throwAll();
+  </script>
+</body>
+</html>
