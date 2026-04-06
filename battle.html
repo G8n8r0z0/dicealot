@@ -465,19 +465,19 @@ const SEGMENTS = 40, EDGE_R = 0.07, NOTCH_R = 0.14, NOTCH_D = 0.12, PIP_OFFSET =
 const LS_BATTLE_TUNE = 'battle_tune_json_v1';
 
 const BATTLE_TUNE_DEFAULTS = {
-  world: { gravity: -55, restitution: 0.3, friction: 0.6 },
+  world: { gravity: -93, restitution: 0.35, friction: 0.5 },
   body: {
-    mass: 1, linearDamping: 0.05, angularDamping: 0.15, sleepTime: 0.3, sleepSpeed: 0.05,
-    throwMin: 4, throwMax: 9,
+    mass: 1.35, linearDamping: 0.05, angularDamping: 0.1, sleepTime: 0.3, sleepSpeed: 0.05,
+    throwMin: 20, throwMax: 50,
   },
   sling: {
     maxPullWorld: 12.5, clickEpsMul: 0.02, pickYOffset: 0.55,
-    impulseHMin: 1.85, impulseHMax: 11.2, impulseYMin: 1.15, impulseYMax: 4.35,
+    impulseHMin: 10.175, impulseHMax: 61.6, impulseYMin: 3.1625, impulseYMax: 11.9625,
   },
   viz: { halfAngle: 0.38, rInner: 12, rSpan: 292, segments: 4 },
   spawn: { minSpacingMul: 1.18, stackYStepMul: 1.12, jitterMul: 0.32 },
-  rollPlayer: { spawnYOffset: 0.95, planeJitter: 0.55, impulseYMul: 0.34, impulseCrossMul: 0.32, mainImpulse: 1.02 },
-  rollBot: { spawnYOffset: 5.5, planeJitter: 0.55, impulseYMul: 0.4, impulseCrossMul: 0.28, mainImpulse: 0.95 },
+  rollPlayer: { spawnYOffset: 1, planeJitter: 0.5, impulseYMul: 0.17, impulseCrossMul: 0.32, mainImpulse: 5.61 },
+  rollBot: { spawnYOffset: 5.5, planeJitter: 0.55, impulseYMul: 0.2, impulseCrossMul: 0.28, mainImpulse: 5.225 },
   rollImpulseLever: 0.28,
   mesh: { dieScale: 1.7, boxHalfPerScale: 0.48 },
   settle: { alignThreshold: 0.92, angKick: 3, speedLo: 0.02, speedHi: 1.5 },
