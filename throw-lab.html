@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Throw lab — Dice-a-Lot</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Segoe UI",system-ui,sans-serif;background:#0a0a0f;color:#e4e4ec;height:100vh;overflow:hidden;display:flex}
+.lab-sidebar{
+  width:min(440px,46vw);flex-shrink:0;display:flex;flex-direction:column;gap:10px;padding:14px 16px;
+  background:#12121a;border-right:1px solid rgba(255,255,255,.1);overflow-y:auto;
+  position:relative;z-index:30;
+}
+.lab-sidebar h1{font-size:1.2rem;font-weight:700;color:#a8e6b8;letter-spacing:.04em}
+.lab-sidebar .hint{font-size:.95rem;color:#8a8a9a;line-height:1.45}
+.lab-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.lab-row label{font-size:.95rem;color:#bbb}
+.lab-row input[type="number"]{width:64px;padding:8px 10px;border-radius:6px;border:1px solid #444;background:#1a1a24;color:#eee;font-size:1rem}
+.lab-actions{display:flex;gap:8px;flex-wrap:wrap}
+.lab-actions button{
+  padding:10px 16px;border-radius:8px;border:1px solid #444;background:#2a2a36;color:#eee;font-size:.95rem;font-weight:600;cursor:pointer;
+}
+.lab-actions button.primary{background:#1a3228;border-color:#2e6b45;color:#a8e6b8}
+.lab-actions button:hover{filter:brightness(1.08)}
+.lab-status{font-size:.95rem;color:#ccc;padding:8px 0;border-top:1px solid rgba(255,255,255,.08)}
+.lab-faces{font-size:1.45rem;font-weight:800;color:#ffc91c;font-variant-numeric:tabular-nums;line-height:1.25;letter-spacing:.06em}
+.lab-roll-log-title{font-size:.82rem;font-weight:700;color:#8ab892;text-transform:uppercase;letter-spacing:.06em;margin-top:6px}
+.lab-roll-log{
+  font-size:.92rem;line-height:1.45;color:#c8c8d8;max-height:min(28vh,220px);overflow-y:auto;padding:8px 10px;border-radius:8px;
+  background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);font-variant-numeric:tabular-nums;
+}
+.lab-roll-log .entry{padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.lab-roll-log .entry:last-child{border-bottom:none}
+.lab-main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;z-index:0}
+#labCanvas{width:100%;height:100%;display:block;touch-action:none;outline:none;position:relative;z-index:0}
+/* Слинг: поверх канваса, те же пиксельные координаты, что и battle (width/height 100% обязательны). */
+.sling-viz{
+  position:absolute;left:0;top:0;width:100%;height:100%;z-index:15;
+  pointer-events:none;visibility:hidden;display:block;
+}
+.sling-viz .sling-seg{filter:drop-shadow(0 1px 3px rgba(0,0,0,.5));}
+.sling-viz-pow{font-size:clamp(14px,3vw,22px);font-weight:800;fill:#f1c40f;stroke:#0a0a12;stroke-width:3px;paint-order:stroke fill}
+.physics-tune-h4{margin:14px 0 6px;font-size:.86rem;font-weight:700;color:#8ab892;letter-spacing:.05em;text-transform:uppercase}
+.physics-tune-h4:first-child{margin-top:0}
+.physics-tune-field{margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.08)}
+.physics-tune-field label{display:block;font-weight:600;color:#d0d0d8;font-size:.96rem;margin-bottom:4px}
+.physics-tune-en,.physics-tune-ru{margin:0;font-size:.86rem;line-height:1.4;color:#9a9aaa}
+.physics-tune-ru{color:#9aa7c4;margin-bottom:6px}
+.physics-tune-field input[type="number"]{
+  width:100%;padding:9px 11px;border-radius:6px;border:1px solid rgba(255,255,255,.14);
+  background:rgba(8,8,14,.85);color:#e8e8ec;font-family:Consolas,monospace;font-size:1rem;
+}
+.lab-json{margin-top:6px;font-size:.88rem;color:#6ab892;word-break:break-all;max-height:5em;overflow:auto}
+.lab-paste{width:100%;min-height:72px;margin-top:6px;padding:10px;font-size:.9rem;border-radius:6px;border:1px solid #444;background:#0d0d14;color:#ccc;font-family:monospace;resize:vertical}
+.lab-realism{
+  margin-top:10px;padding:12px 12px 10px;border-radius:10px;border:1px solid rgba(120,160,200,.25);
+  background:linear-gradient(165deg,rgba(18,28,40,.95),rgba(12,14,22,.98));
+}
+.lab-realism-title{font-size:.92rem;font-weight:700;color:#9ec8e8;margin:0 0 6px;letter-spacing:.03em}
+.lab-realism-lead{font-size:.82rem;color:#8a92a8;line-height:1.4;margin:0 0 10px}
+.lab-realism-row{margin-bottom:12px}
+.lab-realism-row label{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:.88rem;font-weight:600;color:#c8d0e0;margin-bottom:4px}
+.lab-realism-row .lab-realism-val{font-variant-numeric:tabular-nums;color:#7eb8d4;font-weight:700;min-width:3.2em;text-align:right}
+.lab-realism-row input[type="range"]{width:100%;accent-color:#5dade2}
+.lab-realism-note{font-size:.78rem;color:#7a8298;line-height:1.35;margin:4px 0 0}
+.lab-realism-est{font-size:.8rem;color:#a8c4a0;line-height:1.4;margin:8px 0 6px;padding:8px;border-radius:6px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.06)}
+.lab-realism-reset{width:100%;padding:8px 12px;border-radius:8px;border:1px solid #3a5068;background:#1a2838;color:#b8d4ec;font-size:.85rem;font-weight:600;cursor:pointer;margin-top:4px}
+.lab-realism-reset:hover{filter:brightness(1.08)}
+</style>
+</head>
+<body>
+<div class="lab-sidebar">
+  <h1>Throw lab</h1>
+  <p class="hint">ROLL или слинг → смотри розыгрыш сверху; «Сброс стола» — убрать кубики и снова бросить. Блок «Реализм броска» — масса, гравитация, сила и дуга; полный Tune внизу и в battle (<code>battle_tune_json_v1</code>).</p>
+  <div class="lab-row">
+    <label for="labDiceCount">Кубиков</label>
+    <input type="number" id="labDiceCount" min="1" max="12" value="6" autocomplete="off">
+  </div>
+  <div class="lab-actions">
+    <button type="button" class="primary" id="labBtnRoll">ROLL</button>
+    <button type="button" id="labBtnStash">Сброс стола</button>
+    <button type="button" id="labBtnClearHistory">Очистить историю</button>
+  </div>
+  <div class="lab-status">
+    <div id="labPhaseLine">Фаза: ожидание</div>
+    <div style="margin-top:6px;font-size:.85rem;color:#888">Текущий розыгрыш</div>
+    <div class="lab-faces" id="labFaces">—</div>
+    <div class="lab-roll-log-title">История бросков</div>
+    <div class="lab-roll-log" id="labRollLog"></div>
+  </div>
+  <div class="lab-realism" id="labRealismPanel">
+    <h2 class="lab-realism-title">Реализм броска</h2>
+    <p class="lab-realism-lead">Связка «импульс → скорость → полёт»: масса и гравитация из физики; сила и дуга крутят импульсы слинга и ROLL. Затухание — искусственное гашение (в вакууме кубик летел бы дольше).</p>
+    <div class="lab-realism-row">
+      <label for="labRmMass">Масса кубика <span class="lab-realism-val" id="labRmMassV"></span></label>
+      <input type="range" id="labRmMass" min="0.25" max="4" step="0.05" autocomplete="off">
+      <p class="lab-realism-note">Тот же импульс даёт меньшую скорость, если масса больше (как J/m).</p>
+    </div>
+    <div class="lab-realism-row">
+      <label for="labRmGrav">Гравитация (Y) <span class="lab-realism-val" id="labRmGravV"></span></label>
+      <input type="range" id="labRmGrav" min="-85" max="-22" step="1" autocomplete="off">
+      <p class="lab-realism-note">Сильнее по модулю — быстрее падение и короче время до стола при той же начальной скорости.</p>
+    </div>
+    <div class="lab-realism-row">
+      <label for="labRmPower">Сила броска <span class="lab-realism-val" id="labRmPowerV"></span></label>
+      <input type="range" id="labRmPower" min="0.2" max="6" step="0.05" autocomplete="off">
+      <p class="lab-realism-note">1× = дефолт лабы. До 6×: ROLL и отпускание слинга в лабе (те же throw + rollPlayer); поля sling.impulse* в JSON по-прежнему для battle.</p>
+    </div>
+    <div class="lab-realism-row">
+      <label for="labRmArc">Дуга / время в воздухе <span class="lab-realism-val" id="labRmArcV"></span></label>
+      <input type="range" id="labRmArc" min="0.45" max="1.75" step="0.01" autocomplete="off">
+      <p class="lab-realism-note">Вертикаль ROLL и слинга в лабе (impulseYMul); в battle слинг пока на другой схеме.</p>
+    </div>
+    <div class="lab-realism-row">
+      <label for="labRmDrag">Затухание движения <span class="lab-realism-val" id="labRmDragV"></span></label>
+      <input type="range" id="labRmDrag" min="0.15" max="2.8" step="0.01" autocomplete="off">
+      <p class="lab-realism-note">Линейное и угловое демпфирование Cannon вместе; ниже — ближе к баллистике, выше — быстрее замирает.</p>
+    </div>
+    <div class="lab-realism-est" id="labRealismEst"></div>
+    <button type="button" class="lab-realism-reset" id="labRealismReset">Сбросить реализм к дефолту лабы</button>
+  </div>
+  <div class="lab-actions" style="margin-top:4px">
+    <button type="button" class="primary" id="labTuneApply">Apply tune</button>
+    <button type="button" id="labTuneReset">Reset tune</button>
+    <button type="button" id="labTuneCopy">Copy JSON</button>
+    <button type="button" id="labTunePaste">Paste JSON</button>
+  </div>
+  <textarea class="lab-paste" id="labTunePasteArea" placeholder="Вставь JSON и нажми Paste JSON"></textarea>
+  <pre class="lab-json" id="labTuneReadout"></pre>
+  <div id="labTuneFields"></div>
+</div>
+<div class="lab-main">
+  <canvas id="labCanvas"></canvas>
+  <svg id="slingVizSvg" class="sling-viz" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" preserveAspectRatio="none">
+    <g fill="#f1c40f" fill-opacity="0.93" stroke="#d4ac0d" stroke-width="0.75">
+      <path id="slingSeg0" class="sling-seg" d=""/>
+      <path id="slingSeg1" class="sling-seg" d=""/>
+      <path id="slingSeg2" class="sling-seg" d=""/>
+      <path id="slingSeg3" class="sling-seg" d=""/>
+    </g>
+    <circle id="slingVizAnchor" cx="0" cy="0" r="10" fill="rgba(241,196,15,.25)" stroke="#f1c40f" stroke-width="2"/>
+    <text id="slingVizPow" class="sling-viz-pow" x="0" y="0" text-anchor="middle" style="display:none">0%</text>
+  </svg>
+</div>
+<script src="vendor/babylon.js"></script>
+<script type="importmap">{ "imports": { "cannon-es": "./vendor/cannon-es.js" } }</script>
+<script type="module" src="throw-lab.mjs"></script>
+</body>
+</html>

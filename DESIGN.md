@@ -735,9 +735,9 @@ The following have been validated in the spike (`spike-v2.html`) and battle prot
 4. **Per-die color identity** — body color and pip color independently configurable per die. Proven presets: Classic (white/black), Red, Green, Blue, Purple, Dark, Gold.
 5. **Click-to-select** — `scene.onPointerObservable` + `HighlightLayer` for green selection glow on individual dice (battle: after dice settle).
 6. **Per-die drag-and-drop** — click-hold on die → die follows cursor on horizontal plane (kinematic) → release → dynamic drop with inertia. 6px threshold: click vs drag. **Validated in `spike-v2.html`**, not the primary roll mechanic in battle.
-7. **Table-level sling roll** — **Validated in `battle.html`:** press/drag/release on the roll-zone plane moves a **cluster** of dice and sets throw impulse from pull-back direction; complements **ROLL** button.
+7. **Table-level sling roll** — **Validated in `battle.html`:** anchor = first pick on sling plane; cluster follows **current pick** (vector anchor→cursor in world XZ). Release applies **identical velocity** to all dice along **start−end** (slingshot: toward anchor from release); strength linear in world pull length to `SLING_MAX_PULL_WORLD`; click-without-pull **cancels** (no throw). HUD: projected **wedge** + % aligned with that shot direction. Die–die: `collisionFilterMask` включает и стол, и другие кубики — тела цельные, без взаимного проникновения (см. `ARCHITECTURE.md`). Complements **ROLL** (`throwFromBottom`).
 8. **Multiple dice** — dynamic creation/removal of 1–6 dice, each with independent physics body, materials, and state. Smooth at 60fps.
-9. **Physics collision** — dice collide with each other, floor, and invisible walls. Settle detection via sleep events.
+9. **Physics collision** — dice collide with floor, walls, and **each other** (`mask` = env group | dice group). Settle detection via sleep events.
 10. **Face value detection** — Euler angle reading from settled quaternion maps to face values 1–6.
 11. **Directional throws & table layout** — player throws from bottom, bot from top; **sandwich** layout: common **width in X** for floor strips, **wide roll band** in Z, **narrow shelves** (~two dice wide in X) for held dice; divider planes confine rolling dice.
 12. **Jump** — in-place bounce with random angular velocity, re-settles on new face (spike; battle may omit or differ).
@@ -752,6 +752,7 @@ The following have been validated in the spike (`spike-v2.html`) and battle prot
 21. **Hot Hand** — automatic bank when all 6 dice scored during a turn. Deals damage, resets dice, same player continues.
 22. **Bot AI** — find best scoring subset, bank when accumulated ≥ 450 or ≤ 1 die remaining. Timed delays for visual playback.
 23. **HP-based combat** — 3000 HP each side, banked score = direct damage (1:1), 0 HP = immediate end.
+24. **Throw lab** — `throw-lab.html` / `throw-lab.mjs`: same table geometry as battle, without combat UI. **Sling release in the lab** reuses **ROLL-style** physics (per-die `f`, off-center `applyImpulse`, `rollPlayer` multipliers, random orientation on release); **`battle.html`** sling remains the older **uniform velocity** + `sling.impulse*` model until unified. Shared **`battle_tune_json_v1`**; **«Реализм броска»** sliders; full **Tune** with EN/RU hints. Current roll + history log; sling wedge over the lab canvas.
 
 ### 14.4 Physics Baseline
 
@@ -772,7 +773,7 @@ Current stable tuning from spike-v2:
 | `angularDamping` | `0.15` | — |
 | `physicsBoxHalfExtent` | `0.48` | Slightly smaller than visual 0.5 to reduce edge settling |
 
-**Note:** `battle.html` uses its own `PHYS` block (e.g. `gravity: -55`, `throwMin`/`throwMax` 4–9) tuned for the larger table; the table above remains the spike reference.
+**Note:** `battle.html` and **`throw-lab.mjs`** share the same tunable object (`battleTune`); defaults include e.g. `gravity: -55`, `throwMin`/`throwMax` 4–9, sling impulse ranges. The numeric table above remains the **spike** reference; battle/lab values may diverge via Tune JSON.
 
 ### 14.5 Custom Dice Constructor
 
@@ -872,6 +873,20 @@ Game logic in `src/` (store, systems, config) follows the IIFE pattern per `ARCH
 - **Rounded die mesh by deforming stock d6** — caused lighting issues (bad normals), crooked settling.
 - **Decorative 3D tabletop overlay** — interfered with physics floor. Use 2D backdrop behind canvas instead.
 - **Inner plane approach for pip contrast** — six dark quads inside the die at inset positions, intended to show through notch depressions. Unreliable: depth buffer precision issues, edge bleed, pip visibility depended on notch depth. Replaced by flat pip disc meshes with z-offset.
+
+### 14.12 Throw lab (instrumentation)
+
+**Files:** `throw-lab.html`, `throw-lab.mjs` (ES module, HTTP only).
+
+**Intent:** tune **how throws feel** (speed, arc, mass, gravity, damping) and inspect outcomes without playing a full battle. Uses the same **sandwich table**, **ROLL** (`throwFromBottom` analogue) and **sling** (kinematic cluster → release → shared initial velocity) as battle.
+
+**Persistence:** `localStorage['battle_tune_json_v1']` — identical key to **`battle.html`**. Editing Tune or realism in the lab affects battle on next load unless one overwrites the other.
+
+**UI layers:** (1) **Реализм броска** — coarse sliders tied to `battleTune` subsets (power scales `throwMin`/`throwMax`, sling H/Y from **lab default anchors**, `rollPlayer`/`rollBot` `mainImpulse`, vertical multipliers for arc). (2) **Full Tune** — every numeric field with EN+RU explanations; list **`PHYSICS_TUNE_FIELDS`** is **duplicated** in `battle.html` and `throw-lab.mjs` — add new keys in both when extending tuning.
+
+**Sling vs battle:** In the lab, sling impulses follow the same pattern as **ROLL** (`throwMin`/`throwMax` scaled by pull strength, `rollPlayer.*`, random torque offset). In **battle.html**, sling still sets one shared linear velocity from **`sling.impulseH/Y`**.
+
+**Determinism:** Lab ROLL/sling still use **`Math.random()`** for placement/rotation jitter (visual). Production goal remains **seeded PRNG** for any outcome-linked logic per §14.7; the lab is a designer tool, not the replay contract.
 
 ---
 

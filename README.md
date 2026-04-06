@@ -12,7 +12,7 @@ The game uses a custom dice rendering engine:
 | Physics | **cannon-es** (`vendor/cannon-es.js`, synced from npm) |
 | Geometry | Procedural rounded box with flat pip discs |
 
-Dice are built entirely in code — no external 3D models or texture atlases. Each die is a rounded box with geometric pip notches, flat circular pip meshes, and a dark backing box. Physics simulation handles rolling, collisions, and settling. Engine validated in `spike-v2.html`, full battle prototype in `battle.html`.
+Dice are built entirely in code — no external 3D models or texture atlases. Each die is a rounded box with geometric pip notches, flat circular pip meshes, and a dark backing box. Physics simulation handles rolling, collisions, and settling. Engine validated in `spike-v2.html`, full battle prototype in `battle.html`, **physics / throw feel** iterated in **`throw-lab.html`** (same Babylon + cannon-es stack, shared `battle_tune_json_v1` with battle).
 
 **Vendored libs (no CDN at runtime):** `battle.html` and `spike-v2.html` load from `vendor/`. After changing versions in `package.json`, run `npm install` then `npm run vendor:sync`. Commit `vendor/babylon.js` and `vendor/cannon-es.js` so GitHub Pages and static hosts work without `npm install`. `node_modules/` is gitignored.
 
@@ -40,7 +40,7 @@ Dice are built entirely in code — no external 3D models or texture atlases. Ea
 2. Open in an IDE with a coding agent (Cursor, VS Code + Copilot, etc.)
 3. Start the local server from the **`dice-a-lot`** folder: `node server.mjs` → open **`http://127.0.0.1:4174/`** (not `file://` — `battle.html` uses ES modules and will not run from a double‑clicked file).
 4. **`index.html`** on `http://` immediately redirects to `battle.html`. If opened as **`file://`**, it stays on a short **Russian help page** explaining that you must use the local server (modules + physics require HTTP).
-5. Open `battle.html` directly **via the same server**; `spike-v2.html` for the engine sandbox.
+5. Open `battle.html` directly **via the same server**; `spike-v2.html` for the engine sandbox; **`throw-lab.html`** for throw-only tuning (ROLL + sling, no combat UI).
 6. The coding agent reads the rules and follows a 4-phase workflow:
 
 | Phase | What happens | Output |
@@ -52,11 +52,13 @@ Dice are built entirely in code — no external 3D models or texture atlases. Ea
 
 The coding agent checks every change against the architecture and design rules. If your request would violate a rule, it warns you and proposes alternatives before writing any code.
 
-**Battle prototype (`battle.html`)** today: fullscreen 3D Farkle vs bot, **vendored** Babylon.js + cannon-es, **pull-back sling** drag on the table to throw (or **ROLL** button), **camera debug** panel (orbit + copy JSON view), table layout with wide **roll zone** and narrow **shelves** (~two dice wide) along Z. See `ARCHITECTURE.md` §Battle Prototype and `DESIGN.md` §14.
+**Battle prototype (`battle.html`)** today: fullscreen 3D Farkle vs bot, **vendored** Babylon.js + cannon-es, **pull-back sling** (anchor→release in world XZ, wedge HUD projected from the same line; **ROLL** = classic bottom throw), **camera debug** (orbit + copy JSON), sandwich table (wide **roll** strip, narrow **shelves**). **`throw-lab.html`** — throw-only sandbox with the same `battle_tune_json_v1` tuning. Details: `ARCHITECTURE.md` (Battle Prototype, Throw lab), `DESIGN.md` section 14.
 
 For subsequent changes (new features, balance tweaks, mechanic removals), use `NEXT_ITERATION_PROMPT.md` — it ensures the agent updates `DESIGN.md` first, then plans and implements, rather than jumping straight to code.
 
 ## What's Inside
+
+When the project lives inside a parent folder (e.g. **3D Dicing**), Cursor may load **`.cursor/rules/*.mdc`** from that parent — see `chat-context-and-docs.mdc` for chat-context warnings and doc-sync expectations.
 
 ```
 ├── AGENTS.md                # Coding agent rules: workflow, guard behavior, coding standards
@@ -74,6 +76,8 @@ For subsequent changes (new features, balance tweaks, mechanic removals), use `N
 ├── server.mjs               # Local HTTP server (port 4174)
 ├── spike-v2.html            # 3D engine validation spike (BabylonJS + cannon-es)
 ├── battle.html              # Battle prototype — full 3D Farkle + combat + bot AI + sling throw
+├── throw-lab.html           # Throw sandbox: ROLL + sling, tune + «Реализм броска», roll log
+├── throw-lab.mjs            # Module for throw-lab (same battleTune shape as battle)
 ├── legacy/
 │   └── dice-box-spike.html  # Older full-page dice-box prototype (was root index.html)
 ├── src/
@@ -125,6 +129,7 @@ node server.mjs
 
 # Open in browser
 # http://127.0.0.1:4174/battle.html      — 3D battle prototype (play here)
+# http://127.0.0.1:4174/throw-lab.html   — throw tuning lab (shared Tune JSON)
 # http://127.0.0.1:4174/spike-v2.html   — 3D dice engine sandbox
 # http://127.0.0.1:4174/src/index.html   — game entry point (WIP)
 ```

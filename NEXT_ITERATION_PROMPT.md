@@ -15,7 +15,7 @@ Read the following project files before doing anything:
 
 Confirm that you understand the rules and the current state of the project, then proceed with the iteration workflow.
 
-**Note:** The live battle prototype is **`battle.html`** (vendored Babylon + cannon-es, sling throw, camera debug). If the change touches 3D UX or table layout, update **§14** in `DESIGN.md` and the **Battle Prototype** section in `ARCHITECTURE.md`, not only code.
+**Note:** The live battle prototype is **`battle.html`** (vendored Babylon + cannon-es, sling: anchor→release in world XZ, wedge HUD, camera debug). If the change touches 3D UX, sling, or table layout, update **§14** in `DESIGN.md` and **Battle Prototype / Interaction Model** in `ARCHITECTURE.md`, not only code. If chat context is thin, sync those docs explicitly after the change.
 
 ## What I Want to Change
 

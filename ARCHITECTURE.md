@@ -401,6 +401,8 @@ project/
 ├── server.mjs              # Local HTTP server for ES module loading (port 4174)
 ├── spike-v2.html           # 3D engine spike (BabylonJS + cannon-es, standalone)
 ├── battle.html             # Battle prototype (fullscreen 3D, Farkle + combat + bot + sling)
+├── throw-lab.html          # Throw-only sandbox: ROLL + sling, physics tuning (see below)
+├── throw-lab.mjs           # ES module: same `battleTune` object + localStorage `battle_tune_json_v1`
 ├── index.html              # HTTP → battle; file:// → local-server instructions (RU)
 ├── src/
 │   ├── index.html          # Entry point — loads IIFE scripts + engine module
@@ -581,7 +583,8 @@ Drag threshold: 6px. Below threshold = click (select/deselect). Above threshold 
 
 **Battle prototype (`battle.html`) — table-level sling + selection:**
 
-- **Player roll:** pull-back **sling** on the roll zone — pointer down picks a point on the table plane, dice appear as a **kinematic cluster**, drag moves the cluster, pointer up applies **base throw** (same family as bottom spawn) plus extra impulse from vector **(pressPoint − releasePoint)** in XZ. Short drag falls back to the same throw as the **ROLL** button. **Camera debug “Orbit”** disables sling capture on the canvas so the ArcRotateCamera can be used.
+- **Player roll:** pull-back **sling** — pointer down stores **anchor** `(x,z)` on the sling pick plane (`SLING_PICK_Y`). Dice form a **kinematic cluster** at the **current pick** (cursor on the table), not snapped to the screen-bottom edge: spread uses `rollSpawnOffsetsEdgeFrame` with **tangent ⟂ (pick − anchor)** and **inward** toward the anchor so the cluster matches the shot line. **Release:** world pull ≤ `SLING_CLICK_EPS_WORLD` → **cancel** (`waiting`, `syncActiveDice(0)`). Else **aim** = `normalize(start − end)` in XZ (slingshot: from release point toward anchor, opposite stretch vector), **strength** = `min(1, pullLen / SLING_MAX_PULL_WORLD)` (linear). All dice get the **same initial velocity** `(aimX·H, V, aimZ·H) / mass`. **Dice–dice:** `collisionFilterGroup = 2`, `collisionFilterMask = 3` (`STATIC_ENV_GROUP | DICE_COLLISION_GROUP`) on **`CANNON.Box` shape** + hull copy — collide with table (group 1) and other dice (group 2), so dice are solid to each other. Body matches for broadphase. **Stack step:** `DICE_STACK_Y_STEP = DIE_EDGE × 1.06`. **ROLL** uses `throwFromBottom()` unchanged. **Camera debug “Orbit”** disables sling capture on the canvas.
+- **Sling HUD:** SVG `#slingVizSvg` — **wedge** (4 radial bands by strength) + exact **%** label; wedge direction from **projected** anchor→pick (`rollXZWorldToClient`), aligned with physics under table yaw. In **`battle.html`** the SVG is fixed to the viewport; in **`throw-lab.html`** it sits inside **`.lab-main`** over `#labCanvas` with `width/height: 100%` so picking / HUD shares the same pixel space as the canvas (sidebar has higher `z-index` for UI clicks).
 - **Selection (after settle):** pointer up on a die toggles **HighlightLayer** selection (unchanged).
 - **Bot:** still uses scripted **throwFromTop()** (no sling).
 
@@ -616,13 +619,13 @@ A standalone prototype implementing the full battle loop in a single HTML file. 
 
 | Feature | Implementation |
 |---------|---------------|
-| **3D Canvas** | Fullscreen BabylonJS canvas; default **locked** ArcRotateCamera; optional **camera debug** panel (bottom-left): numeric α, β, radius, target, Apply, **Copy view as JSON**, reset; checkbox **Orbit / zoom** attaches Babylon controls for tuning shots |
+| **3D Canvas** | Fullscreen BabylonJS canvas; **`#slingVizSvg`** fixed over the viewport (wedge HUD). Optional **camera debug** panel (bottom-left): numeric α, β, radius, target, Apply, **Copy view as JSON**, reset; checkbox **Orbit / zoom** attaches Babylon controls for tuning shots |
 | **Table layout** | One table in **X** (same width for all strips): **roll zone** (wide center strip in Z) + **player/bot shelves** (shallower Z), stacked along Z (“sandwich”). Shelf **width ≈ two dice**; held dice in a small grid. Physics **walls** at shelf/roll **dividers** keep dice in the rolling band. Constants: `TABLE_WORLD_SCALE`, `ROLL_FLOOR_W`, `SHELF_DEPTH_Z`, `ROLL_DEPTH_Z`, `DIVIDER_Z`, `BOT_DIVIDER_Z`, `WX`, etc. |
-| **Directional throws** | Player: `throwFromBottom()` (low release, impulse into table). Bot: `throwFromTop()`. Player may also **sling** (see Interaction Model). |
+| **Directional throws** | Player: `throwFromBottom()` (ROLL) or **sling** — sling velocity along **start−end** in XZ + vertical scale by strength (see Interaction Model). Bot: `throwFromTop()`. |
 | **Dice lifecycle** | New dice are **KINEMATIC**, **hidden** under the table until a throw; on throw they become **DYNAMIC** and visible — avoids “phantom” rolls before the bot’s or player’s real roll. |
 | **Farkle scoring** | Full standard table: singles (1/5), sets (3-of-a-kind to 6-of-a-kind), short straights (1-5, 2-6), full straight, three pairs. All-dice-must-score validation. |
 | **Click-to-select** | After settle: `scene.onPointerObservable` + `HighlightLayer` (green glow). Real-time score preview. |
-| **Player roll input** | **Drag sling** on roll zone (phase `aiming`) or **ROLL** button. `pointercancel` / turn change clears sling state. |
+| **Player roll input** | **Drag sling** (phase `aiming`) or **ROLL**. Sling cancel: release with no pull (see `SLING_CLICK_EPS_WORLD`). `pointercancel` / turn change clears sling like cancel. |
 | **Buttons** | ROLL, SCORE'N'PLAY, BANK'N'PASS. Hot Hand: only SCORE button shown (auto-bank, no manual bank allowed). |
 | **Held zone** | Scored dice animate to the current player's held zone (lerp). |
 | **Hot Hand** | Triggers when all 6 dice scored in a turn. Auto-banks damage, resets to 6 fresh dice, same player continues. |
@@ -640,7 +643,24 @@ A standalone prototype implementing the full battle loop in a single HTML file. 
 
 - Game state → `store.state.turn`, `store.state.player`, `store.state.enemy`
 - Button clicks → `store.dispatch('ROLL_DICE')`, `store.dispatch('SCORE_SELECTION')`, etc.
-- Pointer sling → same hooks as roll (e.g. `ROLL_DICE` with impulse payload, or discrete `AIM_ROLL` / `RELEASE_ROLL` — TBD during bridge design)
+- Pointer sling → same hooks as roll (e.g. `ROLL_DICE` with `{ aimX, aimZ, strength }` or discrete `AIM_ROLL` / `RELEASE_ROLL` — TBD). Preserve: `positionKinematicClusterSling`, `applyRollImpulsesFromCurrentPositions`, projected HUD parity.
 - Scoring functions → `src/config/scoring.js` + `src/systems/turnSystem.js`
 - 3D engine → `src/engine/diceEngine.js`, `src/engine/dieFactory.js`, `src/engine/diceBridge.js`
 - Bot logic → `src/systems/botSystem.js`
+
+---
+
+## Throw lab (`throw-lab.html` + `throw-lab.mjs`)
+
+**Purpose:** isolate **ROLL + pull-back sling + physics** without combat, scoring, or bot flow — for tuning how throws feel and for inspecting face results after settle.
+
+| Topic | Detail |
+|-------|--------|
+| **Shared tuning** | Same in-memory shape as battle: `battleTune` (world, body, sling, viz, spawn, rollPlayer/bot, mesh, settle, …). Persisted under **`localStorage['battle_tune_json_v1']`** — changes in the lab apply to **`battle.html`** on next load (and vice versa). |
+| **Full Tune panel** | Duplicate field list as **`battle.html` → Tune**: `PHYSICS_TUNE_FIELDS` in both files must stay in sync when adding keys (comment in each file points to the other). Each field has **EN + RU** help text describing gameplay effect (not just JSON paths). |
+| **Sling release (lab only)** | Same impulse logic as **ROLL** (`throwDice`): per-die random `f` in scaled `throwMin`…`throwMax`, `applyImpulse` with off-center point, `rollPlayer` `mainImpulse` / `impulseYMul` / `impulseCrossMul`, aim = slingshot direction in XZ. **Pull strength** scales the throw band (`0.12 + 0.88 × strength`). **`battle.html` sling** still uses shared initial velocity + `sling.impulse*`. |
+| **«Реализм броска»** | High-level sliders: **mass**, **gravity Y**, **throw power** (scales ROLL + lab sling `throwMin`/`throwMax` and `mainImpulse`; power range **0.2×–6×**), **arc** (`rollPlayer`/`rollBot` `impulseYMul`; also drives lab sling vertical), **damping** (linear + angular together). Ballistic hint uses **throwMax × impulseYMul / mass** (lab sling model). JSON **`sling.impulseH/Y`** still apply in **battle** only. |
+| **UX** | Current roll faces + **history log**; **Сброс стола** clears dice; **Очистить историю** clears the log. Sidebar typography widened for readability. |
+| **Runtime** | ES module + import map (HTTP only), same as battle. Lab uses `Math.random()` for ROLL jitter / quaternions (visual only); not wired to `store.prng`. |
+
+**Extraction note:** When implementing `diceEngine` / `diceBridge`, consider moving **`PHYSICS_TUNE_FIELDS`** (and optional realism presets) to a small shared module so battle, lab, and future tools do not drift.

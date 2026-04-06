@@ -10,6 +10,18 @@ If they exist, also read:
 3. `DESIGN.md` — this game's design (generated per project)
 4. `TODO.md` — current task list (generated per project)
 
+If the repo/workspace root contains **`.cursor/rules/`**, read applicable rules (e.g. `chat-context-and-docs.mdc` at the parent **3D Dicing** folder when `dice-a-lot` is nested).
+
+## Chat context and documentation
+
+When **conversation context is thin** (summarized threads, many edits no longer visible, user references “what we decided” without it being in-window), **warn the user** and **propose** updating the main docs in this folder: `ARCHITECTURE.md`, `DESIGN.md`, `TODO.md`, and if needed `README.md`. Do not assume the chat history is authoritative for handoff.
+
+After **substantial** `battle.html`, **`throw-lab.html` / `throw-lab.mjs`**, or shared **Tune** (`battle_tune_json_v1`, `PHYSICS_TUNE_FIELDS`) work, keep **`ARCHITECTURE.md`**, **`DESIGN.md` §14**, **`TODO.md`**, and **`README.md`** aligned so the next session does not rely on lost chat context.
+
+## User preference: propose, then execute
+
+When the user asks for a **fix or design decision**, prefer: **identify the problem → propose a concrete solution → wait for explicit approval** before large or risky code changes, unless they say to implement immediately.
+
 ## Document Types
 
 | File | Kind | Purpose |

@@ -109,9 +109,11 @@ Resolve the highest-risk unknown first. If the 3D die pipeline doesn't work, eve
 
 - [x] **0B3.** ~~Implement basic roll~~ → **Done.** Directional throws: player from bottom, bot from top. Physics walls confine dice to roll zone.
 
-- [x] **0B3b.** ~~Player pull-back sling + polish~~ → **Done.** Drag on roll-zone plane: kinematic dice cluster, release applies impulse from `(start − end)` in XZ + same base throw family as bottom roll; short drag → same as **ROLL**. `pointercancel` / turn reset. Sling disabled when camera debug **Orbit** is on. Dice **stash** (kinematic + hidden) until real throw — no phantom pre-roll for bot/player.
+- [x] **0B3b.** ~~Player pull-back sling + polish~~ → **Done (iter. 2026).** Cluster at **pick** along **anchor→cursor** (not bottom-edge snap); aim = **start−end** XZ (slingshot, opposite stretch); linear strength to `SLING_MAX_PULL_WORLD`; no-pull release = **cancel**. Same **velocity** all dice; dice–dice **on** (`mask` = env|dice); shape + body filters; `DICE_STACK_Y_STEP`; SVG **wedge** + % via `rollXZWorldToClient`. `pointercancel` / turn reset. **Orbit** disables sling. Stash until real throw.
 
 - [x] **0B3c.** ~~Table & camera tooling~~ → **Done.** Sandwich table: shared **X** width, wide **roll** strip in Z, **narrow shelves** (~two dice) for held dice. **Camera debug** UI: α, β, radius, target, Apply, Copy JSON, reset, optional orbit.
+
+- [x] **0B3d.** ~~Throw lab + Tune UX~~ → **Done (2026).** `throw-lab.html` + `throw-lab.mjs`: ROLL + sling only; same `battleTune` and `localStorage['battle_tune_json_v1']` as `battle.html`; sling SVG over canvas inside `.lab-main`; current faces + roll history; «Реализм броска» sliders (mass, gravity, power 0.2×–6×, arc, damping); full Tune panel with EN/RU hints — **`PHYSICS_TUNE_FIELDS` must stay in sync** with `battle.html`. Ref: `ARCHITECTURE.md` (Throw lab), `DESIGN.md` §14.12.
 
 - [x] **0B4.** ~~Implement die selection~~ → **Done.** Click-to-select via `scene.onPointerObservable`, `HighlightLayer` green glow, multi-select, real-time score preview.
 
@@ -145,6 +147,7 @@ Extract validated spike code into production modules.
 
 > **Status: COMPLETE.** Full 3D battle prototype validated in `battle.html`. Engine stack: **vendored** BabylonJS + cannon-es, custom procedural geometry. Core mechanics: directional throws, **pull-back sling** or **ROLL**, click-to-select, sandwich table + narrow shelves, camera debug, kinematic dice stash, held zones, Farkle scoring, Hot Hand, bust, bot AI, HP combat, win/lose. Entry: **`index.html`** (HTTP → `battle.html`; `file://` → server instructions).
 > **Remaining:** engine extraction (0C1–0C4) to wire prototype logic through `store.dispatch` + preserve sling/physics tuning in `diceBridge` / `diceEngine`.
+> **Docs (2026 sync):** sling behavior, collision filters, wedge HUD, **throw-lab** (shared Tune, realism sliders, HUD layering), Tune field copy (EN/RU), and “propose → approve → implement” preferences are reflected in `ARCHITECTURE.md`, `DESIGN.md` §14, `AGENTS.md`, `README.md`, and workspace `.cursor/rules/chat-context-and-docs.mdc`.
 
 ---
 
@@ -734,7 +737,7 @@ Visual and audio juice.
 
 | Milestone | After Group | What's Playable | Status |
 |---|---|---|---|
-| **3D Engine Proven** | 0 | Full 3D battle: sling or ROLL, select, held, scoring, combat, bot AI | **DONE** — `battle.html` + vendored libs + `index.html` entry. Engine extraction (0C) pending. |
+| **3D Engine Proven** | 0 | Full 3D battle: sling or ROLL, select, held, scoring, combat, bot AI | **DONE** — `battle.html` + `throw-lab.html` (shared Tune) + vendored libs + `index.html` entry. Engine extraction (0C) pending. |
 | **Playable Base Game (2D logic)** | 0 + A–E | Standard Farkle scoring + combat logic wired to the 3D battle shell | Pending |
 | **Playable 3D Battle** | 0 + A–G | Full 3D battle against bot, base dice only | Pending |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |

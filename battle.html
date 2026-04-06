@@ -6,9 +6,19 @@
 <title>Dice-a-Lot — Battle</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ui-glass:rgba(10,10,18,.36);
+  --ui-glass-strong:rgba(10,10,18,.48);
+  --ui-blur:14px;
+  --ui-border:rgba(255,255,255,.14);
+  --ui-shadow:0 4px 28px rgba(0,0,0,.35);
+  --ui-text-shadow:0 1px 3px rgba(0,0,0,.9);
+  /* Верхняя полоса: turn + round score + selection без налезания на край / вырез. */
+  --battle-ui-top:max(52px,calc(env(safe-area-inset-top) + 40px));
+}
 body{background:#0a0a0f;color:#e8e8e8;font-family:"Segoe UI",system-ui,sans-serif;height:100vh;overflow:hidden}
 
-/* ── Fullscreen Canvas ─────────────────────────── */
+/* ── Fullscreen 3D canvas (HUD — оверлей; без CSS-полей — иначе полосы цвета body) ── */
 .canvas-wrap{position:fixed;inset:0;z-index:0}
 #renderCanvas{width:100%;height:100%;display:block;touch-action:none;outline:none}
 
@@ -21,37 +31,76 @@ body{background:#0a0a0f;color:#e8e8e8;font-family:"Segoe UI",system-ui,sans-seri
 .banner.victory{background:#27ae60;color:#fff}
 .banner.defeat{background:#8e1e1e;color:#fff}
 
-/* ── UI Overlay (3-col grid) ───────────────────── */
-.battle-scene{position:fixed;inset:0;z-index:1;display:grid;grid-template-columns:240px 1fr 240px;grid-template-rows:1fr;gap:14px;padding:14px;pointer-events:none}
+/* ── UI overlay: стол на весь экран; HUD поверх ── */
+.battle-scene{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  padding-top:var(--battle-ui-top);
+  padding-right:max(14px,env(safe-area-inset-right));
+  padding-bottom:max(14px,env(safe-area-inset-bottom));
+  padding-left:max(14px,env(safe-area-inset-left));
+}
 
 .side{display:flex;flex-direction:column;gap:14px;pointer-events:auto}
 
+.side-left{
+  position:absolute;z-index:2;
+  top:var(--battle-ui-top);
+  left:max(14px,env(safe-area-inset-left));
+  width:min(240px,calc(40vw - 24px));
+}
+
+.side-right{
+  position:absolute;z-index:2;
+  top:var(--battle-ui-top);
+  right:max(14px,env(safe-area-inset-right));
+  width:min(260px,calc(40vw - 24px));
+  align-items:stretch;
+  max-height:calc(100vh - var(--battle-ui-top) - max(14px,env(safe-area-inset-bottom)));
+}
+
 /* ── Combatant Card ─────────────────────────────── */
-.combatant-card{background:rgba(10,10,15,.82);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px}
+.combatant-card{
+  background:var(--ui-glass);backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur));
+  border:1px solid var(--ui-border);border-radius:12px;padding:16px;box-shadow:var(--ui-shadow);
+  text-shadow:var(--ui-text-shadow);
+}
 .combatant-name{font-size:.95rem;font-weight:700;margin-bottom:10px;letter-spacing:.03em}
 .combatant-label{font-size:.7rem;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
 
 /* ── HP Bar ─────────────────────────────────────── */
 .hp-bar-wrap{margin-bottom:4px}
-.hp-bar{position:relative;height:22px;background:#1a1a1a;border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.06)}
+.hp-bar{position:relative;height:22px;background:rgba(12,12,18,.55);border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
 .hp-fill{height:100%;background:linear-gradient(90deg,#c0392b,#e74c3c);border-radius:5px;transition:width .6s ease}
 .hp-fill-enemy{background:linear-gradient(90deg,#8e44ad,#9b59b6)}
 .hp-text{font-size:.78rem;color:#aaa;text-align:center;margin-top:3px}
 .hp-text span{font-weight:700;color:#ddd}
 
-/* ── Center Column ──────────────────────────────── */
-.center{display:flex;flex-direction:column;justify-content:space-between;height:100%;overflow:hidden}
+/* ── Center HUD (полоса сверху / кнопки снизу; середина — сквозь к столу) ── */
+.center{
+  position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;align-items:center;
+  pointer-events:none;padding-top:14px;padding-bottom:4px;
+}
 
-.info-bar{display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:auto;background:rgba(10,10,15,.7);backdrop-filter:blur(6px);border-radius:0 0 12px 12px;padding:10px 20px;align-self:center}
+.info-bar{
+  display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:auto;max-width:min(96vw,520px);
+  background:var(--ui-glass);backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur));
+  border:1px solid var(--ui-border);border-top:none;border-radius:0 0 14px 14px;padding:12px 24px;align-self:center;
+  box-shadow:var(--ui-shadow);text-shadow:var(--ui-text-shadow);
+}
 .turn-indicator{font-size:1rem;font-weight:700;letter-spacing:.06em;color:#ffc91c;text-transform:uppercase}
 .round-score-wrap{display:flex;align-items:baseline;gap:8px}
 .round-label{font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.06em}
 .round-value{font-size:2.2rem;font-weight:800;color:#ffc91c;font-variant-numeric:tabular-nums}
-.selection-info{font-size:.85rem;color:#bbb;min-height:22px}
+.selection-info{font-size:.85rem;color:#bbb;min-height:24px;text-align:center;line-height:1.35;padding:0 4px}
 .status-text{font-size:.8rem;color:#666;min-height:20px}
 
 /* ── Action Buttons ─────────────────────────────── */
-.actions{display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:auto;background:rgba(10,10,15,.7);backdrop-filter:blur(6px);border-radius:12px 12px 0 0;padding:10px 20px;align-self:center;min-height:52px}
+.actions{
+  display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:auto;
+  background:var(--ui-glass);backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur));
+  border:1px solid var(--ui-border);border-bottom:none;border-radius:14px 14px 0 0;padding:10px 22px;align-self:center;min-height:52px;
+  box-shadow:var(--ui-shadow);text-shadow:var(--ui-text-shadow);
+}
 .primary-row,.secondary-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 .btn{padding:10px 28px;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:background .12s,opacity .12s,transform .1s}
 .btn:active{transform:scale(.97)}
@@ -68,9 +117,14 @@ body{background:#0a0a0f;color:#e8e8e8;font-family:"Segoe UI",system-ui,sans-seri
 .btn-restart:hover{background:#666}
 
 /* ── History ────────────────────────────────────── */
-.history-card{background:rgba(10,10,15,.82);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;flex:1;display:flex;flex-direction:column;min-height:200px}
+.history-card{
+  background:var(--ui-glass);backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur));
+  border:1px solid var(--ui-border);border-radius:12px;padding:14px;display:flex;flex-direction:column;
+  min-height:120px;max-height:min(36vh,300px);flex:1;min-width:0;width:100%;
+  box-shadow:var(--ui-shadow);text-shadow:var(--ui-text-shadow);
+}
 .history-title{font-size:.78rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
-.history-log{flex:1;overflow-y:auto;font-size:.8rem;color:#aaa;display:flex;flex-direction:column;gap:4px;max-height:340px}
+.history-log{flex:1;overflow-y:auto;font-size:.8rem;color:#aaa;display:flex;flex-direction:column;gap:4px;min-height:0}
 .log-entry{padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)}
 .log-entry.bust{color:#e74c3c}
 .log-entry.bank{color:#ffc91c}
@@ -78,36 +132,106 @@ body{background:#0a0a0f;color:#e8e8e8;font-family:"Segoe UI",system-ui,sans-seri
 .log-entry.damage{color:#c0392b}
 
 /* ── Responsive ─────────────────────────────────── */
-@media(max-width:1100px){
-  .battle-scene{grid-template-columns:1fr;padding:10px}
-  .side-left{order:1} .center{order:0} .side-right{order:2}
+@media(max-width:700px){
+  .side-left{width:min(200px,calc(50vw - 16px))}
+  .side-right{width:min(200px,calc(50vw - 16px))}
+  .history-card{max-height:min(32vh,220px)}
 }
 
-/* ── Camera debug (orbit + copy view) ───────────── */
-.cam-debug-wrap{
-  position:fixed;left:12px;bottom:12px;z-index:1000;pointer-events:auto;
-  background:rgba(12,12,18,.94);backdrop-filter:blur(8px);
-  border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;
-  max-width:min(440px,calc(100vw - 24px));font-size:.72rem;color:#bbb;
-  box-shadow:0 4px 24px rgba(0,0,0,.45);
+/* ── Camera / Table dev: док снизу слева ───────────────────────────── */
+.dev-settings-dock{
+  position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));
+  z-index:1001;display:flex;flex-wrap:wrap;gap:6px;max-width:calc(100vw - 24px);pointer-events:auto;
 }
-.cam-debug-wrap h4{margin:0 0 6px;font-size:.68rem;font-weight:700;color:#888;letter-spacing:.06em;text-transform:uppercase}
-.cam-debug-readout{margin:6px 0;font-family:Consolas,"Cascadia Mono",monospace;font-size:.7rem;color:#7dcea0;line-height:1.35;white-space:pre-wrap;word-break:break-all;max-height:140px;overflow:auto}
-.cam-debug-label{cursor:pointer;display:flex;align-items:center;gap:8px;color:#ddd}
-.cam-debug-copy{margin-top:6px;padding:6px 12px;border-radius:6px;border:1px solid #444;background:#2c2c38;color:#e8e8e8;font:inherit;cursor:pointer;width:100%}
-.cam-debug-copy:hover{background:#38384a}
-.cam-debug-fields{margin:8px 0 4px;display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center}
-.cam-debug-fields label{color:#999;font-size:.68rem;white-space:nowrap}
+.cam-debug-toggle{
+  position:relative;padding:7px 11px;border-radius:8px;cursor:pointer;font:inherit;font-size:.7rem;font-weight:700;
+  letter-spacing:.04em;color:#ddd;border:1px solid var(--ui-border);background:var(--ui-glass-strong);
+  backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur));box-shadow:var(--ui-shadow);
+}
+.cam-debug-toggle:hover{background:rgba(18,18,28,.58)}
+.cam-debug-wrap,.table-settings-wrap{
+  position:fixed;left:max(12px,env(safe-area-inset-left));
+  bottom:calc(max(12px,env(safe-area-inset-bottom)) + 40px);z-index:1000;pointer-events:auto;
+  width:min(252px,calc(100vw - 24px));padding:8px 9px;
+  background:var(--ui-glass-strong);backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur));
+  border:1px solid var(--ui-border);border-radius:10px;font-size:.62rem;color:#d4d4dc;
+  box-shadow:var(--ui-shadow);text-shadow:var(--ui-text-shadow);
+  overflow:visible;max-height:none;
+}
+.cam-debug-wrap.cam-debug-collapsed,.table-settings-wrap.table-settings-collapsed{display:none}
+@media (min-width:560px){
+  .table-settings-wrap{
+    left:min(calc(max(12px,env(safe-area-inset-left)) + 260px),calc(100vw - min(252px,calc(100vw - 24px)) - 12px));
+  }
+}
+@media (max-width:559px){
+  .table-settings-wrap{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 78px)}
+}
+.cam-debug-h4{margin:0 0 5px;font-size:.62rem;font-weight:700;color:#888;letter-spacing:.06em;text-transform:uppercase}
+.cam-debug-label{cursor:pointer;display:flex;align-items:center;gap:6px;color:#ccc;margin-bottom:4px}
+.cam-debug-fields{display:grid;grid-template-columns:22px 1fr;gap:3px 6px;align-items:center;margin:4px 0 6px}
+.cam-debug-fields label{color:#888;font-size:.6rem}
 .cam-debug-fields input{
-  width:100%;min-width:0;padding:4px 6px;border-radius:5px;border:1px solid #3a3a48;
-  background:#1a1a22;color:#e0e0e8;font-family:Consolas,"Cascadia Mono",monospace;font-size:.72rem;
+  width:100%;min-width:0;padding:3px 5px;border-radius:4px;border:1px solid rgba(255,255,255,.14);
+  background:rgba(8,8,14,.78);color:#e4e4ec;font-family:Consolas,"Cascadia Mono",monospace;font-size:.62rem;
 }
 .cam-debug-fields input:focus{outline:1px solid #5dade2;border-color:#5dade2}
-.cam-debug-hint{grid-column:1/-1;font-size:.62rem;color:#666;margin:-2px 0 4px;line-height:1.3}
-.cam-debug-apply{margin-bottom:4px;padding:6px 12px;border-radius:6px;border:1px solid #2e6b45;background:#1e3d2a;color:#a8e6b8;font:inherit;cursor:pointer;width:100%}
-.cam-debug-apply:hover{background:#265a3a}
-.cam-debug-reset{margin-top:4px;padding:4px 8px;border-radius:5px;border:1px solid #444;background:transparent;color:#888;font:inherit;cursor:pointer;width:100%;font-size:.65rem}
-.cam-debug-reset:hover{color:#bbb;border-color:#666}
+.cam-debug-btn-row{display:flex;gap:5px;margin-bottom:4px}
+.cam-d-btn{
+  flex:1;padding:5px 4px;border-radius:5px;border:1px solid #444;background:#2a2a36;color:#e4e4ec;font:inherit;font-size:.58rem;
+  font-weight:600;cursor:pointer;
+}
+.cam-d-btn:hover{background:#343444}
+.cam-d-btn-apply{border-color:#2e6b45;background:#1a3228;color:#a8e6b8}
+.cam-d-btn-apply:hover{background:#224a32}
+.cam-d-btn-ghost{flex:0.85;background:transparent;color:#999;border-color:#555}
+.cam-d-btn-ghost:hover{color:#ccc;border-color:#777}
+.cam-debug-readout{
+  margin:0;font-family:Consolas,"Cascadia Mono",monospace;font-size:.58rem;color:#6ab892;line-height:1.2;
+  white-space:pre-line;word-break:break-all;max-height:2.4em;overflow:hidden;
+}
+.table-settings-hint{margin:0 0 6px;font-size:.56rem;color:#777;line-height:1.3}
+.table-settings-wrap input[type="range"]{width:100%;padding:0;accent-color:#5dade2}
+
+.physics-tune-wrap{
+  position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));
+  z-index:1000;pointer-events:auto;width:min(340px,calc(100vw - 24px));max-height:min(72vh,520px);overflow-y:auto;
+  padding:8px 10px;background:var(--ui-glass-strong);backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur));
+  border:1px solid var(--ui-border);border-radius:10px;font-size:.58rem;color:#d4d4dc;box-shadow:var(--ui-shadow);
+  text-shadow:var(--ui-text-shadow);
+}
+.physics-tune-wrap.physics-tune-collapsed{display:none}
+.physics-tune-h4{margin:10px 0 4px;font-size:.58rem;font-weight:700;color:#8ab892;letter-spacing:.05em;text-transform:uppercase}
+.physics-tune-h4:first-child{margin-top:0}
+.physics-tune-field{margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.06)}
+.physics-tune-field:last-child{border-bottom:none}
+.physics-tune-field label{display:block;font-weight:600;color:#bbb;font-size:.55rem;margin-bottom:2px}
+.physics-tune-en{margin:0 0 2px;font-size:.52rem;color:#888;line-height:1.35}
+.physics-tune-ru{margin:0 0 4px;font-size:.52rem;color:#9aa7c4;line-height:1.35}
+.physics-tune-field input[type="number"]{
+  width:100%;padding:4px 6px;border-radius:4px;border:1px solid rgba(255,255,255,.14);
+  background:rgba(8,8,14,.85);color:#e8e8ec;font-family:Consolas,"Cascadia Mono",monospace;font-size:.58rem;
+}
+.physics-tune-field input:focus{outline:1px solid #5dade2;border-color:#5dade2}
+.physics-tune-json{margin:6px 0 0;font-family:Consolas,"Cascadia Mono",monospace;font-size:.5rem;color:#6ab892;line-height:1.25;max-height:4.5em;overflow:auto;word-break:break-all}
+@media(max-width:559px){
+  .physics-tune-wrap{
+    left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));width:auto;max-height:55vh;
+    bottom:calc(max(12px,env(safe-area-inset-bottom)) + 44px);
+  }
+}
+
+/* Слинг: fullscreen поверх канваса, как до inset-эксперимента */
+.sling-viz{
+  position:fixed;inset:0;width:100%;height:100%;z-index:6;
+  pointer-events:none;visibility:hidden;
+}
+.sling-viz line{stroke-linecap:round;filter:drop-shadow(0 1px 3px rgba(0,0,0,.55));}
+.sling-viz .sling-seg{filter:drop-shadow(0 1px 3px rgba(0,0,0,.5));}
+.sling-viz-pow{
+  font-size:clamp(13px,2.8vw,18px);font-weight:800;font-family:"Segoe UI",system-ui,sans-serif;
+  fill:#f1c40f;stroke:#0a0a12;stroke-width:3px;paint-order:stroke fill;
+}
 </style>
 </head>
 <body>
@@ -117,30 +241,89 @@ body{background:#0a0a0f;color:#e8e8e8;font-family:"Segoe UI",system-ui,sans-seri
   <canvas id="renderCanvas"></canvas>
 </div>
 
+<svg id="slingVizSvg" class="sling-viz" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <g id="slingWedgeSegs" fill="#f1c40f" fill-opacity="0.93" stroke="#d4ac0d" stroke-width="0.75" stroke-opacity="0.55">
+    <path id="slingSeg0" class="sling-seg" d=""/>
+    <path id="slingSeg1" class="sling-seg" d=""/>
+    <path id="slingSeg2" class="sling-seg" d=""/>
+    <path id="slingSeg3" class="sling-seg" d=""/>
+  </g>
+  <circle id="slingVizAnchor" cx="0" cy="0" r="8" fill="rgba(241,196,15,.25)" stroke="#f1c40f" stroke-width="2"/>
+  <text id="slingVizPow" class="sling-viz-pow" x="0" y="0" text-anchor="middle" style="display:none">0%</text>
+</svg>
+
 <div id="banner" class="banner"></div>
 
-<div id="camDebugWrap" class="cam-debug-wrap" aria-label="Camera debug">
-  <h4>Table view (debug)</h4>
-  <label class="cam-debug-label"><input type="checkbox" id="camDebugOrbit"> Orbit / zoom (mouse on canvas)</label>
+<div class="dev-settings-dock">
+  <button type="button" id="camDebugToggle" class="cam-debug-toggle" aria-expanded="false" aria-controls="camDebugWrap">Camera ▾</button>
+  <button type="button" id="tableSettingsToggle" class="cam-debug-toggle" aria-expanded="false" aria-controls="tableSettingsWrap">Table ▾</button>
+  <button type="button" id="physicsTuneToggle" class="cam-debug-toggle" aria-expanded="false" aria-controls="physicsTuneWrap">Tune ▾</button>
+</div>
+<div id="camDebugWrap" class="cam-debug-wrap cam-debug-collapsed" aria-label="Camera debug">
+  <h4 class="cam-debug-h4">Camera</h4>
+  <label class="cam-debug-label"><input type="checkbox" id="camDebugOrbit"> Orbit / zoom</label>
   <div class="cam-debug-fields">
-    <span class="cam-debug-hint">Arc rotate: α, β in degrees (type precisely, then Apply or Enter).</span>
-    <label for="camAlphaDeg">α (alpha °)</label>
+    <label for="camAlphaDeg">α°</label>
     <input type="number" id="camAlphaDeg" step="0.1" autocomplete="off">
-    <label for="camBetaDeg">β (beta °)</label>
+    <label for="camBetaDeg">β°</label>
     <input type="number" id="camBetaDeg" step="0.1" autocomplete="off">
-    <label for="camRadiusInput">radius</label>
+    <label for="camRadiusInput">R</label>
     <input type="number" id="camRadiusInput" step="0.05" min="1" autocomplete="off">
-    <label for="camTX">target X</label>
+    <label for="camTX">tX</label>
     <input type="number" id="camTX" step="0.01" autocomplete="off">
-    <label for="camTY">target Y</label>
+    <label for="camTY">tY</label>
     <input type="number" id="camTY" step="0.01" autocomplete="off">
-    <label for="camTZ">target Z</label>
+    <label for="camTZ">tZ</label>
     <input type="number" id="camTZ" step="0.01" autocomplete="off">
   </div>
-  <button type="button" id="camApply" class="cam-debug-apply">Apply typed values</button>
+  <div class="cam-debug-btn-row">
+    <button type="button" id="camApply" class="cam-d-btn cam-d-btn-apply">Apply</button>
+    <button type="button" id="camDebugCopy" class="cam-d-btn">Copy</button>
+    <button type="button" id="camReset" class="cam-d-btn cam-d-btn-ghost">Reset</button>
+  </div>
   <pre id="camDebugReadout" class="cam-debug-readout"></pre>
-  <button type="button" id="camDebugCopy" class="cam-debug-copy">Copy view as JSON</button>
-  <button type="button" id="camReset" class="cam-debug-reset">Reset to default battle view</button>
+</div>
+
+<div id="tableSettingsWrap" class="table-settings-wrap table-settings-collapsed" aria-label="Table geometry">
+  <h4 class="cam-debug-h4">Table geometry</h4>
+  <p class="table-settings-hint">Дефолт стола: roll ×4.5, yaw −90°. Сохраняется в браузере; Apply — перезагрузка; «Сброс» — дефолты кода.</p>
+  <div class="cam-debug-fields">
+    <label for="rollStretchRange" title="Только центральная зона броска по Z">Roll</label>
+    <input type="range" id="rollStretchRange" min="1.02" max="20" step="0.02" autocomplete="off">
+    <label for="rollStretchNum">×</label>
+    <input type="number" id="rollStretchNum" min="1.02" max="20" step="0.01" autocomplete="off">
+    <label for="tableYawDeg" title="Поворот стола в кадре (°)">Yaw°</label>
+    <input type="number" id="tableYawDeg" step="1" min="-180" max="180" autocomplete="off">
+  </div>
+  <h4 class="cam-debug-h4" style="margin-top:8px">Sling aim</h4>
+  <p class="table-settings-hint" style="margin-top:0">Сдвиг кучки от позиции курсора (как у Roll). 0 = только база у нижнего края.</p>
+  <div class="cam-debug-fields">
+    <label for="slingAimTangent" title="Вдоль кромки (касательная)">∥ edge</label>
+    <input type="number" id="slingAimTangent" step="0.02" min="0" max="2" autocomplete="off">
+    <label for="slingAimInward" title="Вглубь зоны броска">In</label>
+    <input type="number" id="slingAimInward" step="0.02" min="0" max="2" autocomplete="off">
+  </div>
+  <div class="cam-debug-btn-row">
+    <button type="button" id="tableSettingsApply" class="cam-d-btn cam-d-btn-apply">Apply & reload</button>
+    <button type="button" id="tableSettingsReset" class="cam-d-btn cam-d-btn-ghost">Сброс</button>
+  </div>
+  <pre id="tableSettingsReadout" class="cam-debug-readout"></pre>
+</div>
+
+<div id="physicsTuneWrap" class="physics-tune-wrap physics-tune-collapsed" aria-label="Physics tuning">
+  <h4 class="cam-debug-h4" style="margin-top:0">Physics & throw</h4>
+  <p class="table-settings-hint" style="margin-top:0;margin-bottom:8px">Apply — без перезагрузки. Mesh (die scale / box half) пересоздаёт кубики в зоне броска и сбрасывает удерживаемые на полке.</p>
+  <div id="physicsTuneFields"></div>
+  <div class="cam-debug-btn-row">
+    <button type="button" id="physicsTuneApply" class="cam-d-btn cam-d-btn-apply">Apply</button>
+    <button type="button" id="physicsTuneReset" class="cam-d-btn cam-d-btn-ghost">Reset</button>
+  </div>
+  <div class="cam-debug-btn-row">
+    <button type="button" id="physicsTuneCopyJson" class="cam-d-btn">Copy JSON</button>
+    <button type="button" id="physicsTunePasteJson" class="cam-d-btn">Paste JSON</button>
+  </div>
+  <textarea id="physicsTunePasteArea" rows="3" autocomplete="off" placeholder="Paste JSON, then «Paste JSON»" style="width:100%;margin-top:6px;padding:4px 6px;border-radius:4px;border:1px solid rgba(255,255,255,.14);background:rgba(8,8,14,.85);color:#ccc;font-family:Consolas,monospace;font-size:.52rem;resize:vertical;box-sizing:border-box"></textarea>
+  <pre id="physicsTuneReadout" class="physics-tune-json"></pre>
 </div>
 
 <!-- UI overlay -->
@@ -210,45 +393,188 @@ import * as CANNON from 'cannon-es';
 // ═══════════════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════════════
+const LS_ROLL_STRETCH = 'battle_rollDepthStretch';
+const LS_TABLE_YAW_DEG = 'battle_tableViewYawDeg';
+const LS_SLING_AIM_T = 'battle_slingAimTangent';
+const LS_SLING_AIM_IN = 'battle_slingAimInward';
+/** Дефолт отображения стола (если нет сохранённых настроек в localStorage). */
+const DEFAULT_ROLL_DEPTH_STRETCH = 4.5;
+const DEFAULT_TABLE_VIEW_YAW_DEG = -90;
+/** Пределы множителя зоны броска (UI + localStorage); подними MAX при необходимости. */
+const MIN_ROLL_DEPTH_STRETCH = 1.02;
+const MAX_ROLL_DEPTH_STRETCH = 20;
+
+function readStoredRollDepthStretch() {
+  try {
+    const raw = localStorage.getItem(LS_ROLL_STRETCH);
+    if (raw == null || raw === '') return DEFAULT_ROLL_DEPTH_STRETCH;
+    const v = parseFloat(raw);
+    if (!Number.isFinite(v)) return DEFAULT_ROLL_DEPTH_STRETCH;
+    return Math.min(MAX_ROLL_DEPTH_STRETCH, Math.max(MIN_ROLL_DEPTH_STRETCH, v));
+  } catch {
+    return DEFAULT_ROLL_DEPTH_STRETCH;
+  }
+}
+function readStoredTableViewYawDeg() {
+  try {
+    const raw = localStorage.getItem(LS_TABLE_YAW_DEG);
+    if (raw == null || raw === '') return DEFAULT_TABLE_VIEW_YAW_DEG;
+    const v = parseFloat(raw);
+    if (!Number.isFinite(v)) return DEFAULT_TABLE_VIEW_YAW_DEG;
+    return Math.min(180, Math.max(-180, v));
+  } catch {
+    return DEFAULT_TABLE_VIEW_YAW_DEG;
+  }
+}
+
+const DEFAULT_SLING_AIM_TANGENT = 0.42;
+const DEFAULT_SLING_AIM_INWARD = 0.28;
+const MIN_SLING_AIM = 0;
+const MAX_SLING_AIM = 2;
+
+function readStoredSlingAimTangent() {
+  try {
+    const raw = localStorage.getItem(LS_SLING_AIM_T);
+    if (raw == null || raw === '') return DEFAULT_SLING_AIM_TANGENT;
+    const v = parseFloat(raw);
+    if (!Number.isFinite(v)) return DEFAULT_SLING_AIM_TANGENT;
+    return Math.min(MAX_SLING_AIM, Math.max(MIN_SLING_AIM, v));
+  } catch {
+    return DEFAULT_SLING_AIM_TANGENT;
+  }
+}
+function readStoredSlingAimInward() {
+  try {
+    const raw = localStorage.getItem(LS_SLING_AIM_IN);
+    if (raw == null || raw === '') return DEFAULT_SLING_AIM_INWARD;
+    const v = parseFloat(raw);
+    if (!Number.isFinite(v)) return DEFAULT_SLING_AIM_INWARD;
+    return Math.min(MAX_SLING_AIM, Math.max(MIN_SLING_AIM, v));
+  } catch {
+    return DEFAULT_SLING_AIM_INWARD;
+  }
+}
+
+/** Множители сдвига кучки слинга от курсора (вдоль кромки / вглубь зоны); девтул Table ▾. */
+const SLING_AIM_TANGENT_SCALE = readStoredSlingAimTangent();
+const SLING_AIM_INWARD_SCALE = readStoredSlingAimInward();
+
 const FLOOR_Y = -4;
 const SEGMENTS = 40, EDGE_R = 0.07, NOTCH_R = 0.14, NOTCH_D = 0.12, PIP_OFFSET = 0.23;
-const DIE_SCALE = 0.85;
-/** One die edge length in world units (matches physics box 2×0.48×DIE_SCALE). */
-const DIE_EDGE = 2 * 0.48 * DIE_SCALE;
+
+const LS_BATTLE_TUNE = 'battle_tune_json_v1';
+
+const BATTLE_TUNE_DEFAULTS = {
+  world: { gravity: -55, restitution: 0.3, friction: 0.6 },
+  body: {
+    mass: 1, linearDamping: 0.05, angularDamping: 0.15, sleepTime: 0.3, sleepSpeed: 0.05,
+    throwMin: 4, throwMax: 9,
+  },
+  sling: {
+    maxPullWorld: 12.5, clickEpsMul: 0.02, pickYOffset: 0.55,
+    impulseHMin: 1.85, impulseHMax: 11.2, impulseYMin: 1.15, impulseYMax: 4.35,
+  },
+  viz: { halfAngle: 0.38, rInner: 12, rSpan: 292, segments: 4 },
+  spawn: { minSpacingMul: 1.18, stackYStepMul: 1.12, jitterMul: 0.32 },
+  rollPlayer: { spawnYOffset: 0.95, planeJitter: 0.55, impulseYMul: 0.34, impulseCrossMul: 0.32, mainImpulse: 1.02 },
+  rollBot: { spawnYOffset: 5.5, planeJitter: 0.55, impulseYMul: 0.4, impulseCrossMul: 0.28, mainImpulse: 0.95 },
+  rollImpulseLever: 0.28,
+  mesh: { dieScale: 1.7, boxHalfPerScale: 0.48 },
+  settle: { alignThreshold: 0.92, angKick: 3, speedLo: 0.02, speedHi: 1.5 },
+};
+
+function deepCloneTune(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+let battleTune = deepCloneTune(BATTLE_TUNE_DEFAULTS);
+
+function deepMergeTune(target, src) {
+  if (!src || typeof src !== 'object') return;
+  for (const k of Object.keys(src)) {
+    const v = src[k];
+    if (v !== null && typeof v === 'object' && !Array.isArray(v) && target[k] && typeof target[k] === 'object') {
+      deepMergeTune(target[k], v);
+    } else if (typeof v === 'number' && Number.isFinite(v)) {
+      target[k] = v;
+    }
+  }
+}
+
+function tryLoadBattleTuneFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_BATTLE_TUNE);
+    if (raw == null || raw === '') return;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') deepMergeTune(battleTune, parsed);
+  } catch (_) {}
+}
+
+tryLoadBattleTuneFromStorage();
+
+function getDieEdge() {
+  return 2 * battleTune.mesh.boxHalfPerScale * battleTune.mesh.dieScale;
+}
+function getDiceSpawnMinSpacing() {
+  return getDieEdge() * battleTune.spawn.minSpacingMul;
+}
+function getDiceStackYStep() {
+  return getDieEdge() * battleTune.spawn.stackYStepMul;
+}
+function getSlingPickY() {
+  return FLOOR_Y + battleTune.sling.pickYOffset;
+}
+function slingStrengthLinear(pullLen) {
+  return Math.max(0, Math.min(1, pullLen / battleTune.sling.maxPullWorld));
+}
 
 /**
- * One table in X: same width for center (roll) and both shelves — three strips stacked along Z (sandwich).
- * Shelves are shallower in Z (SHELF_DEPTH_Z); center is ROLL_DEPTH_Z. TABLE_WORLD_SCALE scales length; dice = DIE_SCALE.
+ * Table: three strips along Z (sandwich) — player shelf, roll, bot shelf; same width TABLE_WIDTH_X in X.
+ * Default table view: roll stretch 4.5×, camera yaw −90° (overridable via Table ▾ → localStorage).
+ * ROLL_DEPTH_STRETCH widens only the middle roll strip (Z); SHELF_DEPTH_Z unchanged.
+ * TABLE_VIEW_YAW rotates the ortho camera so shelves read as left/right columns on screen.
+ * TABLE_X_STRETCH / TABLE_Z_STRETCH widen floors + physics walls on X / Z (less letterboxing; camera still fits whole table).
  */
 const TABLE_SCALE = 1.5;
 const TABLE_WORLD_SCALE = 1.3;
+const TABLE_X_STRETCH = 1.96;
+const TABLE_Z_STRETCH = 1.38;
 
-const TABLE_WIDTH_X = 10 * TABLE_SCALE * TABLE_WORLD_SCALE;
+const TABLE_WIDTH_X = 10 * TABLE_SCALE * TABLE_WORLD_SCALE * TABLE_X_STRETCH;
 const ROLL_FLOOR_W = TABLE_WIDTH_X;
 
 const TABLE_CENTER_Z_REF = 1.5;
-const Z_HALF_SPAN = 6.5 * TABLE_WORLD_SCALE;
+/** Базовая половина стола по Z (как раньше); реальный span пересчитывается после ROLL_DEPTH_Z. */
+const Z_HALF_SPAN_REF = 6.5 * TABLE_WORLD_SCALE * TABLE_Z_STRETCH;
+
+const SHELF_DEPTH_Z = 2 * TABLE_WORLD_SCALE * TABLE_Z_STRETCH;
+/** Удлиняет только полосу броска по Z (>1); глубина полок SHELF_DEPTH_Z не трогается. UI: Table ▾. */
+const ROLL_DEPTH_STRETCH = readStoredRollDepthStretch();
+const ROLL_DEPTH_Z = (2 * Z_HALF_SPAN_REF - 2 * SHELF_DEPTH_Z) * ROLL_DEPTH_STRETCH;
+const TABLE_TOTAL_Z = 2 * SHELF_DEPTH_Z + ROLL_DEPTH_Z;
+const Z_HALF_SPAN = TABLE_TOTAL_Z / 2;
 const WZ_BOT = TABLE_CENTER_Z_REF - Z_HALF_SPAN;
 const WZ_TOP = TABLE_CENTER_Z_REF + Z_HALF_SPAN;
-const TABLE_TOTAL_Z = WZ_TOP - WZ_BOT;
 
-const SHELF_DEPTH_Z = 2 * TABLE_WORLD_SCALE;
-const ROLL_DEPTH_Z = TABLE_TOTAL_Z - 2 * SHELF_DEPTH_Z;
 const DIVIDER_Z = WZ_BOT + SHELF_DEPTH_Z;
 const BOT_DIVIDER_Z = DIVIDER_Z + ROLL_DEPTH_Z;
 
 const WX = ROLL_FLOOR_W / 2 - 0.5;
 const DIVIDER_BAR_W = ROLL_FLOOR_W - 0.5;
+/** Центр сетки scored dice игрока сдвинут к −X (левый край полки / экрана при текущем ortho yaw). */
+const PLAYER_HELD_BIAS_X = -(TABLE_WIDTH_X * 0.22);
 
-const CAMERA_RADIUS = 16.4 * TABLE_WORLD_SCALE;
+/** ArcRotate distance (ortho: does not change scale, only view position / clipping). */
+const CAMERA_DISTANCE = 34;
+/** Near top-down: small beta keeps dice readable; orthographic removes “isometric” foreshortening. */
+const DEFAULT_CAMERA_BETA = 0.09;
+/** Поворот орто-камеры вокруг стола (рад); дефолт DEFAULT_TABLE_VIEW_YAW_DEG (−90°). UI: Table ▾. */
+const TABLE_VIEW_YAW = readStoredTableViewYawDeg() * Math.PI / 180;
 const TABLE_CENTER_Z = (WZ_BOT + WZ_TOP) / 2;
 
-const PHYS = {
-  gravity: -55, restitution: 0.3, friction: 0.6,
-  throwMin: 4, throwMax: 9, mass: 1,
-  sleepTime: 0.3, sleepSpeed: 0.05,
-  linearDamping: 0.05, angularDamping: 0.15,
-};
+function getSlingClickEpsWorld() {
+  return battleTune.sling.clickEpsMul * TABLE_WORLD_SCALE * Math.min(TABLE_X_STRETCH, TABLE_Z_STRETCH);
+}
 
 const BODY_COLOR = '#eae8e3', PIP_COLOR = '#141414';
 
@@ -339,8 +665,43 @@ const scene  = new BABYLON.Scene(engine);
 scene.useRightHandedSystem = true;
 scene.clearColor = new BABYLON.Color4(0.06, 0.06, 0.06, 1);
 
-const camera = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, 1.05, CAMERA_RADIUS,
+const camera = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, DEFAULT_CAMERA_BETA, CAMERA_DISTANCE,
   new BABYLON.Vector3(0, FLOOR_Y + 0.5, TABLE_CENTER_Z), scene);
+
+/** Подложка 1×1; scaling подгоняется под ortho-frustum (закрывает letterboxing без зума логики стола). */
+let floorFelt = null;
+
+/**
+ * Ortho «contain»: весь игровой стол в кадре. Полосы по X/Y были из‑за того, что frustum шире мешей пола —
+ * в пустоте рисовался clearColor. Размер floorFelt совпадает с видимым XZ-охватом камеры (β≈0 → X↔orthoW, Z↔orthoH).
+ * При TABLE_VIEW_YAW ≈ ±90° оси в кадре меняются местами — подменяем половины для contain.
+ */
+function updateBattleOrthoFrustum() {
+  const margin = 0.5;
+  const halfTableX = TABLE_WIDTH_X / 2 + margin;
+  const halfTableZ = TABLE_TOTAL_Z / 2 + margin;
+  const swapAxes = Math.abs(Math.sin(TABLE_VIEW_YAW)) > 0.5;
+  const halfXt = swapAxes ? halfTableZ : halfTableX;
+  const halfZt = swapAxes ? halfTableX : halfTableZ;
+  const ar = engine.getAspectRatio(camera);
+  const halfH = Math.max(halfZt, halfXt / ar);
+  const halfW = halfH * ar;
+  camera.orthoTop = halfH;
+  camera.orthoBottom = -halfH;
+  camera.orthoLeft = -halfW;
+  camera.orthoRight = halfW;
+  if (floorFelt) {
+    const pad = 1.08;
+    // Ortho halfW/halfH — по осям экрана; после yaw ≈90° они соответствуют разным мировым осям X/Z — иначе подложка и стол «плывут».
+    if (swapAxes) {
+      floorFelt.scaling.x = 2 * halfH * pad;
+      floorFelt.scaling.z = 2 * halfW * pad;
+    } else {
+      floorFelt.scaling.x = 2 * halfW * pad;
+      floorFelt.scaling.z = 2 * halfH * pad;
+    }
+  }
+}
 
 function lockCameraFromCurrentPosition() {
   camera.detachControl();
@@ -351,18 +712,21 @@ function lockCameraFromCurrentPosition() {
 }
 
 function loadDefaultBattleCamera() {
-  camera.alpha = -Math.PI / 2;
-  camera.beta = 1.05;
-  camera.radius = CAMERA_RADIUS;
+  camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
+  camera.alpha = -Math.PI / 2 + TABLE_VIEW_YAW;
+  camera.beta = DEFAULT_CAMERA_BETA;
+  camera.radius = CAMERA_DISTANCE;
   camera.setTarget(new BABYLON.Vector3(0, FLOOR_Y + 0.5, TABLE_CENTER_Z));
+  updateBattleOrthoFrustum();
   lockCameraFromCurrentPosition();
   syncCamInputsFromCamera();
 }
 
 function unlockDebugOrbit() {
+  camera.mode = BABYLON.Camera.PERSPECTIVE_CAMERA;
   camera.lowerRadiusLimit = 6;
   camera.upperRadiusLimit = 55;
-  camera.lowerBetaLimit = 0.32;
+  camera.lowerBetaLimit = 0.04;
   camera.upperBetaLimit = Math.PI / 2 - 0.03;
   camera.lowerAlphaLimit = -Math.PI * 8;
   camera.upperAlphaLimit = Math.PI * 8;
@@ -370,6 +734,8 @@ function unlockDebugOrbit() {
   camera.attachControl(canvas, true);
 }
 
+const camDebugWrap = $('camDebugWrap');
+const camDebugToggle = $('camDebugToggle');
 const camDebugOrbit = $('camDebugOrbit');
 const camDebugReadout = $('camDebugReadout');
 const camDebugCopy = $('camDebugCopy');
@@ -412,6 +778,7 @@ function applyCamInputsFromFields() {
   camera.radius = radius;
   camera.setTarget(new BABYLON.Vector3(tx, ty, tz));
   if (!camDebugOrbit.checked) lockCameraFromCurrentPosition();
+  if (camera.mode === BABYLON.Camera.ORTHOGRAPHIC_CAMERA) updateBattleOrthoFrustum();
   camDebugReadout.textContent = formatCameraDebugText();
 }
 
@@ -441,7 +808,7 @@ camDebugOrbit.addEventListener('change', () => {
     unlockDebugOrbit();
     syncCamInputsFromCamera();
   } else {
-    lockCameraFromCurrentPosition();
+    loadDefaultBattleCamera();
   }
   camDebugReadout.textContent = formatCameraDebugText();
 });
@@ -458,6 +825,421 @@ camReset.addEventListener('click', () => {
   loadDefaultBattleCamera();
   camDebugReadout.textContent = formatCameraDebugText();
 });
+
+const tableSettingsWrap = $('tableSettingsWrap');
+const tableSettingsToggle = $('tableSettingsToggle');
+const rollStretchRange = $('rollStretchRange');
+const rollStretchNum = $('rollStretchNum');
+const tableYawDeg = $('tableYawDeg');
+const tableSettingsApply = $('tableSettingsApply');
+const tableSettingsReset = $('tableSettingsReset');
+const tableSettingsReadout = $('tableSettingsReadout');
+const slingAimTangent = $('slingAimTangent');
+const slingAimInward = $('slingAimInward');
+
+const physicsTuneWrap = $('physicsTuneWrap');
+const physicsTuneToggle = $('physicsTuneToggle');
+const physicsTuneFields = $('physicsTuneFields');
+const physicsTuneApply = $('physicsTuneApply');
+const physicsTuneReset = $('physicsTuneReset');
+const physicsTuneCopyJson = $('physicsTuneCopyJson');
+const physicsTunePasteJson = $('physicsTunePasteJson');
+const physicsTunePasteArea = $('physicsTunePasteArea');
+const physicsTuneReadout = $('physicsTuneReadout');
+
+function physicsTuneInputId(path) {
+  return `physicsTune_${path.replace(/\./g, '_')}`;
+}
+
+function getTuneAtPath(obj, path) {
+  return path.split('.').reduce((o, k) => (o != null ? o[k] : undefined), obj);
+}
+
+function setTuneAtPath(obj, path, val) {
+  const keys = path.split('.');
+  let o = obj;
+  for (let i = 0; i < keys.length - 1; i++) o = o[keys[i]];
+  o[keys[keys.length - 1]] = val;
+}
+
+/** EN + RU: что меняется в игре; path = ключ в battleTune. Дублируется в throw-lab.mjs — правь оба. */
+const PHYSICS_TUNE_FIELDS = [
+  { section: 'World', path: 'world.gravity', label: 'Gravity Y', step: 1,
+    en: 'Pull strength downward. More negative = faster fall and harder impacts.',
+    ru: 'Сила притяжения вниз. Чем отрицательнее — тем быстрее падают кубики и сильнее удары о стол.' },
+  { section: 'World', path: 'world.restitution', label: 'Restitution', step: 0.05,
+    en: 'How much energy stays after a bounce. Higher = bouncier dice and walls; lower = dead drops.',
+    ru: 'Доля энергии после отскока. Выше — сильнее подпрыгивают от стола и бортов; ниже — почти без отскока.' },
+  { section: 'World', path: 'world.friction', label: 'Friction', step: 0.05,
+    en: 'Grip when surfaces slide. Higher = dice skid less and roll shorter; lower = more sliding.',
+    ru: 'Сцепление при скольжении. Выше — меньше проскальзывание, короче катание; ниже — больше скольжения по столу.' },
+  { section: 'Body & ROLL impulse', path: 'body.mass', label: 'Mass', step: 0.1,
+    en: 'Heavier dice need a stronger impulse for the same speed (sling and ROLL).',
+    ru: 'Масса тела: при той же силе броска тяжелее кубики разгоняются слабее (слинг и ROLL).' },
+  { section: 'Body & ROLL impulse', path: 'body.linearDamping', label: 'Linear damping', step: 0.01,
+    en: 'Air-like drag on movement. Higher = straight-line speed dies off faster.',
+    ru: 'Затухание поступательной скорости. Выше — быстрее гасится движение по прямой.' },
+  { section: 'Body & ROLL impulse', path: 'body.angularDamping', label: 'Angular damping', step: 0.01,
+    en: 'Spin slowdown. Higher = tumbling stops sooner; lower = longer wobble.',
+    ru: 'Затухание вращения. Выше — быстрее перестаёт крутиться; ниже — дольше шатается.' },
+  { section: 'Body & ROLL impulse', path: 'body.sleepTime', label: 'Sleep time', step: 0.05,
+    en: 'Seconds nearly still before the engine may freeze the body (saves CPU).',
+    ru: 'Сколько секунд «почти покой», прежде чем движок может усыпить тело (экономия расчёта).' },
+  { section: 'Body & ROLL impulse', path: 'body.sleepSpeed', label: 'Sleep speed', step: 0.01,
+    en: 'Max speed still counted as “at rest” for sleep. Lower = stricter “fully stopped”.',
+    ru: 'Порог скорости «ещё покой» для усыпления. Ниже — строже условие «уже стоит».' },
+  { section: 'Body & ROLL impulse', path: 'body.throwMin', label: 'ROLL throw min', step: 0.5,
+    en: 'Weakest scripted ROLL impulse (player/bot); actual throw picks random between min and max.',
+    ru: 'Минимальная сила скриптового ROLL; реальный бросок — случайно между min и max.' },
+  { section: 'Body & ROLL impulse', path: 'body.throwMax', label: 'ROLL throw max', step: 0.5,
+    en: 'Strongest scripted ROLL impulse; together with min sets how hard ROLL can be.',
+    ru: 'Максимальная сила скриптового ROLL; вместе с min задаёт диапазон силы броска.' },
+  { section: 'Sling physics', path: 'sling.maxPullWorld', label: 'Max pull (world)', step: 0.5,
+    en: 'Rubber-band length in world units that maps to 100% sling power (linear scale).',
+    ru: 'Длина натяжения в мировых единицах, которой соответствует 100% силы слинга (линейная шкала).' },
+  { section: 'Sling physics', path: 'sling.clickEpsMul', label: 'Click cancel ε mul', step: 0.005,
+    en: 'Tiny pull below (this × table scale) counts as a click cancel, not a throw.',
+    ru: 'Натяжение меньше (это × масштаб стола) считается отменой кликом, а не броском.' },
+  { section: 'Sling physics', path: 'sling.pickYOffset', label: 'Pick plane Y offset', step: 0.05,
+    en: 'Height of the invisible floor used for aim ray; shifts where the sling line meets the table.',
+    ru: 'Высота невидимой плоскости прицела; сдвигает точку, куда «приземляется» луч прицела.' },
+  { section: 'Sling physics', path: 'sling.impulseHMin', label: 'Impulse H min', step: 0.1,
+    en: 'Horizontal kick at 0% sling (before ÷ mass). Sets weak-side sideways speed.',
+    ru: 'Горизонтальный импульс при 0% силы (до ÷ масса). Задаёт слабую сторону по горизонтали.' },
+  { section: 'Sling physics', path: 'sling.impulseHMax', label: 'Impulse H max', step: 0.1,
+    en: 'Horizontal kick at 100% sling (before ÷ mass).',
+    ru: 'Горизонтальный импульс при 100% силы (до ÷ масса).' },
+  { section: 'Sling physics', path: 'sling.impulseYMin', label: 'Impulse Y min', step: 0.1,
+    en: 'Upward kick at 0% sling.',
+    ru: 'Вертикальный импульс вверх при 0% силы.' },
+  { section: 'Sling physics', path: 'sling.impulseYMax', label: 'Impulse Y max', step: 0.1,
+    en: 'Upward kick at 100% sling.',
+    ru: 'Вертикальный импульс вверх при 100% силы.' },
+  { section: 'Sling HUD (SVG)', path: 'viz.halfAngle', label: 'Wedge half-angle (rad)', step: 0.02,
+    en: 'Half the angular width of each power wedge in the on-screen fan.',
+    ru: 'Половина угловой ширины каждой полосы веера силы на экране.' },
+  { section: 'Sling HUD (SVG)', path: 'viz.rInner', label: 'Inner radius (px)', step: 1,
+    en: 'Hole in the middle of the wedge fan (pixels).',
+    ru: 'Внутренний «вырез» веера в пикселях.' },
+  { section: 'Sling HUD (SVG)', path: 'viz.rSpan', label: 'Radius span (px)', step: 4,
+    en: 'How much the fan grows in radius from 0% to 100% power.',
+    ru: 'Насколько веер растёт по радиусу от 0% до 100% силы.' },
+  { section: 'Sling HUD (SVG)', path: 'viz.segments', label: 'Segments (1–4)', step: 1,
+    en: 'How many colored bands; max 4 (one SVG path each).',
+    ru: 'Сколько цветных полос; не больше 4 (в разметке по одному path).' },
+  { section: 'Spawn grid', path: 'spawn.minSpacingMul', label: 'Min spacing × edge', step: 0.02,
+    en: 'Minimum gap between dice centers as a fraction of die edge length.',
+    ru: 'Минимальный зазор между центрами кубиков в долях длины ребра.' },
+  { section: 'Spawn grid', path: 'spawn.stackYStepMul', label: 'Stack Y step × edge', step: 0.02,
+    en: 'Vertical step between stacked dice as a fraction of die edge.',
+    ru: 'Вертикальный шаг стопки в долях ребра кубика.' },
+  { section: 'Spawn grid', path: 'spawn.jitterMul', label: 'Plane jitter × spacing', step: 0.02,
+    en: 'Random sideways shift cap as a fraction of min spacing (breaks perfect grids).',
+    ru: 'Предел случайного сдвига в плоскости как доля минимального шага (ломает идеальную сетку).' },
+  { section: 'ROLL — player', path: 'rollPlayer.spawnYOffset', label: 'Spawn Y (floor+)', step: 0.1,
+    en: 'How high above the floor player ROLL dice appear.',
+    ru: 'Насколько выше пола появляются кубики при ROLL игрока.' },
+  { section: 'ROLL — player', path: 'rollPlayer.planeJitter', label: 'Plane jitter', step: 0.05,
+    en: 'Random spread in the roll zone (scaled with table); wider = less aligned spawns.',
+    ru: 'Разброс позиции в зоне броска (с масштабом стола); больше — менее ровная постановка.' },
+  { section: 'ROLL — player', path: 'rollPlayer.impulseYMul', label: 'Impulse Y mul', step: 0.02,
+    en: 'Vertical part of ROLL impulse as a fraction of the base throw strength.',
+    ru: 'Доля вертикали в импульсе ROLL от базовой силы броска.' },
+  { section: 'ROLL — player', path: 'rollPlayer.impulseCrossMul', label: 'Cross mul', step: 0.02,
+    en: 'Sideways “cross” impulse as a fraction of base throw (spread across the roll band).',
+    ru: 'Поперечный импульс как доля базы (разнос по ширине зоны).' },
+  { section: 'ROLL — player', path: 'rollPlayer.mainImpulse', label: 'Main impulse mul', step: 0.02,
+    en: 'Multiplier on impulse along the main roll direction.',
+    ru: 'Множитель импульса вдоль основного направления броска.' },
+  { section: 'ROLL — bot', path: 'rollBot.spawnYOffset', label: 'Spawn Y (floor+)', step: 0.1,
+    en: 'Spawn height for bot ROLL (same idea as player).',
+    ru: 'Высота спавна ROLL бота (тот же смысл, что у игрока).' },
+  { section: 'ROLL — bot', path: 'rollBot.planeJitter', label: 'Plane jitter', step: 0.05,
+    en: 'In-plane randomness for bot scripted throws.',
+    ru: 'Случайный разброс в плоскости для броска бота.' },
+  { section: 'ROLL — bot', path: 'rollBot.impulseYMul', label: 'Impulse Y mul', step: 0.02,
+    en: 'Vertical fraction of base throw for bot.',
+    ru: 'Вертикальная доля базового броска для бота.' },
+  { section: 'ROLL — bot', path: 'rollBot.impulseCrossMul', label: 'Cross mul', step: 0.02,
+    en: 'Cross impulse fraction for bot.',
+    ru: 'Доля поперечного импульса для бота.' },
+  { section: 'ROLL — bot', path: 'rollBot.mainImpulse', label: 'Main impulse mul', step: 0.02,
+    en: 'Along-direction multiplier for bot ROLL.',
+    ru: 'Множитель вдоль направления броска для бота.' },
+  { section: 'ROLL tangent cap', path: 'rollImpulseLever', label: 'Tangent jitter cap', step: 0.02,
+    en: 'Scales max sideways jitter vs table X stretch (feeds the tangent noise limit).',
+    ru: 'Масштабирует предел бокового джиттера к растяжению стола по X (влияет на предел тангенса).' },
+  { section: 'Mesh & physics box', path: 'mesh.dieScale', label: 'Die mesh scale', step: 0.05,
+    en: 'Visual size and physics box size together (uniform scale).',
+    ru: 'Размер кубика на экране и в физике меняются вместе (равномерный масштаб).' },
+  { section: 'Mesh & physics box', path: 'mesh.boxHalfPerScale', label: 'Box half / scale', step: 0.02,
+    en: 'Physics half-extent factor before dieScale (hitbox vs mesh tuning).',
+    ru: 'Множитель полуребра физической коробки до dieScale (подгон коллайдера к мешу).' },
+  { section: 'Settling nudge', path: 'settle.alignThreshold', label: 'Face align threshold', step: 0.01,
+    en: 'If a die is slow but a face is not flat enough, apply a small spin nudge.',
+    ru: 'Если кубик почти стоит, но грань «криво», добавляется лёгкое вращение для доводки.' },
+  { section: 'Settling nudge', path: 'settle.angKick', label: 'Angular kick', step: 0.5,
+    en: 'Strength of that corrective spin when nudging.',
+    ru: 'Сила этого корректирующего вращения.' },
+  { section: 'Settling nudge', path: 'settle.speedLo', label: 'Speed band low', step: 0.01,
+    en: 'Only nudge if combined speed is above this (ignore nearly still dice).',
+    ru: 'Пинок только если скорость выше порога (не трогать уже стоящие).' },
+  { section: 'Settling nudge', path: 'settle.speedHi', label: 'Speed band high', step: 0.1,
+    en: 'Only nudge if combined speed is below this (do not kick mid-flight).',
+    ru: 'Пинок только если скорость ниже порога (не мешать полёту).' },
+];
+
+function mountPhysicsTunePanel() {
+  if (!physicsTuneFields || physicsTuneFields.dataset.mounted) return;
+  physicsTuneFields.dataset.mounted = '1';
+  let lastSec = '';
+  const frag = document.createDocumentFragment();
+  for (const f of PHYSICS_TUNE_FIELDS) {
+    if (f.section !== lastSec) {
+      lastSec = f.section;
+      const h = document.createElement('h4');
+      h.className = 'physics-tune-h4';
+      h.textContent = f.section;
+      frag.appendChild(h);
+    }
+    const id = physicsTuneInputId(f.path);
+    const wrap = document.createElement('div');
+    wrap.className = 'physics-tune-field';
+    wrap.innerHTML = `
+      <label for="${id}">${f.label}</label>
+      <p class="physics-tune-en"></p>
+      <p class="physics-tune-ru"></p>
+      <input type="number" id="${id}" step="${f.step}" autocomplete="off" data-tune-path="${f.path}">
+    `;
+    wrap.querySelector('.physics-tune-en').textContent = f.en;
+    wrap.querySelector('.physics-tune-ru').textContent = f.ru;
+    frag.appendChild(wrap);
+  }
+  physicsTuneFields.appendChild(frag);
+}
+
+function readFormIntoBattleTune() {
+  for (const f of PHYSICS_TUNE_FIELDS) {
+    const inp = $(physicsTuneInputId(f.path));
+    if (!inp) continue;
+    const v = parseFloat(inp.value);
+    if (Number.isFinite(v)) setTuneAtPath(battleTune, f.path, v);
+  }
+  battleTune.viz.segments = Math.min(4, Math.max(1, Math.floor(battleTune.viz.segments)));
+}
+
+function syncFormFromBattleTune() {
+  for (const f of PHYSICS_TUNE_FIELDS) {
+    const inp = $(physicsTuneInputId(f.path));
+    if (!inp) continue;
+    const v = getTuneAtPath(battleTune, f.path);
+    if (typeof v === 'number' && Number.isFinite(v)) inp.value = String(v);
+  }
+}
+
+function updatePhysicsTuneReadout(msg) {
+  if (!physicsTuneReadout) return;
+  const short = JSON.stringify(battleTune);
+  physicsTuneReadout.textContent = (msg ? `${msg}\n` : '') + (short.length > 220 ? short.slice(0, 217) + '…' : short);
+}
+
+function closePhysicsTunePanel() {
+  if (!physicsTuneWrap || !physicsTuneToggle) return;
+  physicsTuneWrap.classList.add('physics-tune-collapsed');
+  physicsTuneToggle.setAttribute('aria-expanded', 'false');
+  physicsTuneToggle.textContent = 'Tune ▾';
+}
+
+function applyBattleTuneFromMemory() {
+  applyTuneToWorld();
+  const mk = meshTuneKey();
+  if (mk !== lastTuneMeshKey) {
+    const n = dice.length;
+    clearHeldDice();
+    syncActiveDice(0);
+    syncActiveDice(n);
+    lastTuneMeshKey = mk;
+    game.selectedIndices = [];
+    if (game.phase === 'aiming' || game.phase === 'rolling' || game.phase === 'selecting') {
+      game.phase = 'waiting';
+      slingDrag = null;
+      hideSlingViz();
+    }
+    updateUI();
+    updateButtons();
+  } else {
+    applyTuneToAllDiceBodies();
+    for (const d of heldDice) d.root.scaling.setAll(battleTune.mesh.dieScale);
+  }
+  try {
+    localStorage.setItem(LS_BATTLE_TUNE, JSON.stringify(battleTune));
+  } catch (_) {}
+  updatePhysicsTuneReadout('Applied');
+}
+
+function clampRollStretchUi(v) {
+  return Math.min(MAX_ROLL_DEPTH_STRETCH, Math.max(MIN_ROLL_DEPTH_STRETCH, v));
+}
+
+function clampSlingAimUi(v) {
+  return Math.min(MAX_SLING_AIM, Math.max(MIN_SLING_AIM, v));
+}
+
+function syncTableSettingsFieldsFromConstants() {
+  const r = ROLL_DEPTH_STRETCH;
+  const y = readStoredTableViewYawDeg();
+  const st = readStoredSlingAimTangent();
+  const si = readStoredSlingAimInward();
+  if (rollStretchRange) rollStretchRange.value = String(r);
+  if (rollStretchNum) rollStretchNum.value = String(r);
+  if (tableYawDeg) tableYawDeg.value = String(Math.round(y * 10) / 10);
+  if (slingAimTangent) slingAimTangent.value = String(Math.round(st * 100) / 100);
+  if (slingAimInward) slingAimInward.value = String(Math.round(si * 100) / 100);
+  if (tableSettingsReadout) {
+    tableSettingsReadout.textContent = `roll ×${r.toFixed(2)}  yaw ${y.toFixed(1)}°  sling ∥${st.toFixed(2)} in${si.toFixed(2)}`;
+  }
+}
+
+if (rollStretchRange && rollStretchNum) {
+  rollStretchRange.addEventListener('input', () => { rollStretchNum.value = rollStretchRange.value; });
+  rollStretchNum.addEventListener('input', () => {
+    const v = parseFloat(rollStretchNum.value);
+    if (Number.isFinite(v)) rollStretchRange.value = String(clampRollStretchUi(v));
+  });
+}
+
+camDebugToggle.addEventListener('click', () => {
+  camDebugWrap.classList.toggle('cam-debug-collapsed');
+  const visible = !camDebugWrap.classList.contains('cam-debug-collapsed');
+  camDebugToggle.setAttribute('aria-expanded', String(visible));
+  camDebugToggle.textContent = visible ? 'Camera ▴' : 'Camera ▾';
+  if (visible && tableSettingsWrap) {
+    tableSettingsWrap.classList.add('table-settings-collapsed');
+    tableSettingsToggle.setAttribute('aria-expanded', 'false');
+    tableSettingsToggle.textContent = 'Table ▾';
+  }
+  if (visible) closePhysicsTunePanel();
+});
+
+tableSettingsToggle.addEventListener('click', () => {
+  if (!tableSettingsWrap) return;
+  tableSettingsWrap.classList.toggle('table-settings-collapsed');
+  const visible = !tableSettingsWrap.classList.contains('table-settings-collapsed');
+  tableSettingsToggle.setAttribute('aria-expanded', String(visible));
+  tableSettingsToggle.textContent = visible ? 'Table ▴' : 'Table ▾';
+  if (visible) {
+    camDebugWrap.classList.add('cam-debug-collapsed');
+    camDebugToggle.setAttribute('aria-expanded', 'false');
+    camDebugToggle.textContent = 'Camera ▾';
+    closePhysicsTunePanel();
+    syncTableSettingsFieldsFromConstants();
+  }
+});
+
+tableSettingsApply.addEventListener('click', () => {
+  const r = clampRollStretchUi(parseFloat(rollStretchNum && rollStretchNum.value));
+  const y = parseFloat(tableYawDeg && tableYawDeg.value);
+  const st = clampSlingAimUi(parseFloat(slingAimTangent && slingAimTangent.value));
+  const si = clampSlingAimUi(parseFloat(slingAimInward && slingAimInward.value));
+  if (!Number.isFinite(r) || !Number.isFinite(y) || !Number.isFinite(st) || !Number.isFinite(si)) return;
+  const yCl = Math.min(180, Math.max(-180, y));
+  try {
+    localStorage.setItem(LS_ROLL_STRETCH, String(r));
+    localStorage.setItem(LS_TABLE_YAW_DEG, String(yCl));
+    localStorage.setItem(LS_SLING_AIM_T, String(st));
+    localStorage.setItem(LS_SLING_AIM_IN, String(si));
+  } catch (_) {}
+  location.reload();
+});
+
+tableSettingsReset.addEventListener('click', () => {
+  try {
+    localStorage.removeItem(LS_ROLL_STRETCH);
+    localStorage.removeItem(LS_TABLE_YAW_DEG);
+    localStorage.removeItem(LS_SLING_AIM_T);
+    localStorage.removeItem(LS_SLING_AIM_IN);
+  } catch (_) {}
+  location.reload();
+});
+
+syncTableSettingsFieldsFromConstants();
+
+mountPhysicsTunePanel();
+syncFormFromBattleTune();
+updatePhysicsTuneReadout();
+
+if (physicsTuneToggle && physicsTuneWrap) {
+  physicsTuneToggle.addEventListener('click', () => {
+    physicsTuneWrap.classList.toggle('physics-tune-collapsed');
+    const visible = !physicsTuneWrap.classList.contains('physics-tune-collapsed');
+    physicsTuneToggle.setAttribute('aria-expanded', String(visible));
+    physicsTuneToggle.textContent = visible ? 'Tune ▴' : 'Tune ▾';
+    if (visible) {
+      camDebugWrap.classList.add('cam-debug-collapsed');
+      camDebugToggle.setAttribute('aria-expanded', 'false');
+      camDebugToggle.textContent = 'Camera ▾';
+      if (tableSettingsWrap) {
+        tableSettingsWrap.classList.add('table-settings-collapsed');
+        tableSettingsToggle.setAttribute('aria-expanded', 'false');
+        tableSettingsToggle.textContent = 'Table ▾';
+      }
+      syncFormFromBattleTune();
+    }
+  });
+}
+
+if (physicsTuneApply) {
+  physicsTuneApply.addEventListener('click', () => {
+    readFormIntoBattleTune();
+    applyBattleTuneFromMemory();
+  });
+}
+if (physicsTuneReset) {
+  physicsTuneReset.addEventListener('click', () => {
+    battleTune = deepCloneTune(BATTLE_TUNE_DEFAULTS);
+    try { localStorage.removeItem(LS_BATTLE_TUNE); } catch (_) {}
+    syncFormFromBattleTune();
+    applyBattleTuneFromMemory();
+  });
+}
+if (physicsTuneCopyJson) {
+  physicsTuneCopyJson.addEventListener('click', async () => {
+    readFormIntoBattleTune();
+    const text = JSON.stringify(battleTune, null, 2);
+    try {
+      await navigator.clipboard.writeText(text);
+      const prev = physicsTuneCopyJson.textContent;
+      physicsTuneCopyJson.textContent = 'Copied!';
+      setTimeout(() => { physicsTuneCopyJson.textContent = prev; }, 1400);
+      updatePhysicsTuneReadout('Copied JSON');
+    } catch (_) {
+      if (physicsTunePasteArea) physicsTunePasteArea.value = text;
+      updatePhysicsTuneReadout('Clipboard failed — pasted into box');
+    }
+  });
+}
+if (physicsTunePasteJson && physicsTunePasteArea) {
+  physicsTunePasteJson.addEventListener('click', () => {
+    try {
+      const raw = physicsTunePasteArea.value.trim();
+      if (!raw) {
+        updatePhysicsTuneReadout('Empty paste box');
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') {
+        updatePhysicsTuneReadout('Not an object');
+        return;
+      }
+      deepMergeTune(battleTune, parsed);
+      battleTune.viz.segments = Math.min(4, Math.max(1, Math.floor(battleTune.viz.segments)));
+      syncFormFromBattleTune();
+      updatePhysicsTuneReadout('Merged — click Apply to use');
+    } catch (_) {
+      updatePhysicsTuneReadout('JSON parse error');
+    }
+  });
+}
 
 camDebugCopy.addEventListener('click', async () => {
   const text = cameraViewJSON();
@@ -480,9 +1262,10 @@ loadDefaultBattleCamera();
 camDebugReadout.textContent = formatCameraDebugText();
 
 const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
-hemi.intensity = 0.45;
-const dir = new BABYLON.DirectionalLight('dir', new BABYLON.Vector3(-1, -3, 1).normalize(), scene);
-dir.position.set(4, 8, -4); dir.intensity = 1.05;
+hemi.intensity = 0.62;
+const dir = new BABYLON.DirectionalLight('dir', new BABYLON.Vector3(-0.2, -1, -0.25).normalize(), scene);
+dir.position.set(0, 22, 6);
+dir.intensity = 0.95;
 
 const shadowGen = new BABYLON.ShadowGenerator(1024, dir);
 shadowGen.useBlurExponentialShadowMap = true;
@@ -522,16 +1305,40 @@ const botDividerMesh = BABYLON.MeshBuilder.CreateBox('botDivider', { width: DIVI
 botDividerMesh.position.set(0, FLOOR_Y + 0.02, BOT_DIVIDER_Z);
 botDividerMesh.material = divMat;
 
+floorFelt = BABYLON.MeshBuilder.CreateGround('floorFelt', { width: 1, height: 1 }, scene);
+floorFelt.position.set(0, FLOOR_Y - 0.045, TABLE_CENTER_Z);
+const feltMat = new BABYLON.StandardMaterial('feltMat', scene);
+feltMat.diffuseColor = new BABYLON.Color3(0.27, 0.185, 0.11);
+feltMat.specularColor = new BABYLON.Color3(0.02, 0.02, 0.02);
+floorFelt.material = feltMat;
+floorFelt.receiveShadows = true;
+updateBattleOrthoFrustum();
+
 // ═══════════════════════════════════════════════════
 //  CANNON-ES PHYSICS
 // ═══════════════════════════════════════════════════
-const world = new CANNON.World({ allowSleep: true, gravity: new CANNON.Vec3(0, PHYS.gravity, 0) });
-world.defaultContactMaterial.restitution = PHYS.restitution;
-world.defaultContactMaterial.friction = PHYS.friction;
+/** Пол, стены: одна категория; narrowphase смотрит фильтры у Shape — задаём и body, и каждый shape. */
+const STATIC_ENV_GROUP = 1;
+const STATIC_ENV_MASK = -1;
+
+function applyStaticEnvCollision(body) {
+  body.collisionFilterGroup = STATIC_ENV_GROUP;
+  body.collisionFilterMask = STATIC_ENV_MASK;
+  for (let i = 0; i < body.shapes.length; i++) {
+    const sh = body.shapes[i];
+    sh.collisionFilterGroup = STATIC_ENV_GROUP;
+    sh.collisionFilterMask = STATIC_ENV_MASK;
+  }
+}
+
+const world = new CANNON.World({ allowSleep: true, gravity: new CANNON.Vec3(0, battleTune.world.gravity, 0) });
+world.defaultContactMaterial.restitution = battleTune.world.restitution;
+world.defaultContactMaterial.friction = battleTune.world.friction;
 
 const floorBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
 floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
 floorBody.position.set(0, FLOOR_Y, 0);
+applyStaticEnvCollision(floorBody);
 world.addBody(floorBody);
 
 for (const w of [
@@ -544,6 +1351,7 @@ for (const w of [
 ]) {
   const b = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
   b.position.set(...w.pos); b.quaternion.setFromEuler(...w.rot);
+  applyStaticEnvCollision(b);
   world.addBody(b);
 }
 
@@ -635,8 +1443,59 @@ backingMat.specularColor = BABYLON.Color3.Black();
 //  DICE MANAGEMENT
 // ═══════════════════════════════════════════════════
 const dice = [];
+
+function applyTuneToWorld() {
+  world.gravity.set(0, battleTune.world.gravity, 0);
+  world.defaultContactMaterial.restitution = battleTune.world.restitution;
+  world.defaultContactMaterial.friction = battleTune.world.friction;
+}
+
+function applyTuneToAllDiceBodies() {
+  const b = battleTune.body;
+  for (const d of dice) {
+    const body = d.body;
+    if (!body) continue;
+    body.mass = b.mass;
+    body.linearDamping = b.linearDamping;
+    body.angularDamping = b.angularDamping;
+    body.sleepTimeLimit = b.sleepTime;
+    body.sleepSpeedLimit = b.sleepSpeed;
+    body.updateMassProperties();
+  }
+}
+
+let lastTuneMeshKey = `${battleTune.mesh.dieScale}|${battleTune.mesh.boxHalfPerScale}`;
+
+function meshTuneKey() {
+  return `${battleTune.mesh.dieScale}|${battleTune.mesh.boxHalfPerScale}`;
+}
 const heldDice = [];
 let dieIdCounter = 0;
+/** Группа кубика; маска — стол/стены (1) и другие кубики (2): cannon-es разрешает контакты, тела не проходят друг сквозь друга. */
+const DICE_COLLISION_GROUP = 2;
+const DICE_COLLISION_MASK = STATIC_ENV_GROUP | DICE_COLLISION_GROUP;
+
+/**
+ * cannon-es: и body, и каждый shape в narrowphase; у Box ещё convexPolyhedronRepresentation (дефолт group=1!)
+ * — без копирования фильтров на hull теоретически возможны ложные пары.
+ */
+function applyDiceCollisionToShapeAndHull(shape) {
+  shape.collisionFilterGroup = DICE_COLLISION_GROUP;
+  shape.collisionFilterMask = DICE_COLLISION_MASK;
+  const hull = shape.convexPolyhedronRepresentation;
+  if (hull) {
+    hull.collisionFilterGroup = DICE_COLLISION_GROUP;
+    hull.collisionFilterMask = DICE_COLLISION_MASK;
+  }
+}
+
+function finalizeDiceBodyCollision(body) {
+  body.collisionFilterGroup = DICE_COLLISION_GROUP;
+  body.collisionFilterMask = DICE_COLLISION_MASK;
+  for (let i = 0; i < body.shapes.length; i++) {
+    applyDiceCollisionToShapeAndHull(body.shapes[i]);
+  }
+}
 
 const _faceTmp = new CANNON.Vec3(), _faceLv = new CANNON.Vec3();
 const _faceLocals = [
@@ -665,7 +1524,7 @@ function readFaceValue(body) {
 
 function createDie() {
   const id = dieIdCounter++;
-  const sc = DIE_SCALE;
+  const sc = battleTune.mesh.dieScale;
   const oMat = new BABYLON.StandardMaterial(`o${id}`, scene);
   oMat.diffuseColor = BABYLON.Color3.FromHexString(BODY_COLOR);
   oMat.specularColor = new BABYLON.Color3(0.3,0.3,0.3);
@@ -684,12 +1543,17 @@ function createDie() {
   const backing = BABYLON.MeshBuilder.CreateBox(`back${id}`, {size:0.9}, scene);
   backing.material = backingMat; backing.parent = root;
 
-  const hs = 0.48 * sc;
+  const hs = battleTune.mesh.boxHalfPerScale * sc;
+  const boxShape = new CANNON.Box(new CANNON.Vec3(hs, hs, hs));
   const body = new CANNON.Body({
-    mass: PHYS.mass, shape: new CANNON.Box(new CANNON.Vec3(hs,hs,hs)),
-    sleepTimeLimit: PHYS.sleepTime, sleepSpeedLimit: PHYS.sleepSpeed,
-    linearDamping: PHYS.linearDamping, angularDamping: PHYS.angularDamping,
+    mass: battleTune.body.mass,
+    shape: boxShape,
+    sleepTimeLimit: battleTune.body.sleepTime,
+    sleepSpeedLimit: battleTune.body.sleepSpeed,
+    linearDamping: battleTune.body.linearDamping,
+    angularDamping: battleTune.body.angularDamping,
   });
+  finalizeDiceBodyCollision(body);
   world.addBody(body);
   // New dice start kinematic + hidden under the table so they don't fall at (0,0,0) before the first throw.
   const stashY = FLOOR_Y - 8;
@@ -730,17 +1594,122 @@ function syncActiveDice(n) {
 // ═══════════════════════════════════════════════════
 //  THROW FUNCTIONS
 // ═══════════════════════════════════════════════════
-function throwDice(fromZ, impulseZ, opts = {}) {
+/** 2D spread вокруг точки прицела (слинг); мировые X/Z. */
+function rollSpawnXZOffsets(i, n) {
+  const cols = 3;
+  const rows = Math.ceil(n / cols) || 1;
+  const row = Math.floor(i / cols);
+  const col = i % cols;
+  const inRow = Math.min(cols, n - row * cols);
+  const sx = Math.max(getDiceSpawnMinSpacing(), Math.min(ROLL_FLOOR_W * 0.2, 1.05 * TABLE_WORLD_SCALE * TABLE_X_STRETCH));
+  const sz = Math.max(getDiceSpawnMinSpacing(), Math.min(ROLL_DEPTH_Z * 0.22, 0.52 * TABLE_WORLD_SCALE * TABLE_Z_STRETCH));
+  const ox = (col - (inRow - 1) / 2) * sx;
+  const oz = (row - (rows - 1) / 2) * sz;
+  return { ox, oz };
+}
+
+/** Раскладка вдоль кромки (tangent) и чуть вглубь зоны (inward unit XZ). */
+function rollSpawnOffsetsEdgeFrame(i, n, tx, tz, nx, nz) {
+  const cols = 3;
+  const rows = Math.ceil(n / cols) || 1;
+  const row = Math.floor(i / cols);
+  const col = i % cols;
+  const inRow = Math.min(cols, n - row * cols);
+  const capAlong = Math.min(ROLL_FLOOR_W * 0.2, 1.05 * TABLE_WORLD_SCALE * TABLE_X_STRETCH);
+  const capIn = Math.min(ROLL_DEPTH_Z * 0.22, 0.52 * TABLE_WORLD_SCALE * TABLE_Z_STRETCH);
+  const spreadAlong = Math.max(getDiceSpawnMinSpacing(), capAlong);
+  const spreadIn = Math.max(getDiceSpawnMinSpacing(), capIn);
+  const u = (col - (inRow - 1) / 2) * spreadAlong;
+  const v = (row - (rows - 1) / 2) * spreadIn;
+  return { ox: tx * u + nx * v, oz: tz * u + nz * v };
+}
+
+/**
+ * Какие углы зоны броска на экране снизу / сверху (независимо от TABLE_VIEW_YAW).
+ * Игрок бросает с экранного низа, бот — с верха; полки не трогаем.
+ */
+function findRollScreenBottomTopEdges() {
+  const yRef = getSlingPickY();
+  const czMid = DIVIDER_Z + ROLL_DEPTH_Z * 0.5;
+  const m = 0.42;
+  const xLo = -WX + m;
+  const xHi = WX - m;
+  const zLo = DIVIDER_Z + m;
+  const zHi = BOT_DIVIDER_Z - m;
+  const pts = [
+    { x: 0, z: zLo },
+    { x: 0, z: zHi },
+    { x: xLo, z: czMid },
+    { x: xHi, z: czMid },
+  ];
+  const w = engine.getRenderWidth();
+  const h = engine.getRenderHeight();
+  const world = BABYLON.Matrix.Identity();
+  const transform = scene.getTransformMatrix();
+  const vp = camera.viewport.toGlobal(w, h);
+  let maxSy = -Infinity;
+  let minSy = Infinity;
+  let bottom = pts[0];
+  let top = pts[0];
+  for (const p of pts) {
+    const projected = BABYLON.Vector3.Project(new BABYLON.Vector3(p.x, yRef, p.z), world, transform, vp);
+    const sy = projected.y;
+    if (sy > maxSy) {
+      maxSy = sy;
+      bottom = p;
+    }
+    if (sy < minSy) {
+      minSy = sy;
+      top = p;
+    }
+  }
+  const rollCx = 0;
+  const rollCz = czMid;
+  const dirPlayer = { x: rollCx - bottom.x, z: rollCz - bottom.z };
+  const lenP = Math.hypot(dirPlayer.x, dirPlayer.z) || 1;
+  dirPlayer.x /= lenP;
+  dirPlayer.z /= lenP;
+  const dirBot = { x: rollCx - top.x, z: rollCz - top.z };
+  const lenB = Math.hypot(dirBot.x, dirBot.z) || 1;
+  dirBot.x /= lenB;
+  dirBot.z /= lenB;
+  const tangPlayer = { x: -dirPlayer.z, z: dirPlayer.x };
+  const tangBot = { x: -dirBot.z, z: dirBot.x };
+  return { bottom, top, dirPlayer, dirBot, tangPlayer, tangBot };
+}
+
+const THROW_Z_INSET = 0.12;
+
+/**
+ * who: 'player' | 'bot' — старт с экранного низа / верха зоны броска, импульс в центр полосы.
+ */
+function throwDice(who, opts = {}) {
   const spawnYBase = opts.spawnYBase ?? FLOOR_Y + 3;
   const spawnYStep = opts.spawnYStep ?? 0.3;
-  const zJitter = opts.zJitter ?? 0.55;
+  const planeJitter = opts.planeJitter ?? 0.55;
   const impulseYMul = opts.impulseYMul ?? 0.35;
-  const impulseXMul = opts.impulseXMul ?? 0.3;
+  const impulseCrossMul = opts.impulseCrossMul ?? 0.32;
+  const mainImpulse = opts.mainImpulse ?? 0.95;
+
+  const fr = findRollScreenBottomTopEdges();
+  const isPlayer = who === 'player';
+  const edge = isPlayer ? fr.bottom : fr.top;
+  const dirIn = isPlayer ? fr.dirPlayer : fr.dirBot;
+  const tang = isPlayer ? fr.tangPlayer : fr.tangBot;
+  const inset = Math.min(ROLL_DEPTH_Z, ROLL_FLOOR_W * 0.35) * THROW_Z_INSET;
+  const baseX = edge.x + dirIn.x * inset;
+  const baseZ = edge.z + dirIn.z * inset;
 
   game.selectedIndices = [];
   for (const d of dice) { d.value = null; d.settled = false; hl.removeMesh(d.outer); }
   game.phase = 'rolling';
   updateUI();
+
+  const jCap = getDiceSpawnMinSpacing() * battleTune.spawn.jitterMul;
+  const jTanMax = Math.min(battleTune.rollImpulseLever * TABLE_WORLD_SCALE * TABLE_X_STRETCH, jCap);
+  const jInMax = Math.min(planeJitter * TABLE_WORLD_SCALE * TABLE_Z_STRETCH, jCap);
+  const perpX = -dirIn.z;
+  const perpZ = dirIn.x;
 
   for (let i = 0; i < dice.length; i++) {
     const d = dice[i];
@@ -749,51 +1718,183 @@ function throwDice(fromZ, impulseZ, opts = {}) {
     d.backing.setEnabled(true);
     d.body.type = CANNON.Body.DYNAMIC;
     d.body.velocity.setZero(); d.body.angularVelocity.setZero();
-    const xSpread = 1.1 * TABLE_WORLD_SCALE;
+    const { ox, oz } = rollSpawnOffsetsEdgeFrame(i, dice.length, tang.x, tang.z, dirIn.x, dirIn.z);
+    const jx = (Math.random() - 0.5) * jTanMax;
+    const jz = (Math.random() - 0.5) * jInMax;
     d.body.position.set(
-      (i - (dice.length - 1) / 2) * xSpread + (Math.random() - .5) * .3 * TABLE_WORLD_SCALE,
+      baseX + ox + jx * tang.x + jz * dirIn.x,
       spawnYBase + i * spawnYStep,
-      fromZ + (Math.random() - .5) * zJitter
+      baseZ + oz + jx * tang.z + jz * dirIn.z
     );
-    d.body.quaternion.set(Math.random()-.5,Math.random()-.5,Math.random()-.5,Math.random()-.5);
+    d.body.quaternion.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
     d.body.quaternion.normalize();
-    const f = PHYS.throwMin + Math.random() * (PHYS.throwMax - PHYS.throwMin);
+    const f = battleTune.body.throwMin + Math.random() * (battleTune.body.throwMax - battleTune.body.throwMin);
+    const cross = (Math.random() - 0.5) * f * impulseCrossMul;
     d.body.applyImpulse(
-      new CANNON.Vec3((Math.random()-.5)*f*impulseXMul, f*impulseYMul, impulseZ*f),
-      new CANNON.Vec3((Math.random()-.5)*.3,(Math.random()-.5)*.3,(Math.random()-.5)*.3)
+      new CANNON.Vec3(
+        dirIn.x * f * mainImpulse + perpX * cross,
+        f * impulseYMul,
+        dirIn.z * f * mainImpulse + perpZ * cross
+      ),
+      new CANNON.Vec3((Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3)
     );
     d.body.allowSleep = true; d.body.wakeUp();
   }
 }
 
-const THROW_Z_INSET = 0.12;
-
-/** Player: toss from the bottom (player-side) edge of the roll zone — low release, impulse into the table. */
+/**
+ * Игрок: низ экрана = низ стола в кадре; старт почти у фетра (не «с неба»), импульс вдоль кромки в центр —
+ * визуально бросок снизу, а не сбоку/сверху при повёрнутой орто-камере.
+ */
 function throwFromBottom() {
-  throwDice(DIVIDER_Z + ROLL_DEPTH_Z * THROW_Z_INSET, 0.95, {
-    spawnYBase: FLOOR_Y + 2.1,
-    spawnYStep: 0.22,
-    impulseYMul: 0.44,
-    impulseXMul: 0.32,
-    zJitter: 0.55 * TABLE_WORLD_SCALE,
+  const rp = battleTune.rollPlayer;
+  throwDice('player', {
+    spawnYBase: FLOOR_Y + rp.spawnYOffset,
+    spawnYStep: getDiceStackYStep(),
+    impulseYMul: rp.impulseYMul,
+    impulseCrossMul: rp.impulseCrossMul,
+    mainImpulse: rp.mainImpulse,
+    planeJitter: rp.planeJitter,
   });
 }
 
-/** Bot: drop from the top (bot-side) edge of the roll zone — higher release, impulse toward the player. */
+/** Bot: с экранного верха зоны броска. */
 function throwFromTop() {
-  throwDice(BOT_DIVIDER_Z - ROLL_DEPTH_Z * THROW_Z_INSET, -0.95, {
-    spawnYBase: FLOOR_Y + 5.5,
-    spawnYStep: 0.32,
-    impulseYMul: 0.4,
-    impulseXMul: 0.28,
-    zJitter: 0.55 * TABLE_WORLD_SCALE,
+  const rb = battleTune.rollBot;
+  throwDice('bot', {
+    spawnYBase: FLOOR_Y + rb.spawnYOffset,
+    spawnYStep: getDiceStackYStep(),
+    impulseYMul: rb.impulseYMul,
+    impulseCrossMul: rb.impulseCrossMul,
+    mainImpulse: rb.mainImpulse,
+    planeJitter: rb.planeJitter,
   });
 }
 
 // ── Pull-back sling (player): drag on table, release to throw ─────────────
-const SLING_PICK_Y = FLOOR_Y + 0.55;
-const SLING_MIN_PULL = 0.09 * TABLE_WORLD_SCALE;
-let slingDrag = null; // { start:{x,z}, pointerId }
+/** clientStart* — экранные координаты для SVG «резинки» (как Angry Birds). */
+let slingDrag = null; // { start:{x,z}, pointerId, clientStartX, clientStartY }
+
+function slingVizSegmentCount() {
+  return Math.min(4, Math.max(1, Math.floor(battleTune.viz.segments)));
+}
+
+function hideSlingViz() {
+  const svg = $('slingVizSvg');
+  if (svg) svg.style.visibility = 'hidden';
+  const pow = $('slingVizPow');
+  if (pow) pow.style.display = 'none';
+  for (let k = 0; k < slingVizSegmentCount(); k++) {
+    const seg = $(`slingSeg${k}`);
+    if (seg) seg.setAttribute('d', '');
+  }
+}
+
+/** Кольцевой сектор веера (четырёхугольник между двумя дугами по лучам θ±β). */
+function slingWedgeBandPath(ax, ay, theta, beta, rIn, rOut) {
+  const cl = Math.cos(theta - beta);
+  const sl = Math.sin(theta - beta);
+  const cr = Math.cos(theta + beta);
+  const sr = Math.sin(theta + beta);
+  const x0 = ax + rIn * cl;
+  const y0 = ay + rIn * sl;
+  const x1 = ax + rIn * cr;
+  const y1 = ay + rIn * sr;
+  const x2 = ax + rOut * cr;
+  const y2 = ay + rOut * sr;
+  const x3 = ax + rOut * cl;
+  const y3 = ay + rOut * sl;
+  return `M ${x0} ${y0} L ${x1} ${y1} L ${x2} ${y2} L ${x3} ${y3} Z`;
+}
+
+/** Якорь + веер: направление веера = натяжение якорь→pick (резинка). Физика броска — против этого вектора, см. finishPlayerSling. */
+function updateSlingViz(clientX, clientY) {
+  const svg = $('slingVizSvg');
+  const anchor = $('slingVizAnchor');
+  const pow = $('slingVizPow');
+  if (!slingDrag || slingDrag.start == null || !svg || !anchor) return;
+  const sx0 = slingDrag.start.x;
+  const sz0 = slingDrag.start.z;
+  const piv = rollXZWorldToClient(sx0, sz0);
+  const ax = piv.clientX;
+  const ay = piv.clientY;
+  const pick = pickRollXZFromClient(clientX, clientY);
+  const pullLenW = pick ? Math.hypot(pick.x - sx0, pick.z - sz0) : 0;
+  const strength = slingStrengthLinear(pullLenW);
+
+  const minDraw = 14;
+  let x2;
+  let y2;
+  if (pick) {
+    const tp = rollXZWorldToClient(pick.x, pick.z);
+    x2 = tp.clientX;
+    y2 = tp.clientY;
+    let sdist = Math.hypot(x2 - ax, y2 - ay);
+    if (sdist < minDraw) {
+      const wpx = pick.x - sx0;
+      const wpz = pick.z - sz0;
+      const wl = Math.hypot(wpx, wpz);
+      if (wl < 1e-5) {
+        x2 = ax;
+        y2 = ay - minDraw;
+      } else {
+        const ux = wpx / wl;
+        const uz = wpz / wl;
+        const e = 0.28;
+        const pA = rollXZWorldToClient(sx0 + ux * e, sz0 + uz * e);
+        const pB = rollXZWorldToClient(sx0 - ux * e, sz0 - uz * e);
+        const sdx = pA.clientX - pB.clientX;
+        const sdy = pA.clientY - pB.clientY;
+        const sl = Math.hypot(sdx, sdy) || 1;
+        x2 = ax + (sdx / sl) * minDraw;
+        y2 = ay + (sdy / sl) * minDraw;
+      }
+    }
+  } else {
+    x2 = ax;
+    y2 = ay - minDraw;
+  }
+
+  anchor.setAttribute('cx', String(ax));
+  anchor.setAttribute('cy', String(ay));
+
+  const stretchLen = Math.hypot(x2 - ax, y2 - ay);
+  const ux = (x2 - ax) / Math.max(stretchLen, 1e-6);
+  const uy = (y2 - ay) / Math.max(stretchLen, 1e-6);
+  const theta = Math.atan2(uy, ux);
+  const vz = battleTune.viz;
+  const nSeg = slingVizSegmentCount();
+  const beta = vz.halfAngle;
+  const rIn = vz.rInner;
+  const rSpan = vz.rSpan;
+  const R_eff = rIn + strength * rSpan;
+  const quarter = rSpan / nSeg;
+
+  for (let k = 0; k < nSeg; k++) {
+    const seg = $(`slingSeg${k}`);
+    if (!seg) continue;
+    const rStart = rIn + k * quarter;
+    if (R_eff <= rStart + 0.25) {
+      seg.setAttribute('d', '');
+      continue;
+    }
+    const rEndNom = rIn + (k + 1) * quarter;
+    const rEnd = Math.min(R_eff, rEndNom);
+    seg.setAttribute('d', slingWedgeBandPath(ax, ay, theta, beta, rStart, rEnd));
+  }
+
+  svg.style.visibility = 'visible';
+  if (pow && pullLenW > getSlingClickEpsWorld()) {
+    const pct = Math.max(1, Math.min(100, Math.round(strength * 100)));
+    pow.textContent = `${pct}%`;
+    const midR = rIn + (R_eff - rIn) * 0.52;
+    pow.setAttribute('x', String(ax + midR * Math.cos(theta)));
+    pow.setAttribute('y', String(ay + midR * Math.sin(theta) - 10));
+    pow.style.display = 'block';
+  } else if (pow) {
+    pow.style.display = 'none';
+  }
+}
 
 function clampRollXZ(x, z) {
   const margin = 0.4;
@@ -803,28 +1904,71 @@ function clampRollXZ(x, z) {
   return { x: xCl, z: Math.max(zLo, Math.min(zHi, z)) };
 }
 
-function canvasPickRollXZ(ev) {
+function pickRollXZFromClient(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   const rw = engine.getRenderWidth();
   const rh = engine.getRenderHeight();
-  const sx = ((ev.clientX - rect.left) / Math.max(rect.width, 1)) * rw;
-  const sy = ((ev.clientY - rect.top) / Math.max(rect.height, 1)) * rh;
+  const sx = ((clientX - rect.left) / Math.max(rect.width, 1)) * rw;
+  const sy = ((clientY - rect.top) / Math.max(rect.height, 1)) * rh;
   const ray = scene.createPickingRay(sx, sy, null, camera);
   const oy = ray.origin.y;
   const dy = ray.direction.y;
   if (Math.abs(dy) < 1e-5) return null;
-  const t = (SLING_PICK_Y - oy) / dy;
+  const t = (getSlingPickY() - oy) / dy;
   if (t < 0) return null;
   const x = ray.origin.x + ray.direction.x * t;
   const z = ray.origin.z + ray.direction.z * t;
   return clampRollXZ(x, z);
 }
 
-function positionKinematicCluster(cx, cz) {
-  const spawnYBase = FLOOR_Y + 2.1;
-  const spawnYStep = 0.22;
-  const xSpread = 0.5 * TABLE_WORLD_SCALE;
-  const zOff = 0.03 * TABLE_WORLD_SCALE;
+function canvasPickRollXZ(ev) {
+  return pickRollXZFromClient(ev.clientX, ev.clientY);
+}
+
+/** Проекция точки стола (y = pick plane) в client-координаты — как у стрелки и raycast. */
+function rollXZWorldToClient(xw, zw) {
+  const w = engine.getRenderWidth();
+  const h = engine.getRenderHeight();
+  const rect = canvas.getBoundingClientRect();
+  const vp = camera.viewport.toGlobal(w, h);
+  const world = BABYLON.Matrix.Identity();
+  const transform = scene.getTransformMatrix();
+  const projected = BABYLON.Vector3.Project(
+    new BABYLON.Vector3(xw, getSlingPickY(), zw),
+    world,
+    transform,
+    vp
+  );
+  return {
+    clientX: rect.left + (projected.x / Math.max(w, 1)) * rect.width,
+    clientY: rect.top + (projected.y / Math.max(h, 1)) * rect.height,
+  };
+}
+
+/**
+ * Слинг: кластер в точке натяжения (pick), сетка в плоскости ⟂ (pick−anchor) и «назад» к якорю —
+ * совпадает с вектором броска start−end (к якорю), без привязки к нижней кромке стола.
+ */
+function positionKinematicClusterSling(anchorX, anchorZ, pickX, pickZ) {
+  let pullX = pickX - anchorX;
+  let pullZ = pickZ - anchorZ;
+  let pullLen = Math.hypot(pullX, pullZ);
+  if (pullLen < 1e-5) {
+    pullX = 0;
+    pullZ = 1;
+    pullLen = 1;
+  } else {
+    pullX /= pullLen;
+    pullZ /= pullLen;
+  }
+  const tangX = -pullZ;
+  const tangZ = pullX;
+  const inX = -pullX;
+  const inZ = -pullZ;
+
+  const baseX = pickX;
+  const baseZ = pickZ;
+  const spawnYBase = FLOOR_Y + battleTune.rollPlayer.spawnYOffset;
   for (let i = 0; i < dice.length; i++) {
     const d = dice[i];
     d.body.type = CANNON.Body.KINEMATIC;
@@ -833,8 +1977,14 @@ function positionKinematicCluster(cx, cz) {
     d.outer.setEnabled(true);
     d.pips.setEnabled(true);
     d.backing.setEnabled(true);
-    const ox = (i - (dice.length - 1) / 2) * xSpread;
-    d.body.position.set(cx + ox, spawnYBase + i * spawnYStep, cz + ((i % 3) - 1) * zOff);
+    const { ox, oz } = rollSpawnOffsetsEdgeFrame(i, dice.length, tangX, tangZ, inX, inZ);
+    // Одна высота Y для всех: стопка по i давала верхнему кубику больший Y при том же velocity —
+    // он позже вступал в контакт с уже тормозящими нижними и выглядел «медленнее».
+    d.body.position.set(
+      baseX + ox,
+      spawnYBase,
+      baseZ + oz
+    );
     if (!d._slingPose) {
       d._slingPose = true;
       d.body.quaternion.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
@@ -844,36 +1994,32 @@ function positionKinematicCluster(cx, cz) {
   }
 }
 
-/** Keep cluster pose while dragging; same base impulses as throwFromBottom + sling extras. */
-function applyRollImpulsesFromCurrentPositions(slingImpulse) {
-  const impulseZ = 0.95;
-  const impulseYMul = 0.44;
-  const impulseXMul = 0.32;
+/**
+ * Слинг: одна и та же стартовая скорость у всех кубиков (направление стрелки в XZ), без импульса по одному —
+ * плюс кубики не бьются друг о друга в группе коллизий.
+ */
+function applyRollImpulsesFromCurrentPositions(sling) {
+  const aimX = sling.aimX;
+  const aimZ = sling.aimZ;
+  const strength = sling.strength;
   game.selectedIndices = [];
   for (const d of dice) { d.value = null; d.settled = false; hl.removeMesh(d.outer); }
   game.phase = 'rolling';
   updateUI();
 
-  const sx0 = slingImpulse.x;
-  const sz0 = slingImpulse.z;
+  const s = battleTune.sling;
+  const horizBase = s.impulseHMin + (s.impulseHMax - s.impulseHMin) * strength;
+  const vertBase = s.impulseYMin + (s.impulseYMax - s.impulseYMin) * strength;
+  const ix = aimX * horizBase;
+  const iy = vertBase;
+  const iz = aimZ * horizBase;
+  const invM = 1 / battleTune.body.mass;
+
   for (let i = 0; i < dice.length; i++) {
     const d = dice[i];
     d.body.type = CANNON.Body.DYNAMIC;
-    d.body.velocity.setZero();
+    d.body.velocity.set(ix * invM, iy * invM, iz * invM);
     d.body.angularVelocity.setZero();
-    d.body.quaternion.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
-    d.body.quaternion.normalize();
-    const f = PHYS.throwMin + Math.random() * (PHYS.throwMax - PHYS.throwMin);
-    const sx = sx0 * (0.88 + Math.random() * 0.28);
-    const sz = sz0 * (0.88 + Math.random() * 0.28);
-    d.body.applyImpulse(
-      new CANNON.Vec3(
-        (Math.random() - 0.5) * f * impulseXMul + sx,
-        f * impulseYMul,
-        impulseZ * f + sz
-      ),
-      new CANNON.Vec3((Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3)
-    );
     d.body.allowSleep = true;
     d.body.wakeUp();
   }
@@ -883,21 +2029,25 @@ function finishPlayerSling(ev) {
   if (!slingDrag) return;
   const start = slingDrag.start;
   slingDrag = null;
+  hideSlingViz();
   try { canvas.releasePointerCapture(ev.pointerId); } catch (_) {}
 
   const end = canvasPickRollXZ(ev) || start;
-  const pullX = start.x - end.x;
-  const pullZ = start.z - end.z;
+  const pullX = end.x - start.x;
+  const pullZ = end.z - start.z;
   const pullLen = Math.hypot(pullX, pullZ);
 
-  if (pullLen < SLING_MIN_PULL) {
-    throwFromBottom();
+  if (pullLen <= getSlingClickEpsWorld()) {
+    game.phase = 'waiting';
+    syncActiveDice(0);
+    updateButtons();
     return;
   }
-  const nx = pullX / pullLen;
-  const nz = pullZ / pullLen;
-  const power = Math.min(pullLen * 3.1, 16) * TABLE_WORLD_SCALE;
-  applyRollImpulsesFromCurrentPositions({ x: nx * power * 0.5, z: nz * power * 0.72 });
+  // Рогатка: тянем от якоря; полёт — от точки отпускания к якорю и дальше (против вектора натяжения).
+  const aimX = -pullX / pullLen;
+  const aimZ = -pullZ / pullLen;
+  const strength = slingStrengthLinear(pullLen);
+  applyRollImpulsesFromCurrentPositions({ aimX, aimZ, strength });
 }
 
 // ═══════════════════════════════════════════════════
@@ -931,17 +2081,24 @@ scene.onPointerObservable.add(info => {
         if (!p) return;
         if (dice.length === 0) syncActiveDice(6);
         for (const d of dice) delete d._slingPose;
-        slingDrag = { start: { x: p.x, z: p.z }, pointerId: ev.pointerId };
+        slingDrag = {
+          start: { x: p.x, z: p.z },
+          pointerId: ev.pointerId,
+          clientStartX: ev.clientX,
+          clientStartY: ev.clientY,
+        };
         game.phase = 'aiming';
-        positionKinematicCluster(p.x, p.z);
+        positionKinematicClusterSling(p.x, p.z, p.x, p.z);
         updateButtons();
+        updateSlingViz(ev.clientX, ev.clientY);
         try { canvas.setPointerCapture(ev.pointerId); } catch (_) {}
         return;
       }
       if (slingDrag && info.type === BABYLON.PointerEventTypes.POINTERMOVE) {
         if (ev.pointerType !== 'touch' && !(ev.buttons & 1)) return;
         const p = canvasPickRollXZ(ev);
-        if (p) positionKinematicCluster(p.x, p.z);
+        if (p) positionKinematicClusterSling(slingDrag.start.x, slingDrag.start.z, p.x, p.z);
+        updateSlingViz(ev.clientX, ev.clientY);
         return;
       }
       if (slingDrag && info.type === BABYLON.PointerEventTypes.POINTERUP && ev.button === 0) {
@@ -1007,9 +2164,11 @@ function getHeldPos(index, total, who) {
   const row = Math.floor(index / cols);
   const col = index % cols;
   const diceThisRow = Math.min(cols, total - row * cols);
-  const sx = DIE_EDGE + 0.12;
-  const sz = DIE_EDGE + 0.1;
-  const x = (col - (diceThisRow - 1) / 2) * sx;
+  const de = getDieEdge();
+  const sx = de + 0.12;
+  const sz = de + 0.1;
+  const cx = who === 'bot' ? 0 : PLAYER_HELD_BIAS_X;
+  const x = cx + (col - (diceThisRow - 1) / 2) * sx;
   const shelfMidZ = who === 'bot' ? BOT_DIVIDER_Z + SHELF_DEPTH_Z / 2 : WZ_BOT + SHELF_DEPTH_Z / 2;
   const z = shelfMidZ + (row - (rows - 1) / 2) * sz;
   return { x, y: FLOOR_Y + 0.5, z };
@@ -1028,7 +2187,7 @@ function scoreAndHold() {
     world.removeBody(d.body); d.body = null;
     hl.removeMesh(d.outer);
     dice.splice(idx, 1);
-    d.root.scaling.setAll(DIE_SCALE);
+    d.root.scaling.setAll(battleTune.mesh.dieScale);
     d.animTarget = null;
     heldDice.push(d);
   }
@@ -1058,10 +2217,10 @@ function handleScoreAndPlay() {
   if (result === null) return;
   if (result === 'hothand') { handleHotHand(); return; }
 
-  setTimeout(() => {
-    if (game.currentPlayer === 'player') throwFromBottom();
-    else throwFromTop();
-  }, 550);
+  if (game.currentPlayer === 'player') {
+    game.phase = 'waiting';
+    updateUI();
+  }
 }
 
 function handleBankAndPass() {
@@ -1135,6 +2294,7 @@ function handleHotHand() {
 
 function endTurn() {
   slingDrag = null;
+  hideSlingViz();
   clearHeldDice();
   syncActiveDice(0);
   game.currentPlayer = game.currentPlayer === 'player' ? 'bot' : 'player';
@@ -1168,8 +2328,15 @@ async function runBotTurn() {
   updateUI();
 
   let keepGoing = true;
+  /** Первый бросок хода — сразу после старта; следующие — только после скора (как у игрока после ROLL). */
+  let botRollIsFirstOfTurn = true;
   while (keepGoing) {
-    await delay(600);
+    if (botRollIsFirstOfTurn) {
+      await delay(600);
+      botRollIsFirstOfTurn = false;
+    } else {
+      await delay(900);
+    }
     throwFromTop();
     await waitForSettle();
     await delay(400);
@@ -1199,6 +2366,10 @@ async function runBotTurn() {
     } else {
       const result = scoreAndHold();
       if (result === 'hothand') { handleHotHand(); keepGoing = false; }
+      else {
+        game.phase = 'botTurn';
+        updateUI();
+      }
     }
   }
 }
@@ -1269,6 +2440,7 @@ function addLog(text, cls) {
 canvas.addEventListener('pointercancel', ev => {
   if (!slingDrag || ev.pointerId !== slingDrag.pointerId) return;
   slingDrag = null;
+  hideSlingViz();
   try { canvas.releasePointerCapture(ev.pointerId); } catch (_) {}
   if (game.phase === 'aiming') {
     game.phase = 'waiting';
@@ -1296,6 +2468,7 @@ bankPassBtn.addEventListener('click', () => {
 
 restartBtn.addEventListener('click', () => {
   slingDrag = null;
+  hideSlingViz();
   game.playerHp = game.playerMaxHp;
   game.botHp = game.botMaxHp;
   game.roundScore = 0;
@@ -1320,16 +2493,18 @@ engine.runRenderLoop(() => {
 
     if (!d.settled) {
       const spd = d.body.velocity.length() + d.body.angularVelocity.length();
-      if (spd > 0.02 && spd < 1.5) {
+      const st = battleTune.settle;
+      if (spd > st.speedLo && spd < st.speedHi) {
         const {x:qx,y:qy,z:qz,w:qw} = d.body.quaternion;
         const align = Math.max(
           Math.abs(2*(qx*qy+qw*qz)),
           Math.abs(1-2*(qx*qx+qz*qz)),
           Math.abs(2*(qy*qz-qw*qx))
         );
-        if (align < 0.92) {
-          d.body.angularVelocity.x += (Math.random()-.5)*3;
-          d.body.angularVelocity.z += (Math.random()-.5)*3;
+        if (align < st.alignThreshold) {
+          const k = st.angKick;
+          d.body.angularVelocity.x += (Math.random() - 0.5) * k;
+          d.body.angularVelocity.z += (Math.random() - 0.5) * k;
         }
       }
     }
@@ -1364,7 +2539,10 @@ engine.runRenderLoop(() => {
 
   scene.render();
 });
-window.addEventListener('resize', () => engine.resize());
+window.addEventListener('resize', () => {
+  engine.resize();
+  if (camera.mode === BABYLON.Camera.ORTHOGRAPHIC_CAMERA) updateBattleOrthoFrustum();
+});
 
 // ═══════════════════════════════════════════════════
 //  INIT
