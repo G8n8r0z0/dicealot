@@ -14,7 +14,13 @@ The game uses a custom dice rendering engine:
 
 Dice are built entirely in code — no external 3D models or texture atlases. Each die is a rounded box with geometric pip notches, flat circular pip meshes, and a dark backing box. Physics simulation handles rolling, collisions, and settling. Engine validated in `spike-v2.html`, full battle prototype in `battle.html`, **physics / throw feel** iterated in **`throw-lab.html`** (same Babylon + cannon-es stack, shared `battle_tune_json_v1` with battle).
 
-**Vendored libs (no CDN at runtime):** `battle.html` and `spike-v2.html` load from `vendor/`. After changing versions in `package.json`, run `npm install` then `npm run vendor:sync`. Commit `vendor/babylon.js` and `vendor/cannon-es.js` so GitHub Pages and static hosts work without `npm install`. `node_modules/` is gitignored.
+**Vendored libs (no CDN at runtime):** `battle.html` and `spike-v2.html` load from `vendor/`. After changing versions in `package.json`, run `npm install` then `npm run vendor:sync`. Commit `vendor/babylon.js` and `vendor/cannon-es.js` so static hosts work without `npm install`. `node_modules/` is gitignored.
+
+### Production deploy
+
+Pushes to **`main`** deploy the repo root to **Cloudflare Pages** via `.github/workflows/deploy.yml` (`wrangler pages deploy`, project name `dicealot`). The GitHub repo is the source of truth; the live game URL is the one Cloudflare assigns (or your custom domain).
+
+**Battle physics defaults:** `BATTLE_TUNE_DEFAULTS` in `battle.html` and `throw-lab.mjs` is the canonical “shipping” feel for ROLL + sling. Visitors without saved data get that. Optional **Tune → Apply** in battle still persists overrides in `localStorage` under `battle_tune_json_v1` (same key as throw-lab). When changing defaults, edit **both** files in one commit.
 
 ### GitHub: новый проект на `main`, старый не потерять
 
@@ -28,9 +34,7 @@ Dice are built entirely in code — no external 3D models or texture atlases. Ea
 
 2. **Подставить новый контент** в рабочую копию (например весь каталог `dice-a-lot/` как корень репозитория, или смержить папки осознанно). Старый корневой `index.html` из этого репо перенесён в `legacy/dice-box-spike.html`.
 
-3. **Точка входа для браузера:** в корне репо лежит `index.html` — он сразу ведёт на `battle.html`. На GitHub Pages URL вида `https://<user>.github.io/<repo>/` откроет игру.
-
-4. **Включить Pages:** репозиторий → **Settings → Pages** → Source: ветка **`main`**, папка **`/ (root)`** (если сайт — корень репо). Если публикуешь только подпапку, настрой **/docs** и положи туда копию с `index.html` и `battle.html` + `vendor/`.
+3. **Точка входа для браузера:** в корне репо лежит `index.html` — он сразу ведёт на `battle.html`. Основной прод сейчас через **Cloudflare Pages** (см. выше). Альтернатива: **GitHub Pages** — `https://<user>.github.io/<repo>/`, ветка **`main`**, папка **`/ (root)`** (или **/docs** с копией `index.html`, `battle.html`, `vendor/`).
 
 5. **Не смешивать файлы:** либо новый проект = новый корень (рекомендуется), либо старое целиком в `archive/old-site/` одним коммитом, затем добавить новые файлы отдельными коммитами.
 

@@ -756,24 +756,28 @@ The following have been validated in the spike (`spike-v2.html`) and battle prot
 
 ### 14.4 Physics Baseline
 
-Current stable tuning from spike-v2:
+**Battle / throw-lab (canonical shipping defaults)** — object **`BATTLE_TUNE_DEFAULTS`** in **`battle.html`** and **`throw-lab.mjs`** (must stay identical). On load, **`localStorage['battle_tune_json_v1']`** deep-merges numeric overrides; without storage, the table below is what every fresh session and static deploy uses.
 
-| Parameter | Value | Range |
+| Group | Key fields (representative) | Shipping default |
 |---|---|---|
-| `gravity` | `-50` | -120 to -5 |
-| `restitution` | `0.3` | 0 to 1 |
-| `friction` | `0.6` | 0 to 2 |
-| `mass` | `1` | 0.1 to 5 |
-| `throwForce` | `1` (multiplier) | 0.2 to 3 |
-| `throwMin` | `3` | 0.5 to 12 |
-| `throwMax` | `8` | 1 to 20 |
-| `sleepTimeLimit` | `0.3` | 0.05 to 2 |
-| `sleepSpeedLimit` | `0.05` | 0.01 to 0.5 |
-| `linearDamping` | `0.05` | — |
-| `angularDamping` | `0.15` | — |
-| `physicsBoxHalfExtent` | `0.48` | Slightly smaller than visual 0.5 to reduce edge settling |
+| `world` | `gravity`, `restitution`, `friction` | −93, 0.35, 0.5 |
+| `body` | `mass`, `linearDamping`, `angularDamping`, `throwMin`, `throwMax` | 1.35, 0.05, 0.1, 20, 50 |
+| `sling` | `impulseHMin` / `impulseHMax`, `impulseYMin` / `impulseYMax` | 10.175 / 61.6, 3.1625 / 11.9625 |
+| `rollPlayer` | `mainImpulse`, `impulseYMul`, `spawnYOffset`, … | 5.61, 0.17, 1, … |
+| `rollBot` | `mainImpulse`, … | 5.225, … |
+| `mesh` | `dieScale`, `boxHalfPerScale` | 1.7, 0.48 (physics half-extent tracks `boxHalfPerScale × dieScale`) |
 
-**Note:** `battle.html` and **`throw-lab.mjs`** share the same tunable object (`battleTune`); defaults include e.g. `gravity: -55`, `throwMin`/`throwMax` 4–9, sling impulse ranges. The numeric table above remains the **spike** reference; battle/lab values may diverge via Tune JSON.
+ROLL uses `throwMin`…`throwMax` with `rollPlayer` / `rollBot` multipliers; battle sling uses shared linear velocity from **`sling.impulse*`** scaled by pull strength (see `ARCHITECTURE.md`).
+
+**Historical spike-v2 reference** (older sandbox; not equal to battle defaults):
+
+| Parameter | Spike-era value | Notes |
+|---|---|---|
+| `gravity` | −50 | Wider Tune range in spike UI |
+| `restitution` / `friction` | 0.3 / 0.6 | |
+| `mass` | 1 | |
+| `throwMin` / `throwMax` | 3 / 8 | Different naming in spike |
+| `angularDamping` | 0.15 | Battle shipping uses 0.1 |
 
 ### 14.5 Custom Dice Constructor
 
@@ -862,7 +866,7 @@ Dice face values are determined by `store.prng.next(1, 6)`, not by 3D physics. T
 
 ### 14.10 Server Requirement
 
-`battle.html` and `spike-v2.html` load **vendored** BabylonJS (`vendor/babylon.js`) and cannon-es (`vendor/cannon-es.js` via import map). They still require **HTTP** — browsers block ES modules (and reliable WASM/physics) on **`file://`**. Use `node server.mjs` (port 4174), or deploy to static hosting (e.g. GitHub Pages). Root **`index.html`**: on `file://` shows instructions (RU) instead of redirecting.
+`battle.html` and `spike-v2.html` load **vendored** BabylonJS (`vendor/babylon.js`) and cannon-es (`vendor/cannon-es.js` via import map). They still require **HTTP** — browsers block ES modules (and reliable WASM/physics) on **`file://`**. Use `node server.mjs` (port 4174), or deploy to static hosting (e.g. **Cloudflare Pages** from `main` via `.github/workflows/deploy.yml`, or GitHub Pages / Netlify). Root **`index.html`**: on `file://` shows instructions (RU) instead of redirecting.
 
 Game logic in `src/` (store, systems, config) follows the IIFE pattern per `ARCHITECTURE.md`. The rendering bridge will connect store state to the 3D engine via `store.subscribeTo`.
 
@@ -881,6 +885,8 @@ Game logic in `src/` (store, systems, config) follows the IIFE pattern per `ARCH
 **Intent:** tune **how throws feel** (speed, arc, mass, gravity, damping) and inspect outcomes without playing a full battle. Uses the same **sandwich table**, **ROLL** (`throwFromBottom` analogue) and **sling** (kinematic cluster → release → shared initial velocity) as battle.
 
 **Persistence:** `localStorage['battle_tune_json_v1']` — identical key to **`battle.html`**. Editing Tune or realism in the lab affects battle on next load unless one overwrites the other.
+
+**Repo defaults:** **`BATTLE_TUNE_DEFAULTS`** in **`battle.html`** and **`throw-lab.mjs`** defines the shipping feel when no JSON is stored (e.g. incognito, first visit on deploy). Change both files together when rebasing the default feel.
 
 **UI layers:** (1) **Реализм броска** — coarse sliders tied to `battleTune` subsets (power scales `throwMin`/`throwMax`, sling H/Y from **lab default anchors**, `rollPlayer`/`rollBot` `mainImpulse`, vertical multipliers for arc). (2) **Full Tune** — every numeric field with EN+RU explanations; list **`PHYSICS_TUNE_FIELDS`** is **duplicated** in `battle.html` and `throw-lab.mjs` — add new keys in both when extending tuning.
 

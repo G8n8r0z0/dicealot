@@ -147,7 +147,7 @@ Extract validated spike code into production modules.
 
 > **Status: COMPLETE.** Full 3D battle prototype validated in `battle.html`. Engine stack: **vendored** BabylonJS + cannon-es, custom procedural geometry. Core mechanics: directional throws, **pull-back sling** or **ROLL**, click-to-select, sandwich table + narrow shelves, camera debug, kinematic dice stash, held zones, Farkle scoring, Hot Hand, bust, bot AI, HP combat, win/lose. Entry: **`index.html`** (HTTP → `battle.html`; `file://` → server instructions).
 > **Remaining:** engine extraction (0C1–0C4) to wire prototype logic through `store.dispatch` + preserve sling/physics tuning in `diceBridge` / `diceEngine`.
-> **Docs (2026 sync):** sling behavior, collision filters, wedge HUD, **throw-lab** (shared Tune, realism sliders, HUD layering), Tune field copy (EN/RU), and “propose → approve → implement” preferences are reflected in `ARCHITECTURE.md`, `DESIGN.md` §14, `AGENTS.md`, `README.md`, and workspace `.cursor/rules/chat-context-and-docs.mdc`.
+> **Docs (2026 sync):** sling behavior, collision filters, wedge HUD, **throw-lab** (shared Tune, realism sliders, HUD layering), Tune field copy (EN/RU), **canonical `BATTLE_TUNE_DEFAULTS`** (battle + throw-lab, matches shipped physics without `localStorage`), Cloudflare Pages deploy, and “propose → approve → implement” preferences are reflected in `ARCHITECTURE.md`, `DESIGN.md` §14, `AGENTS.md`, `README.md`, and workspace `.cursor/rules/chat-context-and-docs.mdc`.
 
 ---
 
@@ -158,6 +158,8 @@ Items that don't have a task slot yet. Revisit when the corresponding layer is r
 ### Storage: localStorage now, reassess for PvP later
 
 Current approach: `localStorage` for player profile (wins, unlocked dice, loadout), same pattern as `battle.html`. This is sufficient for PvE singleplayer.
+
+**Battle physics:** `battle_tune_json_v1` deep-merges numeric fields into `battleTune` on load. **Repo defaults** (`BATTLE_TUNE_DEFAULTS` in `battle.html` / `throw-lab.mjs`) are the canonical shipping tune (strong ROLL + sling, gravity −93, etc.); incognito and fresh deploys use those. **Tune → Apply** persists overrides; **Reset** clears the key.
 
 **Revisit trigger:** when PvP / live multiplayer enters active scope. A shared session or server-side storage will be needed. Flag this question at that point.
 

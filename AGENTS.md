@@ -16,7 +16,7 @@ If the repo/workspace root contains **`.cursor/rules/`**, read applicable rules 
 
 When **conversation context is thin** (summarized threads, many edits no longer visible, user references “what we decided” without it being in-window), **warn the user** and **propose** updating the main docs in this folder: `ARCHITECTURE.md`, `DESIGN.md`, `TODO.md`, and if needed `README.md`. Do not assume the chat history is authoritative for handoff.
 
-After **substantial** `battle.html`, **`throw-lab.html` / `throw-lab.mjs`**, or shared **Tune** (`battle_tune_json_v1`, `PHYSICS_TUNE_FIELDS`) work, keep **`ARCHITECTURE.md`**, **`DESIGN.md` §14**, **`TODO.md`**, and **`README.md`** aligned so the next session does not rely on lost chat context.
+After **substantial** `battle.html`, **`throw-lab.html` / `throw-lab.mjs`**, or shared **Tune** (`battle_tune_json_v1`, `PHYSICS_TUNE_FIELDS`, **`BATTLE_TUNE_DEFAULTS`**) work, keep **`ARCHITECTURE.md`**, **`DESIGN.md` §14**, **`TODO.md`**, and **`README.md`** aligned so the next session does not rely on lost chat context. Any change to **`BATTLE_TUNE_DEFAULTS`** must touch **`battle.html` and `throw-lab.mjs` together** (same commit).
 
 ## User preference: propose, then execute
 

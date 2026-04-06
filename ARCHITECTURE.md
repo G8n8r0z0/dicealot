@@ -36,7 +36,7 @@ The 3D rendering engine (BabylonJS + cannon-es) requires ES module loading for c
 - cannon-es: `<script type="importmap">` maps `"cannon-es"` → `./vendor/cannon-es.js`, then `import` inside `<script type="module">`
 
 **Constraints for this layer:**
-- Requires HTTP (`server.mjs` on port 4174, or GitHub Pages, etc.) — **not** `file://`
+- Requires HTTP (`server.mjs` on port 4174, Cloudflare Pages, GitHub Pages, etc.) — **not** `file://`
 - **Vendored** dependencies: `vendor/babylon.js`, `vendor/cannon-es.js` (refresh with `npm install` + `npm run vendor:sync`; commit `vendor/` for zero-CDN deploys)
 - Target: bridge code in `src/engine/` as ES modules (extraction pending, see `TODO.md` 0C)
 
@@ -619,7 +619,9 @@ A standalone prototype implementing the full battle loop in a single HTML file. 
 
 | Feature | Implementation |
 |---------|---------------|
-| **3D Canvas** | Fullscreen BabylonJS canvas; **`#slingVizSvg`** fixed over the viewport (wedge HUD). Optional **camera debug** panel (bottom-left): numeric α, β, radius, target, Apply, **Copy view as JSON**, reset; checkbox **Orbit / zoom** attaches Babylon controls for tuning shots |
+| **3D Canvas** | Fullscreen BabylonJS canvas (`.canvas-wrap` `position:fixed; inset:0`); **`#slingVizSvg`** fixed over the viewport (wedge HUD). Optional **camera debug** panel (bottom-left): numeric α, β, radius, target, Apply, **Copy view as JSON**, reset; checkbox **Orbit / zoom** attaches Babylon controls for tuning shots |
+| **UI overlay layout** | `.battle-scene` fixed over the viewport (`z-index` above canvas). CSS variable **`--battle-ui-top`** sets top padding for the overlay and **`top`** for side columns (player / enemy cards) so HUD clears the safe area. Center column: info bar + bottom actions; mid-screen stays pointer-transparent so dice show through the glass |
+| **Physics defaults** | **`BATTLE_TUNE_DEFAULTS`** in `battle.html` seeds `battleTune` before **`localStorage['battle_tune_json_v1']`** is merged (numeric fields only). **Tune → Apply** saves the full tune; **Reset** removes the key. **`throw-lab.mjs`** duplicates the same defaults object — **keep both files in sync** when changing shipped feel |
 | **Table layout** | One table in **X** (same width for all strips): **roll zone** (wide center strip in Z) + **player/bot shelves** (shallower Z), stacked along Z (“sandwich”). Shelf **width ≈ two dice**; held dice in a small grid. Physics **walls** at shelf/roll **dividers** keep dice in the rolling band. Constants: `TABLE_WORLD_SCALE`, `ROLL_FLOOR_W`, `SHELF_DEPTH_Z`, `ROLL_DEPTH_Z`, `DIVIDER_Z`, `BOT_DIVIDER_Z`, `WX`, etc. |
 | **Directional throws** | Player: `throwFromBottom()` (ROLL) or **sling** — sling velocity along **start−end** in XZ + vertical scale by strength (see Interaction Model). Bot: `throwFromTop()`. |
 | **Dice lifecycle** | New dice are **KINEMATIC**, **hidden** under the table until a throw; on throw they become **DYNAMIC** and visible — avoids “phantom” rolls before the bot’s or player’s real roll. |
@@ -656,7 +658,7 @@ A standalone prototype implementing the full battle loop in a single HTML file. 
 
 | Topic | Detail |
 |-------|--------|
-| **Shared tuning** | Same in-memory shape as battle: `battleTune` (world, body, sling, viz, spawn, rollPlayer/bot, mesh, settle, …). Persisted under **`localStorage['battle_tune_json_v1']`** — changes in the lab apply to **`battle.html`** on next load (and vice versa). |
+| **Shared tuning** | Same in-memory shape as battle: `battleTune` (world, body, sling, viz, spawn, rollPlayer/bot, mesh, settle, …). **`BATTLE_TUNE_DEFAULTS`** in **`throw-lab.mjs`** must match **`battle.html`**. Persisted under **`localStorage['battle_tune_json_v1']`** — changes in the lab apply to **`battle.html`** on next load (and vice versa). |
 | **Full Tune panel** | Duplicate field list as **`battle.html` → Tune**: `PHYSICS_TUNE_FIELDS` in both files must stay in sync when adding keys (comment in each file points to the other). Each field has **EN + RU** help text describing gameplay effect (not just JSON paths). |
 | **Sling release (lab only)** | Same impulse logic as **ROLL** (`throwDice`): per-die random `f` in scaled `throwMin`…`throwMax`, `applyImpulse` with off-center point, `rollPlayer` `mainImpulse` / `impulseYMul` / `impulseCrossMul`, aim = slingshot direction in XZ. **Pull strength** scales the throw band (`0.12 + 0.88 × strength`). **`battle.html` sling** still uses shared initial velocity + `sling.impulse*`. |
 | **«Реализм броска»** | High-level sliders: **mass**, **gravity Y**, **throw power** (scales ROLL + lab sling `throwMin`/`throwMax` and `mainImpulse`; power range **0.2×–6×**), **arc** (`rollPlayer`/`rollBot` `impulseYMul`; also drives lab sling vertical), **damping** (linear + angular together). Ballistic hint uses **throwMax × impulseYMul / mass** (lab sling model). JSON **`sling.impulseH/Y`** still apply in **battle** only. |
