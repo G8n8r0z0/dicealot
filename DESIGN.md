@@ -662,10 +662,13 @@ Established layout after the first UI polish pass:
 | **HP widgets** | Compact: 80px avatar circle + horizontal bar with inline HP text. Player (left, red fill L-to-R), Bot (right, purple fill R-to-L). |
 | **Badge slots** | 3 dashed placeholder slots (`.badge-grid`) under each HP widget for future badges. |
 | **Turn indicator** | Side-specific text labels ("Player Turn" / "Bot Turn") fade in/out on the respective side. No central turn indicator. |
-| **Info bar** | Docked to top edge of screen. Contains Round Score (large) + Selection Score only. Does **not** overlap the 3D table. |
-| **Action buttons** | Bottom strip: primary row (ROLL, SCORE'N'PLAY, BANK'N'PASS), secondary row reserved for abilities. |
-| **Banner** | Centered on viewport (BANK!, BUST, HOT HAND). Fade+scale animation, ~2.2s visible. Bot turn starts 1s after banner disappears. |
-| **Table** | Roll zone with thin visual border. Held zones are 9x6 rectangles centered on each side (not full-width strips). `DEFAULT_ROLL_DEPTH_STRETCH = 2.8`. |
+| **Info bar** | Docked to top edge, compact `max-width:min(88vw,340px)`. Round Score + Selection info (column layout). Does **not** overlap the 3D table. |
+| **Action buttons** | Bottom strip: primary row (ROLL, SCORE'N'PLAY, BANK'N'PASS), secondary row reserved for abilities. **Auto-hidden** when no buttons visible. Buttons hidden during bot turn. Dev tools (Camera/Table/Tune) hidden from UI. |
+| **Banner** | Centered on viewport (BANK!, BUST, HOT HAND, REROLL!). Fade+scale animation, ~2.2s visible. Bot turn starts 1s after banner disappears. |
+| **Table** | Roll zone with thin visual border. Held zones are **9×9 squares** centered on each side, 3-column dice grid with `gap = dieEdge × 1.12`. Held dice slerp to correct face-up orientation. Physics walls inset 0.5 from visual border (`WALL_INSET_Z`). |
+| **Sling cluster** | All dice at single clamped point (only 1st visible during aim). `wallPad = dieEdge × 1.0` prevents wall-stuck on release. |
+| **Stacked dice** | If die settles on another (Y > threshold): banner "REROLL!", player taps to re-throw (up to 3×). Bot auto-rerolls. |
+| **Face reading** | `readFaceValue` thresholds tightened: bestDot ≥ 0.90, gap ≥ 0.12 for reliable face identification. |
 | **Round History** | Right rail under bot block, outside table area. |
 | **Ortho camera** | `updateBattleOrthoFrustum()` with `uiPadH=12`, `uiPadV=5` clears side panels from the table viewport. |
 

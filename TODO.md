@@ -181,6 +181,22 @@ ROLL and sling throw physics tuned and unified. Both use `applyImpulse` with off
 
 ---
 
+## ── MILESTONE: Battle UX Polish ── (COMPLETE)
+
+Shelf, sling, reroll, face reading, UI cleanup after physics baseline.
+
+- [x] **0E1.** Shelf 9×9 — `SHELF_D` 6→9, 3-column grid, `gap = dieEdge × 1.12`, held dice slerp to `FACE_UP_QUATS[value]`.
+- [x] **0E2.** Dev tools hidden — Camera/Table/Tune buttons `display:none`, TUNE ±1 hidden. Code preserved.
+- [x] **0E3.** Stacked dice reroll — detect (Y > threshold), banner "REROLL!", player taps to re-throw (max 3), bot auto-rerolls in `waitForSettle`.
+- [x] **0E4.** Sling single-point cluster — all dice at one clamped point, only 1st visible during aim; `wallPad = dieEdge × 1.0`.
+- [x] **0E5.** Wall inset Z — `WALL_INSET_Z = 0.5`, spawn margin `mz = WALL_INSET_Z + 0.1`. Fixes dice-in-wall on ROLL edge spawn.
+- [x] **0E6.** Face reading tightened — `readFaceValue` bestDot ≥ 0.90, gap ≥ 0.12 (was 0.72/0.06).
+- [x] **0E7.** Info bar compact — `max-width:min(88vw,340px)`, selection info under round score.
+- [x] **0E8.** Actions auto-hide — `.actions` hidden when no buttons visible; buttons hidden during bot turn.
+- [x] **0E9.** Round score stable width — column layout, doesn't grow on score change.
+
+---
+
 ## Open Decisions & Deferred Tasks
 
 Items that don't have a task slot yet. Revisit when the corresponding layer is reached.
@@ -772,6 +788,7 @@ Visual and audio juice.
 | **3D Engine Proven** | 0 | Full 3D battle: sling or ROLL, select, held, scoring, combat, bot AI | **DONE** |
 | **Battle UI Baseline** | 0 | Polished HP widgets, side turn indicators, compact info bar, 9x6 held zones, centered banners, badge slots | **DONE** (2026-04-07) |
 | **Dice Throw Physics Baseline** | 0D | ROLL + sling unified, gravity −200, mass 3.0, dieScale 3.06 | **DONE** (2026-04-07) |
+| **Battle UX Polish** | 0E | Shelf 9×9, sling single-point, reroll, face reading, UI cleanup | **DONE** (2026-04-07) |
 | **Playable Base Game (2D logic)** | 0 + A–E | Standard Farkle scoring + combat logic wired to the 3D battle shell | Pending |
 | **Playable 3D Battle** | 0 + A–G | Full 3D battle against bot, base dice only | Pending |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |
