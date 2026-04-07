@@ -515,26 +515,26 @@ const SLING_AIM_TANGENT_SCALE = readStoredSlingAimTangent();
 const SLING_AIM_INWARD_SCALE = readStoredSlingAimInward();
 
 const FLOOR_Y = -4;
-const SEGMENTS = 40, EDGE_R = 0.07, NOTCH_R = 0.14, NOTCH_D = 0.12, PIP_OFFSET = 0.23;
+const SEGMENTS = 40, EDGE_R = 0.13, NOTCH_R = 0.14, NOTCH_D = 0.12, PIP_OFFSET = 0.23;
 
 const LS_BATTLE_TUNE = 'battle_tune_json_v1';
 
 const BATTLE_TUNE_DEFAULTS = {
-  world: { gravity: -93, restitution: 0.35, friction: 0.5 },
+  world: { gravity: -200, restitution: 0.35, friction: 0.5 },
   body: {
-    mass: 1.35, linearDamping: 0.05, angularDamping: 0.1, sleepTime: 0.3, sleepSpeed: 0.05,
-    throwMin: 20, throwMax: 50,
+    mass: 3.0, linearDamping: 0.05, angularDamping: 0.1, sleepTime: 0.3, sleepSpeed: 0.05,
+    throwMin: 66, throwMax: 166,
   },
   sling: {
     maxPullWorld: 12.5, clickEpsMul: 0.02, pickYOffset: 0.55,
-    impulseHMin: 10.175, impulseHMax: 61.6, impulseYMin: 3.1625, impulseYMax: 11.9625,
+    impulseHMin: 36, impulseHMax: 224, impulseYMin: 3, impulseYMax: 12,
   },
   viz: { halfAngle: 0.38, rInner: 12, rSpan: 292, segments: 4 },
-  spawn: { minSpacingMul: 1.18, stackYStepMul: 1.12, jitterMul: 0.32 },
+  spawn: { minSpacingMul: 1.18, stackYStepMul: 0.05, jitterMul: 0.32 },
   rollPlayer: { spawnYOffset: 1, planeJitter: 0.5, impulseYMul: 0.17, impulseCrossMul: 0.32, mainImpulse: 5.61 },
   rollBot: { spawnYOffset: 5.5, planeJitter: 0.55, impulseYMul: 0.2, impulseCrossMul: 0.28, mainImpulse: 5.225 },
   rollImpulseLever: 0.28,
-  mesh: { dieScale: 1.7, boxHalfPerScale: 0.48 },
+  mesh: { dieScale: 3.06, boxHalfPerScale: 0.48 },
   settle: { alignThreshold: 0.92, angKick: 3, speedLo: 0.02, speedHi: 1.5 },
 };
 
@@ -556,8 +556,17 @@ function deepMergeTune(target, src) {
   }
 }
 
+const _DEFAULTS_HASH = JSON.stringify(BATTLE_TUNE_DEFAULTS).split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0).toString(36);
+const LS_DEFAULTS_HASH = 'battle_tune_defaults_hash';
+
 function tryLoadBattleTuneFromStorage() {
   try {
+    const storedHash = localStorage.getItem(LS_DEFAULTS_HASH);
+    if (storedHash !== _DEFAULTS_HASH) {
+      localStorage.removeItem(LS_BATTLE_TUNE);
+      localStorage.setItem(LS_DEFAULTS_HASH, _DEFAULTS_HASH);
+      return;
+    }
     const raw = localStorage.getItem(LS_BATTLE_TUNE);
     if (raw == null || raw === '') return;
     const parsed = JSON.parse(raw);
@@ -580,7 +589,8 @@ function getSlingPickY() {
   return FLOOR_Y + battleTune.sling.pickYOffset;
 }
 function slingStrengthLinear(pullLen) {
-  return Math.max(0, Math.min(1, pullLen / battleTune.sling.maxPullWorld));
+  const t = Math.max(0, Math.min(1, pullLen / battleTune.sling.maxPullWorld));
+  return t * t;
 }
 
 /**
@@ -724,6 +734,7 @@ scene.clearColor = new BABYLON.Color4(0.06, 0.06, 0.06, 1);
 
 const camera = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, DEFAULT_CAMERA_BETA, CAMERA_DISTANCE,
   new BABYLON.Vector3(0, FLOOR_Y + 0.5, TABLE_CENTER_Z), scene);
+camera.minZ = 0.1;
 
 /** Подложка 1×1; scaling подгоняется под ortho-frustum (закрывает letterboxing без зума логики стола). */
 let floorFelt = null;
@@ -1322,7 +1333,7 @@ camDebugReadout.textContent = formatCameraDebugText();
 const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
 hemi.intensity = 0.62;
 const dir = new BABYLON.DirectionalLight('dir', new BABYLON.Vector3(-0.2, -1, -0.25).normalize(), scene);
-dir.position.set(0, 22, 6);
+dir.position.set(0, 50, 6);
 dir.intensity = 0.95;
 
 const shadowGen = new BABYLON.ShadowGenerator(1024, dir);
@@ -1409,6 +1420,7 @@ function applyStaticEnvCollision(body) {
 }
 
 const world = new CANNON.World({ allowSleep: true, gravity: new CANNON.Vec3(0, battleTune.world.gravity, 0) });
+world.solver.iterations = 20;
 world.defaultContactMaterial.restitution = battleTune.world.restitution;
 world.defaultContactMaterial.friction = battleTune.world.friction;
 
@@ -1431,6 +1443,13 @@ for (const w of [
   applyStaticEnvCollision(b);
   world.addBody(b);
 }
+
+const CEILING_Y = FLOOR_Y + 18;
+const ceilBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
+ceilBody.quaternion.setFromEuler(Math.PI / 2, 0, 0);
+ceilBody.position.set(0, CEILING_Y, 0);
+applyStaticEnvCollision(ceilBody);
+world.addBody(ceilBody);
 
 // ═══════════════════════════════════════════════════
 //  DICE GEOMETRY (from spike-v2)
@@ -1574,6 +1593,29 @@ function finalizeDiceBodyCollision(body) {
   }
 }
 
+const DICE_ENV_ONLY_MASK = STATIC_ENV_GROUP;
+let _slingCollisionTimer = null;
+
+function setDiceMask(mask) {
+  for (const d of dice) {
+    d.body.collisionFilterMask = mask;
+    for (let i = 0; i < d.body.shapes.length; i++) {
+      d.body.shapes[i].collisionFilterMask = mask;
+      const hull = d.body.shapes[i].convexPolyhedronRepresentation;
+      if (hull) hull.collisionFilterMask = mask;
+    }
+  }
+}
+
+function slingDisableDiceDiceCollision(ms) {
+  if (_slingCollisionTimer) clearTimeout(_slingCollisionTimer);
+  setDiceMask(DICE_ENV_ONLY_MASK);
+  _slingCollisionTimer = setTimeout(() => {
+    setDiceMask(DICE_COLLISION_MASK);
+    _slingCollisionTimer = null;
+  }, ms);
+}
+
 const _faceTmp = new CANNON.Vec3(), _faceLv = new CANNON.Vec3();
 const _faceLocals = [
   { x: 0, y: 1, z: 0, val: 1 }, { x: 0, y: -1, z: 0, val: 6 },
@@ -1604,7 +1646,7 @@ function createDie() {
   const sc = battleTune.mesh.dieScale;
   const oMat = new BABYLON.StandardMaterial(`o${id}`, scene);
   oMat.diffuseColor = BABYLON.Color3.FromHexString(BODY_COLOR);
-  oMat.specularColor = new BABYLON.Color3(0.3,0.3,0.3);
+  oMat.specularColor = new BABYLON.Color3(0.08,0.08,0.08);
 
   const root = new BABYLON.TransformNode(`die${id}`, scene);
   root.rotationQuaternion = BABYLON.Quaternion.Identity();
@@ -1755,7 +1797,7 @@ function findRollScreenBottomTopEdges() {
   return { bottom, top, dirPlayer, dirBot, tangPlayer, tangBot };
 }
 
-const THROW_Z_INSET = 0.12;
+const THROW_Z_INSET = 0.28;
 
 /**
  * who: 'player' | 'bot' — старт с экранного низа / верха зоны броска, импульс в центр полосы.
@@ -1787,6 +1829,8 @@ function throwDice(who, opts = {}) {
   const jInMax = Math.min(planeJitter * TABLE_WORLD_SCALE * TABLE_Z_STRETCH, jCap);
   const perpX = -dirIn.z;
   const perpZ = dirIn.x;
+  const f = battleTune.body.throwMin + Math.random() * (battleTune.body.throwMax - battleTune.body.throwMin);
+  const leverR = getDieEdge() * 0.10;
 
   for (let i = 0; i < dice.length; i++) {
     const d = dice[i];
@@ -1805,7 +1849,6 @@ function throwDice(who, opts = {}) {
     );
     d.body.quaternion.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
     d.body.quaternion.normalize();
-    const f = battleTune.body.throwMin + Math.random() * (battleTune.body.throwMax - battleTune.body.throwMin);
     const cross = (Math.random() - 0.5) * f * impulseCrossMul;
     d.body.applyImpulse(
       new CANNON.Vec3(
@@ -1813,7 +1856,7 @@ function throwDice(who, opts = {}) {
         f * impulseYMul,
         dirIn.z * f * mainImpulse + perpZ * cross
       ),
-      new CANNON.Vec3((Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3)
+      new CANNON.Vec3((Math.random() - 0.5) * leverR, (Math.random() - 0.5) * leverR, (Math.random() - 0.5) * leverR)
     );
     d.body.allowSleep = true; d.body.wakeUp();
   }
@@ -2071,10 +2114,6 @@ function positionKinematicClusterSling(anchorX, anchorZ, pickX, pickZ) {
   }
 }
 
-/**
- * Слинг: одна и та же стартовая скорость у всех кубиков (направление стрелки в XZ), без импульса по одному —
- * плюс кубики не бьются друг о друга в группе коллизий.
- */
 function applyRollImpulsesFromCurrentPositions(sling) {
   const aimX = sling.aimX;
   const aimZ = sling.aimZ;
@@ -2084,19 +2123,30 @@ function applyRollImpulsesFromCurrentPositions(sling) {
   game.phase = 'rolling';
   updateUI();
 
-  const s = battleTune.sling;
-  const horizBase = s.impulseHMin + (s.impulseHMax - s.impulseHMin) * strength;
-  const vertBase = s.impulseYMin + (s.impulseYMax - s.impulseYMin) * strength;
-  const ix = aimX * horizBase;
-  const iy = vertBase;
-  const iz = aimZ * horizBase;
-  const invM = 1 / battleTune.body.mass;
+  const b = battleTune.body;
+  const rp = battleTune.rollPlayer;
+  const perpX = -aimZ;
+  const perpZ =  aimX;
+  const leverR = getDieEdge() * 0.10;
+  const fBase = b.throwMin + (b.throwMax - b.throwMin) * strength;
+
+  slingDisableDiceDiceCollision(150);
 
   for (let i = 0; i < dice.length; i++) {
     const d = dice[i];
     d.body.type = CANNON.Body.DYNAMIC;
-    d.body.velocity.set(ix * invM, iy * invM, iz * invM);
+    d.body.velocity.setZero();
     d.body.angularVelocity.setZero();
+
+    const cross = (Math.random() - 0.5) * fBase * rp.impulseCrossMul;
+    d.body.applyImpulse(
+      new CANNON.Vec3(
+        aimX * fBase * rp.mainImpulse + perpX * cross,
+        fBase * rp.impulseYMul,
+        aimZ * fBase * rp.mainImpulse + perpZ * cross
+      ),
+      new CANNON.Vec3((Math.random() - 0.5) * leverR, (Math.random() - 0.5) * leverR, (Math.random() - 0.5) * leverR)
+    );
     d.body.allowSleep = true;
     d.body.wakeUp();
   }

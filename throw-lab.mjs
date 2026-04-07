@@ -45,21 +45,21 @@ const LS_BATTLE_TUNE = 'battle_tune_json_v1';
 
 /** Держи в синхроне с battle.html → BATTLE_TUNE_DEFAULTS. */
 const BATTLE_TUNE_DEFAULTS = {
-  world: { gravity: -93, restitution: 0.35, friction: 0.5 },
+  world: { gravity: -200, restitution: 0.35, friction: 0.5 },
   body: {
-    mass: 1.35, linearDamping: 0.05, angularDamping: 0.1, sleepTime: 0.3, sleepSpeed: 0.05,
-    throwMin: 20, throwMax: 50,
+    mass: 3.0, linearDamping: 0.05, angularDamping: 0.1, sleepTime: 0.3, sleepSpeed: 0.05,
+    throwMin: 66, throwMax: 166,
   },
   sling: {
     maxPullWorld: 12.5, clickEpsMul: 0.02, pickYOffset: 0.55,
-    impulseHMin: 10.175, impulseHMax: 61.6, impulseYMin: 3.1625, impulseYMax: 11.9625,
+    impulseHMin: 36, impulseHMax: 224, impulseYMin: 3, impulseYMax: 12,
   },
   viz: { halfAngle: 0.38, rInner: 12, rSpan: 292, segments: 4 },
-  spawn: { minSpacingMul: 1.18, stackYStepMul: 1.12, jitterMul: 0.32 },
+  spawn: { minSpacingMul: 1.18, stackYStepMul: 0.05, jitterMul: 0.32 },
   rollPlayer: { spawnYOffset: 1, planeJitter: 0.5, impulseYMul: 0.17, impulseCrossMul: 0.32, mainImpulse: 5.61 },
   rollBot: { spawnYOffset: 5.5, planeJitter: 0.55, impulseYMul: 0.2, impulseCrossMul: 0.28, mainImpulse: 5.225 },
   rollImpulseLever: 0.28,
-  mesh: { dieScale: 1.7, boxHalfPerScale: 0.48 },
+  mesh: { dieScale: 3.06, boxHalfPerScale: 0.48 },
   settle: { alignThreshold: 0.92, angKick: 3, speedLo: 0.02, speedHi: 1.5 },
 };
 

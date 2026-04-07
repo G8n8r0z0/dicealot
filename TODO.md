@@ -168,16 +168,16 @@ Extract validated spike code into production modules.
 
 ---
 
-## 0D. Dice Throw Physics Feel (NEXT)
+## ── MILESTONE: Dice Throw Physics Baseline ── (COMPLETE)
 
-Improve how ROLL and sling throws **feel** -- weight, arc, bounce, settle speed, directional control. Uses `throw-lab.html` for isolated iteration, then verify in `battle.html`.
+ROLL and sling throw physics tuned and unified. Both use `applyImpulse` with off-center point for realistic spin, single random `f` per throw, quadratic sling strength curve. Key values: gravity −200, mass 3.0, throwMin/Max 66/166, dieScale 3.06, solver.iterations 20, ceiling at FLOOR_Y+18.
 
-- [ ] **0D1.** Audit current throw feel -- document what feels off (too floaty, too fast, too flat, dice don't spread, settle too slow, etc.). Test both ROLL and sling in throw-lab.
-- [ ] **0D2.** Tune ROLL physics -- adjust `throwMin`/`throwMax`, `rollPlayer.mainImpulse`, `impulseYMul`, gravity, damping, restitution to improve throw arc and landing feel.
-- [ ] **0D3.** Tune sling physics -- adjust `sling.impulseHMin/Max`, `sling.impulseYMin/Max`, pull-to-strength curve. Ensure sling direction and power feel responsive.
-- [ ] **0D4.** Settle quality -- adjust `angularDamping`, anti-edge nudge threshold, sleep parameters. Dice should stop decisively, not wobble forever.
-- [ ] **0D5.** Bot throw feel -- `throwFromTop()` / `rollBot` parameters. Bot throws should look natural.
-- [ ] **0D6.** Sync defaults -- update `BATTLE_TUNE_DEFAULTS` in both `battle.html` and `throw-lab.mjs` with tuned values. Verify both files match.
+- [x] **0D1.** Audit — identified "moon surface" float, dice interpenetration, sling/ROLL asymmetry.
+- [x] **0D2.** Tune ROLL — gravity −200, mass 3.0, throwMin/Max 66/166, stackYStepMul 0.05, THROW_Z_INSET 0.28, single `f` per throw, off-center leverR = dieEdge × 0.10.
+- [x] **0D3.** Tune sling — unified with ROLL physics (same `throwMin/Max` + `rollPlayer.*`), quadratic strength curve, 150ms dice-dice collision disable on release, specular 0.08, light Y=50.
+- [x] **0D4.** Settle quality — solver.iterations 20, invisible ceiling FLOOR_Y+18, camera.minZ=0.1.
+- [x] **0D5.** Bot throw — unchanged (will revisit if needed).
+- [x] **0D6.** Sync defaults — `BATTLE_TUNE_DEFAULTS` synced in `battle.html` and `throw-lab.mjs`. Hash-based auto-invalidation of localStorage.
 
 ---
 
@@ -189,7 +189,7 @@ Items that don't have a task slot yet. Revisit when the corresponding layer is r
 
 Current approach: `localStorage` for player profile (wins, unlocked dice, loadout), same pattern as `battle.html`. This is sufficient for PvE singleplayer.
 
-**Battle physics:** `battle_tune_json_v1` deep-merges numeric fields into `battleTune` on load. **Repo defaults** (`BATTLE_TUNE_DEFAULTS` in `battle.html` / `throw-lab.mjs`) are the canonical shipping tune (strong ROLL + sling, gravity −93, etc.); incognito and fresh deploys use those. **Tune → Apply** persists overrides; **Reset** clears the key.
+**Battle physics:** `battle_tune_json_v1` deep-merges numeric fields into `battleTune` on load. Hash-based versioning auto-clears stale values when code defaults change. **Repo defaults** (`BATTLE_TUNE_DEFAULTS` in `battle.html` / `throw-lab.mjs`) are the canonical shipping tune (gravity −200, mass 3.0, throwMin/Max 66/166, dieScale 3.06); incognito and fresh deploys use those. **Tune → Apply** persists overrides; **Reset** clears the key.
 
 **Revisit trigger:** when PvP / live multiplayer enters active scope. A shared session or server-side storage will be needed. Flag this question at that point.
 
@@ -771,7 +771,7 @@ Visual and audio juice.
 |---|---|---|---|
 | **3D Engine Proven** | 0 | Full 3D battle: sling or ROLL, select, held, scoring, combat, bot AI | **DONE** |
 | **Battle UI Baseline** | 0 | Polished HP widgets, side turn indicators, compact info bar, 9x6 held zones, centered banners, badge slots | **DONE** (2026-04-07) |
-| **Dice Throw Physics Feel** | 0D | ROLL + sling feel tuned (weight, arc, settle) | **NEXT** |
+| **Dice Throw Physics Baseline** | 0D | ROLL + sling unified, gravity −200, mass 3.0, dieScale 3.06 | **DONE** (2026-04-07) |
 | **Playable Base Game (2D logic)** | 0 + A–E | Standard Farkle scoring + combat logic wired to the 3D battle shell | Pending |
 | **Playable 3D Battle** | 0 + A–G | Full 3D battle against bot, base dice only | Pending |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |

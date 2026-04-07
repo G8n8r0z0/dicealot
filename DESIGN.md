@@ -776,14 +776,16 @@ The following have been validated in the spike (`spike-v2.html`) and battle prot
 
 | Group | Key fields (representative) | Shipping default |
 |---|---|---|
-| `world` | `gravity`, `restitution`, `friction` | −93, 0.35, 0.5 |
-| `body` | `mass`, `linearDamping`, `angularDamping`, `throwMin`, `throwMax` | 1.35, 0.05, 0.1, 20, 50 |
-| `sling` | `impulseHMin` / `impulseHMax`, `impulseYMin` / `impulseYMax` | 10.175 / 61.6, 3.1625 / 11.9625 |
+| `world` | `gravity`, `restitution`, `friction` | −200, 0.35, 0.5 |
+| `body` | `mass`, `linearDamping`, `angularDamping`, `throwMin`, `throwMax` | 3.0, 0.05, 0.1, 66, 166 |
+| `sling` | `impulseHMin` / `impulseHMax`, `impulseYMin` / `impulseYMax` | 36 / 224, 3 / 12 (legacy; sling now uses ROLL params) |
 | `rollPlayer` | `mainImpulse`, `impulseYMul`, `spawnYOffset`, … | 5.61, 0.17, 1, … |
 | `rollBot` | `mainImpulse`, … | 5.225, … |
-| `mesh` | `dieScale`, `boxHalfPerScale` | 1.7, 0.48 (physics half-extent tracks `boxHalfPerScale × dieScale`) |
+| `mesh` | `dieScale`, `boxHalfPerScale` | 3.06, 0.48 (physics half-extent tracks `boxHalfPerScale × dieScale`) |
+| `spawn` | `stackYStepMul` | 0.05 (nearly flat spawn) |
+| `settle` | `alignThreshold`, `angKick` | 0.92, 3 |
 
-ROLL uses `throwMin`…`throwMax` with `rollPlayer` / `rollBot` multipliers; battle sling uses shared linear velocity from **`sling.impulse*`** scaled by pull strength (see `ARCHITECTURE.md`).
+Both **ROLL** and **sling** use the same physics: `throwMin`…`throwMax` scaled by `rollPlayer` multipliers (`mainImpulse`, `impulseYMul`, `impulseCrossMul`). Sling strength (quadratic from pull distance) determines `f` within that range. All dice in a single throw receive the same base `f`; variation comes from cross-impulse and off-center application point (spin). Invisible **ceiling** at `FLOOR_Y + 18` prevents dice from flying off-camera. **`solver.iterations = 20`**. Dice-dice collisions disabled for 150ms after sling release to prevent cluster-launch artifacts. Defaults auto-invalidate stale `localStorage` via hash check.
 
 **Historical spike-v2 reference** (older sandbox; not equal to battle defaults):
 
@@ -906,7 +908,7 @@ Game logic in `src/` (store, systems, config) follows the IIFE pattern per `ARCH
 
 **UI layers:** (1) **Реализм броска** — coarse sliders tied to `battleTune` subsets (power scales `throwMin`/`throwMax`, sling H/Y from **lab default anchors**, `rollPlayer`/`rollBot` `mainImpulse`, vertical multipliers for arc). (2) **Full Tune** — every numeric field with EN+RU explanations; list **`PHYSICS_TUNE_FIELDS`** is **duplicated** in `battle.html` and `throw-lab.mjs` — add new keys in both when extending tuning.
 
-**Sling vs battle:** In the lab, sling impulses follow the same pattern as **ROLL** (`throwMin`/`throwMax` scaled by pull strength, `rollPlayer.*`, random torque offset). In **battle.html**, sling still sets one shared linear velocity from **`sling.impulseH/Y`**.
+**Sling vs ROLL (unified):** Both battle and lab sling now use the same physics as ROLL: `throwMin`/`throwMax` scaled by `rollPlayer.*` multipliers, with sling pull strength (quadratic curve) determining `f` in that range. Off-center `applyImpulse` for realistic spin. Legacy `sling.impulseH/Y` fields remain in the defaults object but are no longer read by the sling release code.
 
 **Determinism:** Lab ROLL/sling still use **`Math.random()`** for placement/rotation jitter (visual). Production goal remains **seeded PRNG** for any outcome-linked logic per §14.7; the lab is a designer tool, not the replay contract.
 
