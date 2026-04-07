@@ -151,6 +151,36 @@ Extract validated spike code into production modules.
 
 ---
 
+## ── MILESTONE: Battle UI Baseline ──
+
+> **Status: COMPLETE (2026-04-07).** First UI polish pass on `battle.html`:
+> - Compact HP widgets (80px avatar circle + bar with inline numbers); player red L-to-R, bot purple R-to-L.
+> - 3 dashed badge placeholder slots per combatant.
+> - Side turn indicators ("Player Turn" / "Bot Turn") -- text-only fade; removed from center info bar.
+> - Info bar simplified: round score + selection score only, docked to top edge, no table overlap.
+> - Banner (BANK/BUST/HOT HAND) centered on viewport with fade+scale; bot turn starts 1s after banner disappears.
+> - Held zones reshaped to 9x6 rectangles centered per side (inner edge flush with divider).
+> - Thin visual border line around roll zone. `DEFAULT_ROLL_DEPTH_STRETCH = 2.8`.
+> - Two-row action buttons (primary + secondary reserved for abilities).
+> - Ortho frustum padding: `uiPadH=12`, `uiPadV=5`.
+>
+> **This layout is the baseline for all further work.** Next: dice throw physics feel.
+
+---
+
+## 0D. Dice Throw Physics Feel (NEXT)
+
+Improve how ROLL and sling throws **feel** -- weight, arc, bounce, settle speed, directional control. Uses `throw-lab.html` for isolated iteration, then verify in `battle.html`.
+
+- [ ] **0D1.** Audit current throw feel -- document what feels off (too floaty, too fast, too flat, dice don't spread, settle too slow, etc.). Test both ROLL and sling in throw-lab.
+- [ ] **0D2.** Tune ROLL physics -- adjust `throwMin`/`throwMax`, `rollPlayer.mainImpulse`, `impulseYMul`, gravity, damping, restitution to improve throw arc and landing feel.
+- [ ] **0D3.** Tune sling physics -- adjust `sling.impulseHMin/Max`, `sling.impulseYMin/Max`, pull-to-strength curve. Ensure sling direction and power feel responsive.
+- [ ] **0D4.** Settle quality -- adjust `angularDamping`, anti-edge nudge threshold, sleep parameters. Dice should stop decisively, not wobble forever.
+- [ ] **0D5.** Bot throw feel -- `throwFromTop()` / `rollBot` parameters. Bot throws should look natural.
+- [ ] **0D6.** Sync defaults -- update `BATTLE_TUNE_DEFAULTS` in both `battle.html` and `throw-lab.mjs` with tuned values. Verify both files match.
+
+---
+
 ## Open Decisions & Deferred Tasks
 
 Items that don't have a task slot yet. Revisit when the corresponding layer is reached.
@@ -739,7 +769,9 @@ Visual and audio juice.
 
 | Milestone | After Group | What's Playable | Status |
 |---|---|---|---|
-| **3D Engine Proven** | 0 | Full 3D battle: sling or ROLL, select, held, scoring, combat, bot AI | **DONE** — `battle.html` + `throw-lab.html` (shared Tune) + vendored libs + `index.html` entry. Engine extraction (0C) pending. |
+| **3D Engine Proven** | 0 | Full 3D battle: sling or ROLL, select, held, scoring, combat, bot AI | **DONE** |
+| **Battle UI Baseline** | 0 | Polished HP widgets, side turn indicators, compact info bar, 9x6 held zones, centered banners, badge slots | **DONE** (2026-04-07) |
+| **Dice Throw Physics Feel** | 0D | ROLL + sling feel tuned (weight, arc, settle) | **NEXT** |
 | **Playable Base Game (2D logic)** | 0 + A–E | Standard Farkle scoring + combat logic wired to the 3D battle shell | Pending |
 | **Playable 3D Battle** | 0 + A–G | Full 3D battle against bot, base dice only | Pending |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |

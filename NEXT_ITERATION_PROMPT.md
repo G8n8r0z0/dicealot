@@ -1,11 +1,5 @@
 # Next Iteration Prompt
 
-Use this template when you want to change, add, or remove something in a game that has already been through the first development cycle (i.e. `DESIGN.md`, `TODO.md`, and working code already exist).
-
-Copy everything between the `---` lines below and paste it into your message to the coding agent. Replace the placeholder with your change request.
-
----
-
 Read the following project files before doing anything:
 1. `AGENTS.md`
 2. `ARCHITECTURE.md`
@@ -19,19 +13,7 @@ Confirm that you understand the rules and the current state of the project, then
 
 ## What I Want to Change
 
-<!-- ============================================= -->
-<!-- DESCRIBE YOUR CHANGE HERE                     -->
-<!-- ============================================= -->
-
-[Describe what you want to add, change, or remove. Examples:
-- "Add an inventory system where the player can collect and use items"
-- "Enemies are too easy, I want a difficulty curve that scales with wave number"
-- "Replace the current scoring with a star-rating system (1-3 stars per level)"
-- "Remove the timer mechanic, it feels stressful and unfun"]
-
-<!-- ============================================= -->
-<!-- END OF CHANGE REQUEST                         -->
-<!-- ============================================= -->
+User is asking for change or implementation
 
 ## Instructions
 
@@ -44,5 +26,3 @@ Follow the iteration workflow from `AGENTS.md`:
 5. **Test** — update existing tests and write new ones. Run all tests (not just new ones). Fix failures, re-run until all pass.
 
 Do NOT skip straight to code. Start with step 1.
-
----

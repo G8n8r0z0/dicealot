@@ -646,12 +646,28 @@ botDifficulty: novice | advanced | master
 ### 10.5 Battle UI Priorities
 
 - Dice readability above all
-- Round title, Round Score, dice field, HP readability, core combat actions
-- **Player roll affordance:** primary reference is **drag on the 3D table** (pull-back sling into the roll zone); **ROLL** remains a clear fallback for mouse-averse players and accessibility
+- Round Score, dice field, HP readability, core combat actions
+- **Player roll affordance:** primary is **drag on the 3D table** (pull-back sling into the roll zone); **ROLL** button remains a clear fallback
 - Bot turns play back on the live board: animated roll, sequential packet selection, held-dice collect, round-score update, bank or bust
-- Secondary action buttons (JUMP, TUNE, FLIP, etc.) in a fixed row under main actions (prototype UI may show stubs; abilities not fully wired in `battle.html`)
+- Secondary action buttons (JUMP, TUNE, FLIP, etc.) in a reserved row under main actions
 - Round History in the right rail under bot block
 - **Developer tooling:** optional **camera debug** on the battle screen to copy ArcRotateCamera view JSON for locking a default shot
+
+### 10.6 Battle UI Baseline (current `battle.html`)
+
+Established layout after the first UI polish pass:
+
+| Element | Detail |
+|---------|--------|
+| **HP widgets** | Compact: 80px avatar circle + horizontal bar with inline HP text. Player (left, red fill L-to-R), Bot (right, purple fill R-to-L). |
+| **Badge slots** | 3 dashed placeholder slots (`.badge-grid`) under each HP widget for future badges. |
+| **Turn indicator** | Side-specific text labels ("Player Turn" / "Bot Turn") fade in/out on the respective side. No central turn indicator. |
+| **Info bar** | Docked to top edge of screen. Contains Round Score (large) + Selection Score only. Does **not** overlap the 3D table. |
+| **Action buttons** | Bottom strip: primary row (ROLL, SCORE'N'PLAY, BANK'N'PASS), secondary row reserved for abilities. |
+| **Banner** | Centered on viewport (BANK!, BUST, HOT HAND). Fade+scale animation, ~2.2s visible. Bot turn starts 1s after banner disappears. |
+| **Table** | Roll zone with thin visual border. Held zones are 9x6 rectangles centered on each side (not full-width strips). `DEFAULT_ROLL_DEPTH_STRETCH = 2.8`. |
+| **Round History** | Right rail under bot block, outside table area. |
+| **Ortho camera** | `updateBattleOrthoFrustum()` with `uiPadH=12`, `uiPadV=5` clears side panels from the table viewport. |
 
 ---
 
