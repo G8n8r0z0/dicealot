@@ -667,8 +667,10 @@ Established layout after the first UI polish pass:
 | **Banner** | Centered on viewport (BANK!, BUST, HOT HAND, REROLL!). Fade+scale animation, ~2.2s visible. Bot turn starts 1s after banner disappears. |
 | **Table** | Roll zone with thin visual border. Held zones are **9×9 squares** centered on each side, 3-column dice grid with `gap = dieEdge × 1.12`. Held dice slerp to correct face-up orientation. Physics walls inset 0.5 from visual border (`WALL_INSET_Z`). |
 | **Sling cluster** | All dice at single clamped point (only 1st visible during aim). `wallPad = dieEdge × 1.0` prevents wall-stuck on release. |
-| **Stacked dice** | If die settles on another (Y > threshold): banner "REROLL!", player taps to re-throw (up to 3×). Bot auto-rerolls. |
-| **Face reading** | `readFaceValue` thresholds tightened: bestDot ≥ 0.90, gap ≥ 0.12 for reliable face identification. |
+| **Stacked dice** | If die settles on another (Y > `dieEdge × 1.1`): banner "REROLL!", phase → `waiting`, player re-throws all dice via ROLL/sling. Bot auto-re-throws. |
+| **Face reading** | `readFaceValue` thresholds: bestDot ≥ 0.82, gap ≥ 0.10. `readFaceValueForced()` — threshold-free fallback used by settle timeout. |
+| **Settle timeout** | If dice remain unsettled 4s after throw, `forceSettleUnsettled()` snaps them in-place (keep X/Z, snap Y to floor, nearest face). Stacked dice offset ~1.2 dieEdge sideways. Safety net for all edge cases. |
+| **Bot turn guard** | `scheduleBotTurn(ms)` with `clearTimeout` prevents duplicate `runBotTurn` calls (race condition fix). |
 | **Round History** | Right rail under bot block, outside table area. |
 | **Ortho camera** | `updateBattleOrthoFrustum()` with `uiPadH=12`, `uiPadV=5` clears side panels from the table viewport. |
 

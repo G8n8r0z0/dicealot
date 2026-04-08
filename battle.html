@@ -524,7 +524,7 @@ const BATTLE_TUNE_DEFAULTS = {
   world: { gravity: -200, restitution: 0.35, friction: 0.5 },
   body: {
     mass: 3.0, linearDamping: 0.05, angularDamping: 0.1, sleepTime: 0.3, sleepSpeed: 0.05,
-    throwMin: 66, throwMax: 166,
+    throwMin: 100, throwMax: 166,
   },
   sling: {
     maxPullWorld: 12.5, clickEpsMul: 0.02, pickYOffset: 0.55,
@@ -1446,7 +1446,7 @@ for (const w of [
   world.addBody(b);
 }
 
-const CEILING_Y = FLOOR_Y + 18;
+const CEILING_Y = FLOOR_Y + 28;
 const ceilBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
 ceilBody.quaternion.setFromEuler(Math.PI / 2, 0, 0);
 ceilBody.position.set(0, CEILING_Y, 0);
@@ -1646,8 +1646,21 @@ function readFaceValue(body) {
       bestVal = f.val;
     } else if (dot > secondDot) secondDot = dot;
   }
-  if (bestDot < 0.90) return null;
-  if (bestDot - secondDot < 0.12) return null;
+  if (bestDot < 0.82) return null;
+  if (bestDot - secondDot < 0.10) return null;
+  return bestVal;
+}
+
+function readFaceValueForced(body) {
+  const q = body.quaternion;
+  const worldUp = new CANNON.Vec3(0, 1, 0);
+  let bestDot = -2, bestVal = 1;
+  for (const f of _faceLocals) {
+    _faceLv.set(f.x, f.y, f.z);
+    q.vmult(_faceLv, _faceTmp);
+    const dot = _faceTmp.dot(worldUp);
+    if (dot > bestDot) { bestDot = dot; bestVal = f.val; }
+  }
   return bestVal;
 }
 
@@ -1833,6 +1846,7 @@ function throwDice(who, opts = {}) {
   game.selectedIndices = [];
   for (const d of dice) { d.value = null; d.settled = false; d._rerollCount = 0; hl.removeMesh(d.outer); }
   game.phase = 'rolling';
+  startSettleTimer();
   updateUI();
 
   const jCap = getDiceSpawnMinSpacing() * battleTune.spawn.jitterMul;
@@ -2113,6 +2127,7 @@ function applyRollImpulsesFromCurrentPositions(sling) {
   game.selectedIndices = [];
   for (const d of dice) { d.value = null; d.settled = false; d._rerollCount = 0; hl.removeMesh(d.outer); }
   game.phase = 'rolling';
+  startSettleTimer();
   updateUI();
 
   const b = battleTune.body;
@@ -2176,7 +2191,7 @@ function finishPlayerSling(ev) {
 //  SETTLE + BUST CHECK
 // ═══════════════════════════════════════════════════
 function getStackedDice() {
-  const stackY = FLOOR_Y + getDieEdge() * 1.8;
+  const stackY = FLOOR_Y + getDieEdge() * 1.1;
   return dice.filter(d => d.settled && d.body && d.body.position.y > stackY);
 }
 
@@ -2187,21 +2202,18 @@ function checkAllSettled() {
   if (game.phase !== 'rolling') return;
 
   const stacked = getStackedDice();
-  if (stacked.length && game.currentPlayer === 'player') {
-    for (const d of stacked) {
-      d._rerollCount = (d._rerollCount || 0);
-      if (d._rerollCount >= REROLL_MAX) {
-        forceDropDie(d);
-      }
-    }
-    const stillStacked = getStackedDice().filter(d => (d._rerollCount || 0) < REROLL_MAX);
-    if (stillStacked.length) {
-      game.phase = 'reroll';
+  if (stacked.length) {
+    if (game.currentPlayer === 'player') {
       showBanner('REROLL!', 'banner-reroll');
-      for (const d of stillStacked) hl.addMesh(d.outer, new BABYLON.Color3(1.0, 0.6, 0.1));
-      updateButtons();
-      return;
+      game.phase = 'waiting';
+      updateUI();
+    } else {
+      for (const d of dice) { d.value = null; d.settled = false; }
+      game.phase = 'rolling';
+      startSettleTimer();
+      throwDice('bot');
     }
+    return;
   }
 
   if (game.currentPlayer !== 'player') return;
@@ -2248,8 +2260,62 @@ function rerollDie(d) {
     (Math.random() - 0.5) * leverR
   ));
   game.phase = 'rolling';
+  startSettleTimer();
   for (const dd of getStackedDice()) hl.removeMesh(dd.outer);
   updateButtons();
+}
+
+// ═══════════════════════════════════════════════════
+//  SETTLE TIMEOUT — force-drop unsettled dice after delay
+// ═══════════════════════════════════════════════════
+const SETTLE_TIMEOUT_MS = 4000;
+let _settleTimer = 0;
+
+function startSettleTimer() {
+  clearTimeout(_settleTimer);
+  _settleTimer = setTimeout(forceSettleUnsettled, SETTLE_TIMEOUT_MS);
+}
+
+function forceSettleUnsettled() {
+  _settleTimer = 0;
+  if (game.phase !== 'rolling') return;
+  const unsettled = dice.filter(d => !d.settled);
+  if (!unsettled.length) return;
+
+  const de = getDieEdge();
+  const stackY = FLOOR_Y + de * 1.1;
+  const floorY = FLOOR_Y + de * 0.5;
+  const hw = ROLL_FLOOR_W / 2 - de;
+
+  for (const d of unsettled) {
+    let px = d.body.position.x;
+    let pz = d.body.position.z;
+    const isStacked = d.body.position.y > stackY;
+
+    if (isStacked) {
+      const angle = Math.random() * Math.PI * 2;
+      px += Math.cos(angle) * de * 1.2;
+      pz += Math.sin(angle) * de * 1.2;
+    }
+
+    px = Math.max(-hw, Math.min(hw, px));
+    pz = Math.max(DIVIDER_Z + de * 0.6, Math.min(BOT_DIVIDER_Z - de * 0.6, pz));
+
+    d.body.type = CANNON.Body.DYNAMIC;
+    d.body.velocity.set(0, 0, 0);
+    d.body.angularVelocity.set(0, 0, 0);
+    d.body.position.set(px, floorY, pz);
+
+    const bq = FACE_UP_QUATS[readFaceValueForced(d.body)];
+    if (bq) {
+      d.body.quaternion.set(bq.x, bq.y, bq.z, bq.w);
+    }
+
+    d.body.allowSleep = false;
+    d.value = readFaceValueForced(d.body);
+    d.settled = true;
+  }
+  checkAllSettled();
 }
 
 // ═══════════════════════════════════════════════════
@@ -2292,17 +2358,6 @@ scene.onPointerObservable.add(info => {
     }
   }
 
-  if (game.phase === 'reroll' && game.currentPlayer === 'player') {
-    if (info.type !== BABYLON.PointerEventTypes.POINTERUP || ev.button !== 0) return;
-    if (!info.pickInfo || !info.pickInfo.hit) return;
-    const hit = dice.find(d => d.outer === info.pickInfo.pickedMesh || d.pips === info.pickInfo.pickedMesh || d.backing === info.pickInfo.pickedMesh);
-    if (!hit) return;
-    const stacked = getStackedDice();
-    if (stacked.includes(hit)) {
-      rerollDie(hit);
-    }
-    return;
-  }
 
   if (game.phase !== 'selecting' || game.currentPlayer !== 'player') return;
   if (info.type !== BABYLON.PointerEventTypes.POINTERUP || ev.button !== 0) return;
@@ -2486,7 +2541,7 @@ function handleHotHand() {
     updateUI();
   } else {
     syncActiveDice(6);
-    setTimeout(() => runBotTurn(), 3200);
+    scheduleBotTurn(3200);
   }
 }
 
@@ -2501,7 +2556,7 @@ function endTurn() {
 
   if (game.currentPlayer === 'bot') {
     syncActiveDice(6);
-    setTimeout(() => runBotTurn(), 1000);
+    scheduleBotTurn(1000);
   } else {
     game.phase = 'waiting';
     updateUI();
@@ -2531,7 +2586,14 @@ function waitForSettle() {
   });
 }
 
+let _botTurnTimer = 0;
+function scheduleBotTurn(ms) {
+  clearTimeout(_botTurnTimer);
+  _botTurnTimer = setTimeout(() => runBotTurn(), ms);
+}
+
 async function runBotTurn() {
+  _botTurnTimer = 0;
   game.phase = 'botTurn';
   updateUI();
 

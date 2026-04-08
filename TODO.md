@@ -170,7 +170,7 @@ Extract validated spike code into production modules.
 
 ## ── MILESTONE: Dice Throw Physics Baseline ── (COMPLETE)
 
-ROLL and sling throw physics tuned and unified. Both use `applyImpulse` with off-center point for realistic spin, single random `f` per throw, quadratic sling strength curve. Key values: gravity −200, mass 3.0, throwMin/Max 66/166, dieScale 3.06, solver.iterations 20, ceiling at FLOOR_Y+18.
+ROLL and sling throw physics tuned and unified. Both use `applyImpulse` with off-center point for realistic spin, single random `f` per throw, quadratic sling strength curve. Key values: gravity −200, mass 3.0, throwMin/Max 100/166 (raised from 66), dieScale 3.06, solver.iterations 20, ceiling at FLOOR_Y+28 (raised from 18).
 
 - [x] **0D1.** Audit — identified "moon surface" float, dice interpenetration, sling/ROLL asymmetry.
 - [x] **0D2.** Tune ROLL — gravity −200, mass 3.0, throwMin/Max 66/166, stackYStepMul 0.05, THROW_Z_INSET 0.28, single `f` per throw, off-center leverR = dieEdge × 0.10.
@@ -194,6 +194,20 @@ Shelf, sling, reroll, face reading, UI cleanup after physics baseline.
 - [x] **0E7.** Info bar compact — `max-width:min(88vw,340px)`, selection info under round score.
 - [x] **0E8.** Actions auto-hide — `.actions` hidden when no buttons visible; buttons hidden during bot turn.
 - [x] **0E9.** Round score stable width — column layout, doesn't grow on score change.
+
+---
+
+## ── MILESTONE: Battle Stability Fixes ── (COMPLETE)
+
+Bug fixes and settle reliability after UX polish.
+
+- [x] **0F1.** Stack detection threshold — `dieEdge × 1.8` → `1.1` for correct stacked dice detection.
+- [x] **0F2.** Face reading relaxed — `readFaceValue` bestDot 0.90→0.82, gap 0.12→0.10. Added `readFaceValueForced()` (no thresholds) for settle timeout.
+- [x] **0F3.** Physics ceiling raised — `FLOOR_Y + 18` → `FLOOR_Y + 28`, more room for dice flight.
+- [x] **0F4.** Bot turn race guard — `scheduleBotTurn(ms)` with `clearTimeout` replaces all `setTimeout(() => runBotTurn())` calls.
+- [x] **0F5.** Settle timeout — `SETTLE_TIMEOUT_MS = 4000`: unsettled dice force-dropped in-place (keep X/Z, snap Y/quat). Stacked dice offset sideways.
+- [x] **0F6.** Reroll simplified — stacked dice → banner "REROLL!" → phase `waiting` (player re-throws via ROLL/sling). Bot auto-re-throws. Removed old tap-to-reroll phase.
+- [x] **0F7.** throwMin raised — 66 → 100 to prevent weak ROLL throws.
 
 ---
 
@@ -789,6 +803,7 @@ Visual and audio juice.
 | **Battle UI Baseline** | 0 | Polished HP widgets, side turn indicators, compact info bar, 9x6 held zones, centered banners, badge slots | **DONE** (2026-04-07) |
 | **Dice Throw Physics Baseline** | 0D | ROLL + sling unified, gravity −200, mass 3.0, dieScale 3.06 | **DONE** (2026-04-07) |
 | **Battle UX Polish** | 0E | Shelf 9×9, sling single-point, reroll, face reading, UI cleanup | **DONE** (2026-04-07) |
+| **Battle Stability Fixes** | 0F | Stack detection, settle timeout, face reading relaxed, bot race guard, reroll simplified | **DONE** (2026-04-07) |
 | **Playable Base Game (2D logic)** | 0 + A–E | Standard Farkle scoring + combat logic wired to the 3D battle shell | Pending |
 | **Playable 3D Battle** | 0 + A–G | Full 3D battle against bot, base dice only | Pending |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |
