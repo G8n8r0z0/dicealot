@@ -627,6 +627,35 @@ const BOT_DIVIDER_Z = DIVIDER_Z + ROLL_DEPTH_Z;
 
 const WX = ROLL_FLOOR_W / 2 - 0.5;
 const DIVIDER_BAR_W = ROLL_FLOOR_W - 0.5;
+
+/*
+ * ── Experimental: regular polygon roll zone ──
+ * Validated with POLY_SIDES = 8 (octagon) and 16 (hexadecagon).
+ * To activate: uncomment this block and comment out the rectangular
+ * floor/border/walls sections below. Update clampRollXZ, sling clamp,
+ * forceDropDie, forceSettleUnsettled to use clampToPolygon.
+ *
+ * const POLY_SIDES = 16;
+ * const POLY_CENTER_Z = (DIVIDER_Z + BOT_DIVIDER_Z) / 2;
+ * const POLY_APOTHEM = ROLL_DEPTH_Z / 2;
+ * const POLY_R = POLY_APOTHEM / Math.cos(Math.PI / POLY_SIDES);
+ * const POLY_VERTS = [];
+ * for (let i = 0; i < POLY_SIDES; i++) {
+ *   const a = Math.PI / POLY_SIDES + i * 2 * Math.PI / POLY_SIDES;
+ *   POLY_VERTS.push({ x: POLY_R * Math.cos(a), z: POLY_CENTER_Z + POLY_R * Math.sin(a) });
+ * }
+ * function clampToPolygon(x, z, pad = 0) {
+ *   let dx = x, dz = z - POLY_CENTER_Z;
+ *   const limit = POLY_APOTHEM - pad;
+ *   for (let i = 0; i < POLY_SIDES; i++) {
+ *     const a = i * 2 * Math.PI / POLY_SIDES;
+ *     const nx = Math.cos(a), nz = Math.sin(a);
+ *     const dist = dx * nx + dz * nz;
+ *     if (dist > limit) { const excess = dist - limit; dx -= excess * nx; dz -= excess * nz; }
+ *   }
+ *   return { x: dx, z: POLY_CENTER_Z + dz };
+ * }
+ */
 /** Центр сетки scored dice — по центру квадратной полки для обоих. */
 const PLAYER_HELD_BIAS_X = 0;
 
@@ -2285,7 +2314,6 @@ function forceSettleUnsettled() {
   const de = getDieEdge();
   const stackY = FLOOR_Y + de * 1.1;
   const floorY = FLOOR_Y + de * 0.5;
-  const hw = ROLL_FLOOR_W / 2 - de;
 
   for (const d of unsettled) {
     let px = d.body.position.x;
@@ -2298,6 +2326,7 @@ function forceSettleUnsettled() {
       pz += Math.sin(angle) * de * 1.2;
     }
 
+    const hw = ROLL_FLOOR_W / 2 - de;
     px = Math.max(-hw, Math.min(hw, px));
     pz = Math.max(DIVIDER_Z + de * 0.6, Math.min(BOT_DIVIDER_Z - de * 0.6, pz));
 

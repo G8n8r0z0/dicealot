@@ -215,6 +215,10 @@ Bug fixes and settle reliability after UX polish.
 
 Items that don't have a task slot yet. Revisit when the corresponding layer is reached.
 
+### Experimental: polygon roll zone (octagon / hexadecagon)
+
+Validated in `battle.html` (2026-04-07). Regular polygon table (8 or 16 sides) eliminates corner-sticking and reduces ping-pong bouncing. Code preserved as a commented block in `battle.html` near the table constants section. To activate: set `POLY_SIDES`, uncomment the polygon block, replace rectangular floor/border/walls with polygon equivalents, swap `clampRollXZ` / sling clamp / force-settle to use `clampToPolygon`. Reverted to rectangle for now — the diagonal walls cut usable table area and the visual style needs further design work. Revisit when table shape becomes a priority.
+
 ### Storage: localStorage now, reassess for PvP later
 
 Current approach: `localStorage` for player profile (wins, unlocked dice, loadout), same pattern as `battle.html`. This is sufficient for PvE singleplayer.
