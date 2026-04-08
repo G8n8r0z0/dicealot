@@ -521,7 +521,7 @@ const SEGMENTS = 40, EDGE_R = 0.13, NOTCH_R = 0.14, NOTCH_D = 0.12, PIP_OFFSET =
 const LS_BATTLE_TUNE = 'battle_tune_json_v1';
 
 const BATTLE_TUNE_DEFAULTS = {
-  world: { gravity: -200, restitution: 0.35, friction: 0.5 },
+  world: { gravity: -300, restitution: 0.35, friction: 0.5 },
   body: {
     mass: 3.0, linearDamping: 0.05, angularDamping: 0.1, sleepTime: 0.3, sleepSpeed: 0.05,
     throwMin: 100, throwMax: 166,
@@ -1454,6 +1454,14 @@ world.solver.iterations = 20;
 world.defaultContactMaterial.restitution = battleTune.world.restitution;
 world.defaultContactMaterial.friction = battleTune.world.friction;
 
+const wallMat = new CANNON.Material('wall');
+const diceMat = new CANNON.Material('dice');
+const wallDiceCM = new CANNON.ContactMaterial(wallMat, diceMat, {
+  friction: 0.0,
+  restitution: battleTune.world.restitution,
+});
+world.addContactMaterial(wallDiceCM);
+
 const floorBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
 floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
 floorBody.position.set(0, FLOOR_Y, 0);
@@ -1469,7 +1477,7 @@ for (const w of [
   { pos: [0, 0, DIVIDER_Z + WALL_INSET_Z], rot: [0, 0, 0] },
   { pos: [0, 0, BOT_DIVIDER_Z - WALL_INSET_Z], rot: [0, Math.PI, 0] },
 ]) {
-  const b = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
+  const b = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane(), material: wallMat });
   b.position.set(...w.pos); b.quaternion.setFromEuler(...w.rot);
   applyStaticEnvCollision(b);
   world.addBody(b);
@@ -1719,6 +1727,7 @@ function createDie() {
   const body = new CANNON.Body({
     mass: battleTune.body.mass,
     shape: boxShape,
+    material: diceMat,
     sleepTimeLimit: battleTune.body.sleepTime,
     sleepSpeedLimit: battleTune.body.sleepSpeed,
     linearDamping: battleTune.body.linearDamping,
@@ -2330,22 +2339,21 @@ function forceSettleUnsettled() {
     px = Math.max(-hw, Math.min(hw, px));
     pz = Math.max(DIVIDER_Z + de * 0.6, Math.min(BOT_DIVIDER_Z - de * 0.6, pz));
 
-    d.body.type = CANNON.Body.DYNAMIC;
+    const val = readFaceValueForced(d.body);
+    const bq = FACE_UP_QUATS[val];
+
+    d.body.type = CANNON.Body.KINEMATIC;
     d.body.velocity.set(0, 0, 0);
     d.body.angularVelocity.set(0, 0, 0);
-    d.body.position.set(px, floorY, pz);
-
-    const bq = FACE_UP_QUATS[readFaceValueForced(d.body)];
-    if (bq) {
-      d.body.quaternion.set(bq.x, bq.y, bq.z, bq.w);
-    }
-
-    d.body.allowSleep = false;
-    d.value = readFaceValueForced(d.body);
-    d.settled = true;
+    d._forceSettle = {
+      tx: px, ty: floorY, tz: pz,
+      qx: bq ? bq.x : 0, qy: bq ? bq.y : 0, qz: bq ? bq.z : 0, qw: bq ? bq.w : 1,
+      val,
+    };
   }
-  checkAllSettled();
 }
+
+const FORCE_SETTLE_LERP = 0.08;
 
 // ═══════════════════════════════════════════════════
 //  SLING + SELECTION (pointer)
@@ -2796,6 +2804,31 @@ engine.runRenderLoop(() => {
   world.fixedStep();
 
   for (const d of dice) {
+    if (d._forceSettle) {
+      const t = d._forceSettle;
+      const p = d.body.position;
+      const q = d.body.quaternion;
+      p.x += (t.tx - p.x) * FORCE_SETTLE_LERP;
+      p.y += (t.ty - p.y) * FORCE_SETTLE_LERP;
+      p.z += (t.tz - p.z) * FORCE_SETTLE_LERP;
+      const bq = new BABYLON.Quaternion(q.x, q.y, q.z, q.w);
+      const tq = new BABYLON.Quaternion(t.qx, t.qy, t.qz, t.qw);
+      BABYLON.Quaternion.SlerpToRef(bq, tq, FORCE_SETTLE_LERP, bq);
+      q.set(bq.x, bq.y, bq.z, bq.w);
+
+      const dist = Math.abs(p.x-t.tx) + Math.abs(p.y-t.ty) + Math.abs(p.z-t.tz);
+      if (dist < 0.05) {
+        p.set(t.tx, t.ty, t.tz);
+        q.set(t.qx, t.qy, t.qz, t.qw);
+        d.body.type = CANNON.Body.DYNAMIC;
+        d.body.allowSleep = false;
+        d.value = t.val;
+        d.settled = true;
+        d._forceSettle = null;
+        checkAllSettled();
+      }
+    }
+
     d.root.position.set(d.body.position.x, d.body.position.y, d.body.position.z);
     d.root.rotationQuaternion.set(d.body.quaternion.x, d.body.quaternion.y, d.body.quaternion.z, d.body.quaternion.w);
 

@@ -669,7 +669,8 @@ Established layout after the first UI polish pass:
 | **Sling cluster** | All dice at single clamped point (only 1st visible during aim). `wallPad = dieEdge × 1.0` prevents wall-stuck on release. |
 | **Stacked dice** | If die settles on another (Y > `dieEdge × 1.1`): banner "REROLL!", phase → `waiting`, player re-throws all dice via ROLL/sling. Bot auto-re-throws. |
 | **Face reading** | `readFaceValue` thresholds: bestDot ≥ 0.82, gap ≥ 0.10. `readFaceValueForced()` — threshold-free fallback used by settle timeout. |
-| **Settle timeout** | If dice remain unsettled 4s after throw, `forceSettleUnsettled()` snaps them in-place (keep X/Z, snap Y to floor, nearest face). Stacked dice offset ~1.2 dieEdge sideways. Safety net for all edge cases. |
+| **Settle timeout** | If dice remain unsettled 4s after throw, `forceSettleUnsettled()` smoothly animates them to rest position (body → kinematic, lerp/slerp at `FORCE_SETTLE_LERP = 0.08`, ~12–15 frames). Stacked dice offset ~1.2 dieEdge sideways. Safety net for all edge cases. |
+| **Zero-friction walls** | `ContactMaterial(wallMat, diceMat, { friction: 0 })` — dice slide off walls naturally instead of balancing on an edge. Floor keeps normal friction. |
 | **Bot turn guard** | `scheduleBotTurn(ms)` with `clearTimeout` prevents duplicate `runBotTurn` calls (race condition fix). |
 | **Round History** | Right rail under bot block, outside table area. |
 | **Ortho camera** | `updateBattleOrthoFrustum()` with `uiPadH=12`, `uiPadV=5` clears side panels from the table viewport. |
@@ -781,8 +782,8 @@ The following have been validated in the spike (`spike-v2.html`) and battle prot
 
 | Group | Key fields (representative) | Shipping default |
 |---|---|---|
-| `world` | `gravity`, `restitution`, `friction` | −200, 0.35, 0.5 |
-| `body` | `mass`, `linearDamping`, `angularDamping`, `throwMin`, `throwMax` | 3.0, 0.05, 0.1, 66, 166 |
+| `world` | `gravity`, `restitution`, `friction` | −300, 0.35, 0.5 |
+| `body` | `mass`, `linearDamping`, `angularDamping`, `throwMin`, `throwMax` | 3.0, 0.05, 0.1, 100, 166 |
 | `sling` | `impulseHMin` / `impulseHMax`, `impulseYMin` / `impulseYMax` | 36 / 224, 3 / 12 (legacy; sling now uses ROLL params) |
 | `rollPlayer` | `mainImpulse`, `impulseYMul`, `spawnYOffset`, … | 5.61, 0.17, 1, … |
 | `rollBot` | `mainImpulse`, … | 5.225, … |
@@ -790,7 +791,7 @@ The following have been validated in the spike (`spike-v2.html`) and battle prot
 | `spawn` | `stackYStepMul` | 0.05 (nearly flat spawn) |
 | `settle` | `alignThreshold`, `angKick` | 0.92, 3 |
 
-Both **ROLL** and **sling** use the same physics: `throwMin`…`throwMax` scaled by `rollPlayer` multipliers (`mainImpulse`, `impulseYMul`, `impulseCrossMul`). Sling strength (quadratic from pull distance) determines `f` within that range. All dice in a single throw receive the same base `f`; variation comes from cross-impulse and off-center application point (spin). Invisible **ceiling** at `FLOOR_Y + 18` prevents dice from flying off-camera. **`solver.iterations = 20`**. Dice-dice collisions disabled for 150ms after sling release to prevent cluster-launch artifacts. Defaults auto-invalidate stale `localStorage` via hash check.
+Both **ROLL** and **sling** use the same physics: `throwMin`…`throwMax` scaled by `rollPlayer` multipliers (`mainImpulse`, `impulseYMul`, `impulseCrossMul`). Sling strength (quadratic from pull distance) determines `f` within that range. All dice in a single throw receive the same base `f`; variation comes from cross-impulse and off-center application point (spin). Invisible **ceiling** at `FLOOR_Y + 28` prevents dice from flying off-camera. **`solver.iterations = 20`**. Dice-dice collisions disabled for 150ms after sling release to prevent cluster-launch artifacts. Defaults auto-invalidate stale `localStorage` via hash check.
 
 **Historical spike-v2 reference** (older sandbox; not equal to battle defaults):
 
