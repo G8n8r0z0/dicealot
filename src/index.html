@@ -1,28 +1,293 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #1a1a2e; color: #eee; font-family: sans-serif; overflow: hidden; }
-        canvas { display: block; margin: 0 auto; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dice-a-Lot</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{overflow:hidden;background:#0e0e12;font-family:"Segoe UI",system-ui,Arial,sans-serif;color:#ddd}
+
+    :root{
+      --ui-glass:rgba(10,10,18,.36);
+      --ui-glass-strong:rgba(10,10,18,.48);
+      --ui-blur:14px;
+      --ui-border:rgba(255,255,255,.14);
+      --ui-shadow:0 4px 28px rgba(0,0,0,.35);
+      --ui-text-shadow:0 1px 3px rgba(0,0,0,.9);
+      --battle-ui-top:max(52px,calc(env(safe-area-inset-top) + 40px));
+    }
+
+    /* ── Fullscreen 3D canvas ────────────────────────────────── */
+    #renderCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block;touch-action:none;outline:none}
+
+    /* ── Sling SVG overlay ───────────────────────────────────── */
+    .sling-viz{position:fixed;inset:0;width:100%;height:100%;z-index:6;pointer-events:none;visibility:hidden}
+    .sling-viz .sling-seg{filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}
+    .sling-viz-pow{font-size:clamp(13px,2.8vw,18px);font-weight:800;font-family:"Segoe UI",system-ui,sans-serif;fill:#f1c40f;stroke:#0a0a12;stroke-width:3px;paint-order:stroke fill}
+
+    /* ── Banner / Toast ──────────────────────────────────────── */
+    .banner{
+      position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.7);
+      padding:14px 42px;border-radius:14px;font-size:1.6rem;font-weight:800;letter-spacing:.05em;
+      z-index:999;pointer-events:none;white-space:nowrap;text-align:center;
+      opacity:0;transition:opacity .25s ease,transform .25s ease;
+      text-shadow:0 2px 8px rgba(0,0,0,.4);
+    }
+    .banner.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+    .banner.bust{background:#c0392b;color:#fff}
+    .banner.bank{background:linear-gradient(135deg,#d4a017,#f0c040);color:#1a1a1a}
+    .banner.hot-hand{background:linear-gradient(135deg,#e67e22,#f1c40f);color:#1a1a1a}
+    .banner.result{background:#27ae60;color:#fff}
+
+    /* ── UI overlay: fullscreen, pointer-events passthrough ─── */
+    .battle-scene{
+      position:fixed;inset:0;z-index:1;pointer-events:none;display:none;
+      padding-top:var(--battle-ui-top);
+      padding-right:max(14px,env(safe-area-inset-right));
+      padding-bottom:max(14px,env(safe-area-inset-bottom));
+      padding-left:max(14px,env(safe-area-inset-left));
+    }
+
+    /* ── Side panels ─────────────────────────────────────────── */
+    .side{display:flex;flex-direction:column;gap:14px;pointer-events:auto}
+    .side-left{
+      position:absolute;z-index:2;
+      top:var(--battle-ui-top);
+      left:max(14px,env(safe-area-inset-left));
+      width:min(240px,calc(40vw - 24px));
+    }
+    .side-right{
+      position:absolute;z-index:2;
+      top:var(--battle-ui-top);
+      right:max(14px,env(safe-area-inset-right));
+      width:min(260px,calc(40vw - 24px));
+      align-items:stretch;
+      max-height:calc(100vh - var(--battle-ui-top) - max(14px,env(safe-area-inset-bottom)));
+    }
+
+    /* ── HP Widget ───────────────────────────────────────────── */
+    .hp-widget{display:flex;align-items:center;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4))}
+    .hp-avatar{
+      width:80px;height:80px;border-radius:50%;flex-shrink:0;z-index:1;
+      background:var(--ui-glass-strong);backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur));
+      border:3px solid rgba(255,255,255,.18);box-shadow:0 2px 14px rgba(0,0,0,.55);
+      display:flex;align-items:center;justify-content:center;
+    }
+    .hp-widget-player .hp-avatar{border-color:rgba(231,76,60,.45);background:radial-gradient(circle at 38% 36%,rgba(231,76,60,.22),rgba(12,12,18,.72))}
+    .hp-widget-enemy  .hp-avatar{border-color:rgba(142,68,173,.45);background:radial-gradient(circle at 38% 36%,rgba(142,68,173,.22),rgba(12,12,18,.72))}
+    .hp-avatar-letter{font-size:1.4rem;font-weight:800;color:rgba(255,255,255,.65);letter-spacing:-.02em;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+    .hp-bar-body{
+      position:relative;flex:1;height:30px;
+      background:rgba(12,12,18,.62);border:1.5px solid rgba(255,255,255,.1);overflow:hidden;
+    }
+    .hp-widget-player .hp-bar-body{border-radius:0 15px 15px 0;margin-left:6px}
+    .hp-widget-enemy  .hp-bar-body{border-radius:15px 0 0 15px;margin-right:6px}
+    .hp-bar-body .hp-fill{position:absolute;top:0;height:100%;border-radius:inherit;transition:width .6s ease}
+    .hp-widget-player .hp-fill{left:0}
+    .hp-widget-enemy  .hp-fill{right:0}
+    .hp-fill-player{background:linear-gradient(90deg,#c0392b,#e74c3c)}
+    .hp-fill-enemy{background:linear-gradient(270deg,#8e44ad,#9b59b6)}
+    .hp-bar-text{
+      position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;
+      height:100%;padding:0 12px;text-shadow:0 1px 3px rgba(0,0,0,.9);
+    }
+    .hp-name{font-size:.68rem;font-weight:700;color:rgba(255,255,255,.78);text-transform:uppercase;letter-spacing:.05em}
+    .hp-numbers{font-size:.74rem;font-weight:700;color:#eee;font-variant-numeric:tabular-nums}
+    .hp-numbers small{font-size:.6rem;font-weight:600;color:rgba(255,255,255,.5)}
+
+    /* ── Side turn indicators ────────────────────────────────── */
+    .side-turn{
+      font-size:.85rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+      text-shadow:0 1px 6px rgba(0,0,0,.7),0 0 20px currentColor;
+      opacity:0;transition:opacity .35s ease;pointer-events:none;text-align:center;
+    }
+    .side-turn.active{opacity:1}
+    .side-left .side-turn{color:#e74c3c}
+    .side-right .side-turn{color:#9b59b6}
+
+    /* ── Badge placeholder slots ─────────────────────────────── */
+    .badge-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+    .badge-slot{
+      aspect-ratio:1/1;min-height:0;border-radius:10px;
+      border:2px dashed rgba(255,255,255,.13);
+      background:rgba(10,10,18,.32);
+      backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    }
+
+    /* ── Center HUD ──────────────────────────────────────────── */
+    .center{
+      position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;align-items:center;
+      pointer-events:none;padding-top:8px;padding-bottom:4px;
+    }
+
+    /* ── Info bar (top center) ───────────────────────────────── */
+    .info-bar{
+      display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:auto;white-space:nowrap;
+      background:var(--ui-glass);backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur));
+      border:1px solid var(--ui-border);border-top:none;border-radius:0 0 12px 12px;padding:4px 18px 6px;align-self:center;
+      box-shadow:var(--ui-shadow);text-shadow:var(--ui-text-shadow);
+    }
+    .round-score-wrap{display:flex;align-items:baseline;gap:6px}
+    .round-label{font-size:1.1rem;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.05em}
+    .round-value{font-size:1.3rem;font-weight:800;color:#ffc91c;font-variant-numeric:tabular-nums}
+    .selection-info{font-size:.75rem;color:#bbb;line-height:1.2;min-height:1em}
+    .status-text{font-size:.72rem;color:#666;min-height:16px}
+
+    /* ── Action Buttons (bottom center) ──────────────────────── */
+    .actions{
+      display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:auto;
+      background:var(--ui-glass);backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur));
+      border:1px solid var(--ui-border);border-bottom:none;border-radius:14px 14px 0 0;
+      padding:10px 22px max(10px,env(safe-area-inset-bottom));align-self:center;min-height:52px;
+      box-shadow:var(--ui-shadow);text-shadow:var(--ui-text-shadow);
+    }
+    .primary-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+    .btn{
+      padding:10px 28px;border:none;border-radius:10px;font-size:.95rem;font-weight:700;
+      cursor:pointer;letter-spacing:.03em;transition:background .12s,opacity .12s,transform .1s;
+    }
+    .btn:active{transform:scale(.97)}
+    .btn-roll{background:#e74c3c;color:#fff;min-width:160px}
+    .btn-roll:hover{background:#ff5544}
+    .btn-score{background:#27ae60;color:#fff;min-width:170px}
+    .btn-score:hover{background:#2ecc71}
+    .btn-bank{background:linear-gradient(135deg,#d4a017,#e8b820);color:#1a1a1a;min-width:170px}
+    .btn-bank:hover{background:linear-gradient(135deg,#e8b820,#f0c040)}
+    .btn-restart{background:#555;color:#eee;margin-top:4px}
+    .btn-restart:hover{background:#666}
+
+    /* ── History ──────────────────────────────────────────────── */
+    .history-card{
+      background:var(--ui-glass);backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur));
+      border:1px solid var(--ui-border);border-radius:12px;padding:14px;display:flex;flex-direction:column;
+      min-height:120px;max-height:min(36vh,300px);flex:1;min-width:0;width:100%;
+      box-shadow:var(--ui-shadow);text-shadow:var(--ui-text-shadow);
+    }
+    .history-title{font-size:.78rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+    .history-log{flex:1;overflow-y:auto;font-size:.8rem;color:#aaa;display:flex;flex-direction:column;gap:4px;min-height:0}
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media(max-width:700px){
+      .side-left{width:min(200px,calc(50vw - 16px))}
+      .side-right{width:min(200px,calc(50vw - 16px))}
+      .history-card{max-height:min(32vh,220px)}
+    }
+  </style>
 </head>
 <body>
+  <canvas id="renderCanvas"></canvas>
 
-    <!-- Engine (do not modify) -->
-    <script src="store/store.js"></script>
+  <!-- Sling visualization (SVG overlay) -->
+  <svg id="slingVizSvg" class="sling-viz" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <g id="slingWedgeSegs" fill="#f1c40f" fill-opacity="0.93" stroke="#d4ac0d" stroke-width="0.75" stroke-opacity="0.55">
+      <path id="slingSeg0" class="sling-seg" d=""/>
+      <path id="slingSeg1" class="sling-seg" d=""/>
+      <path id="slingSeg2" class="sling-seg" d=""/>
+      <path id="slingSeg3" class="sling-seg" d=""/>
+    </g>
+    <circle id="slingVizAnchor" cx="0" cy="0" r="8" fill="rgba(241,196,15,.25)" stroke="#f1c40f" stroke-width="2"/>
+    <text id="slingVizPow" class="sling-viz-pow" x="0" y="0" text-anchor="middle" style="display:none">0%</text>
+  </svg>
 
-    <!-- Config — add <script> tags here as config files are created -->
+  <!-- Banner -->
+  <div id="banner" class="banner"><span id="bannerText"></span></div>
 
-    <!-- Systems — add <script> tags here as system files are created -->
+  <!-- Battle UI overlay -->
+  <div class="battle-scene" id="battleUI">
+    <!-- Left: Player HP -->
+    <aside class="side side-left">
+      <div class="side-turn" id="playerTurnLabel">Player Turn</div>
+      <div class="hp-widget hp-widget-player">
+        <div class="hp-avatar"><span class="hp-avatar-letter">P</span></div>
+        <div class="hp-bar-body">
+          <div class="hp-fill hp-fill-player" id="playerHpFill" style="width:100%"></div>
+          <div class="hp-bar-text">
+            <span class="hp-name" id="playerName">Player</span>
+            <span class="hp-numbers"><span id="playerHp">0</span><small> / <span id="playerHpMax">0</span></small></span>
+          </div>
+        </div>
+      </div>
+      <div class="badge-grid">
+        <div class="badge-slot"></div>
+        <div class="badge-slot"></div>
+        <div class="badge-slot"></div>
+      </div>
+    </aside>
 
-    <!-- UI — add <script> tags here as UI files are created -->
+    <!-- Center: info + buttons -->
+    <main class="center">
+      <div class="info-bar">
+        <div class="round-score-wrap">
+          <span class="round-label">Round Score</span>
+          <span class="round-value" id="accScore">0</span>
+        </div>
+        <div class="selection-info" id="selScore">&nbsp;</div>
+        <div class="status-text" id="phaseHint"></div>
+      </div>
 
-    <!-- Entry point (must be last) -->
-    <script src="main.js"></script>
+      <div class="actions" id="actionsWrap">
+        <div class="primary-row">
+          <button id="btnRoll" class="btn btn-roll" style="display:none">ROLL</button>
+          <button id="btnScore" class="btn btn-score" style="display:none">SCORE'N'PLAY</button>
+          <button id="btnBank" class="btn btn-bank" style="display:none">BANK'N'PASS</button>
+          <button id="newBattleBtn" class="btn btn-restart" style="display:none">PLAY AGAIN</button>
+        </div>
+      </div>
+    </main>
 
+    <!-- Right: Enemy HP + History -->
+    <aside class="side side-right">
+      <div class="side-turn" id="botTurnLabel">Bot Turn</div>
+      <div class="hp-widget hp-widget-enemy">
+        <div class="hp-bar-body">
+          <div class="hp-fill hp-fill-enemy" id="enemyHpFill" style="width:100%"></div>
+          <div class="hp-bar-text">
+            <span class="hp-name" id="enemyName">Bot</span>
+            <span class="hp-numbers"><span id="enemyHp">0</span><small> / <span id="enemyHpMax">0</span></small></span>
+          </div>
+        </div>
+        <div class="hp-avatar"><span class="hp-avatar-letter">B</span></div>
+      </div>
+      <div class="badge-grid">
+        <div class="badge-slot"></div>
+        <div class="badge-slot"></div>
+        <div class="badge-slot"></div>
+      </div>
+      <div class="history-card">
+        <div class="history-title">Round History</div>
+        <div class="history-log" id="historyLog"></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- IIFE game logic layer -->
+  <script src="store/store.js"></script>
+  <script src="config/scoring.js"></script>
+  <script src="config/dice.js"></script>
+  <script src="config/encounters.js"></script>
+  <script src="config/balance.js"></script>
+  <script src="config/strings.js"></script>
+  <script src="systems/scoringSystem.js"></script>
+  <script src="systems/turnSystem.js"></script>
+  <script src="systems/playerSystem.js"></script>
+  <script src="systems/enemySystem.js"></script>
+  <script src="systems/matchSystem.js"></script>
+  <script src="systems/botSystem.js"></script>
+  <script src="ui/battleUI.js"></script>
+  <script src="ui/inputHandler.js"></script>
+  <script src="main.js"></script>
+
+  <!-- 3D engine layer (ES modules) -->
+  <script src="../vendor/babylon.js"></script>
+  <script type="importmap">
+  { "imports": { "cannon-es": "../vendor/cannon-es.js" } }
+  </script>
+  <script type="module">
+    import * as bridge from './engine/diceBridge.js';
+    const canvas = document.getElementById('renderCanvas');
+    bridge.init(canvas, window.store);
+    window.bridge3D = bridge;
+  </script>
 </body>
 </html>

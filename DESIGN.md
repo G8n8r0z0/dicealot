@@ -23,15 +23,15 @@ Dice-a-Lot is a browser-first dice RPG prototype. The game must feel like a dice
 
 ### 2.1 Turn Structure
 
-1. **Roll** — roll all available dice (6 at the start of a turn).
-2. **Read** — the game highlights dice that form valid scoring combinations.
-3. **Select** — the player selects a valid scoring subset. The exact selected dice define the scoring result.
-4. **Score** — selected dice move to the held zone. Their value adds to accumulated turn score.
-5. **Decide:**
-   - **Bank** — deal accumulated score as damage to opponent. Turn ends.
-   - **Continue** — roll the remaining unheld dice. Return to step 1.
+1. **Roll** — throw all available dice (6 at the start of a turn). In 3D: sling drag-to-throw or ROLL button.
+2. **Read** — dice settle; physics determines face values. The game highlights dice that form valid scoring combinations.
+3. **Select** — the player clicks 3D dice to select a valid scoring subset. Both **SCORE'N'PLAY** and **BANK'N'PASS** buttons require a valid selection.
+4. **SCORE'N'PLAY** — selected dice move to the held zone; their value adds to accumulated turn score. Phase returns to step 1 (sling / ROLL available for remaining dice).
+5. **BANK'N'PASS** — selected dice are scored first, then the full accumulated score is banked as damage. Turn ends.
 6. **Bust** — if a roll produces no valid scoring dice, all accumulated score is lost. Turn ends.
 7. **Hot Hand** — if all six dice are scored during a turn, the turn is automatically banked. After Hot Hand resolves, a new roll starts with all six dice again.
+
+> **No "decide" phase exists in the FSM.** After SCORE, the game returns to `idle` (ready for sling/ROLL). BANK is only available during `selecting` (while dice are selected). The player's strategic decision (bank vs continue) happens at step 3–5, not as a separate phase.
 
 ### 2.2 Core Decision Questions
 
@@ -54,13 +54,14 @@ Every meaningful system must strengthen at least one of:
 | Single 5 | 50 | |
 | Three of a kind (1s) | 1000 | 1s special: 10× base |
 | Three of a kind (N, N = 2–6) | N × 100 | e.g. three 4s = 400 |
-| Four of a kind | Three-of-a-kind × 2 | e.g. four 4s = 800 |
-| Five of a kind | Three-of-a-kind × 3 | e.g. five 4s = 1200 |
-| Six of a kind | Three-of-a-kind × 4 | e.g. six 4s = 1600 |
+| Four of a kind | Previous tier × 2 | e.g. four 4s = 800 |
+| Five of a kind | Previous tier × 2 | e.g. five 4s = 1600 |
+| Six of a kind | Previous tier × 2 | e.g. six 4s = 3200 |
 | Short Straight (1-2-3-4-5) | 500 | Uses 5 dice |
 | Short Straight (2-3-4-5-6) | 750 | Uses 5 dice |
 | Straight (1-2-3-4-5-6) | 1500 | All 6 dice → Hot Hand |
-| Three pairs | 1500 | All 6 dice → Hot Hand |
+
+Pairs of non-scoring dice (2, 3, 4, 6) do not score. These values only score from three of a kind and above. Formula: `base × 2^(count − 3)` where base is `face × 100` (or 1000 for 1s).
 
 ### 3.2 Bust Probability
 
@@ -101,7 +102,7 @@ The Joker is a loadout special die inside the shared standard ruleset. It is not
 ## 5. Hot Hand
 
 **Locked rules:**
-- If all six dice are scored during a turn, the turn is **automatically banked**.
+- If all six dice are scored during a turn, the accumulated score is **automatically banked** (converted to damage).
 - After Hot Hand resolves, a new roll starts with all six dice again.
 
 Hot Hand creates the highest-excitement event. It auto-converts the full accumulated score into damage, then resets the dice for a fresh start.
@@ -948,7 +949,7 @@ These systems are documented in the old project but are **not** part of the acti
 | `state.match` | Phase (hub/loadout/battle/result), active player, turn count | `matchSystem.js` |
 | `state.player` | HP, loadout, collection, wins | `playerSystem.js` |
 | `state.enemy` | HP, loadout, personality, name | `enemySystem.js` |
-| `state.turn` | Rolled dice values, held dice, accumulated score, phase (roll/hold/decide), bust flag, hot hand flag, active die effects | `turnSystem.js` |
+| `state.turn` | Rolled dice values, held dice, accumulated score, phase (`idle`/`selecting`/`bust`), bust flag, hot hand flag, active die effects | `turnSystem.js` |
 | `state.campaign` | Unlock ladder progress, completed encounters | `campaignSystem.js` |
 
 ### 16.2 Key Actions

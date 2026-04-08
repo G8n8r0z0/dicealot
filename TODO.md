@@ -121,33 +121,34 @@ Resolve the highest-risk unknown first. If the 3D die pipeline doesn't work, eve
 
 - [x] **0B6.** ~~Two-player field~~ → **Done.** Turn indicator, HP bars (player red, bot purple), turn alternation, bot AI auto-play, BUST/HOT HAND/BANK banners, round history log. Win/lose detection.
 
-### 0C. Engine Extraction (NEW)
+### 0C. Engine Extraction — DONE (2026-04-08)
 
-Extract validated spike code into production modules.
+Extracted validated battle.html code into production ES modules. Source: `battle.html` (not spike-v2 — battle.html has all physics tuning, face detection, force-settle from 0D–0F).
 
-- [ ] **0C1.** Extract `dieFactory.js` — `createDiceVertexData()`, `createPipsVertexData()`, `createDie()`, `removeDie()`. Pure geometry + physics factory, no UI or game logic.
-  - Source: `spike-v2.html`
+- [x] **0C1.** Extract `dieFactory.js` — `createDiceVertexData()`, `createPipsVertexData()`, `buildDie()`, `teardownDie()`, `readFaceValue()`, `readFaceValueForced()`, `FACE_LOCALS`, `FACE_UP_QUATS`, collision group helpers. Pure geometry + physics factory + face detection.
+  - Source: `battle.html` (lines 1496–1767)
   - Target: `src/engine/dieFactory.js`
 
-- [ ] **0C2.** Extract `diceEngine.js` — scene setup, physics world, render loop, anti-edge nudge, face detection. Exports `init(canvas)`, `throwAll()`, `jumpAll()`, `getDice()`, `dispose()`.
-  - Source: `spike-v2.html`
+- [x] **0C2.** Extract `diceEngine.js` — `BATTLE_TUNE_DEFAULTS`, table layout, scene/camera/lights/shadows/hl, physics world, render loop (sync, anti-edge nudge, force-settle, held animation), throws (`throwPlayer`/`throwBot`), sling (`slingCluster`/`slingRelease`/`slingCancel`), selection, projection, settle timer, `dispose()`.
+  - Source: `battle.html` (surgical extraction)
   - Target: `src/engine/diceEngine.js`
 
-- [ ] **0C3.** Create `diceBridge.js` — bridge between IIFE game logic and ES module engine. Subscribes to `store.state.turn`, dispatches `SELECT_DIE`/`DESELECT_DIE` on pointer interaction, triggers roll animations on `ROLL_DICE`.
-  - Ref: ARCHITECTURE §3D Engine Architecture, §Engine ↔ Game Logic Contract
+- [x] **0C3.** Create `diceBridge.js` — thin pass-through bridge (no store). Phase management, pointer events → sling + selection. API: `roll()`, `rollBot()`, `scoreAndHold()`, `resetTurn()`, `getSelection()`, `getDiceValues()`. Store wiring deferred to Group C.
   - Target: `src/engine/diceBridge.js`
+  - **Note:** `store.subscribeTo` / `store.dispatch` blocked until Groups A–C.
 
-- [ ] **0C4.** Update `src/index.html` — add CDN script tags, importmap, `<script type="module">` that imports engine. Ensure load order: IIFE scripts first, then module script.
-  - Ref: ARCHITECTURE §Dual Loading Strategy
+- [x] **0C4.** Update `src/index.html` — vendor scripts, importmap, IIFE layer + ES module layer. Smoke test: ROLL, sling, click-to-select, face display.
   - Target: `src/index.html`
+
+**Archival:** `throw-lab.html` + `throw-lab.mjs` — physics tuning complete, `BATTLE_TUNE_DEFAULTS` canonical in `diceEngine.js`. Lab files preserved but unmaintained.
 
 ---
 
 ## ── MILESTONE: 3D Engine Proven ──
 
 > **Status: COMPLETE.** Full 3D battle prototype validated in `battle.html`. Engine stack: **vendored** BabylonJS + cannon-es, custom procedural geometry. Core mechanics: directional throws, **pull-back sling** or **ROLL**, click-to-select, sandwich table + narrow shelves, camera debug, kinematic dice stash, held zones, Farkle scoring, Hot Hand, bust, bot AI, HP combat, win/lose. Entry: **`index.html`** (HTTP → `battle.html`; `file://` → server instructions).
-> **Remaining:** engine extraction (0C1–0C4) to wire prototype logic through `store.dispatch` + preserve sling/physics tuning in `diceBridge` / `diceEngine`.
-> **Docs (2026 sync):** sling behavior, collision filters, wedge HUD, **throw-lab** (shared Tune, realism sliders, HUD layering), Tune field copy (EN/RU), **canonical `BATTLE_TUNE_DEFAULTS`** (battle + throw-lab, matches shipped physics without `localStorage`), Cloudflare Pages deploy, and “propose → approve → implement” preferences are reflected in `ARCHITECTURE.md`, `DESIGN.md` §14, `AGENTS.md`, `README.md`, and workspace `.cursor/rules/chat-context-and-docs.mdc`.
+> **Engine extraction COMPLETE (0C, 2026-04-08):** `dieFactory.js` (geometry, face detection), `diceEngine.js` (scene, physics, throws, `BATTLE_TUNE_DEFAULTS`), `diceBridge.js` (thin pass-through, store wiring deferred). Smoke test at `src/index.html`.
+> **Docs (2026 sync):** sling behavior, collision filters, **throw-lab archived** (tuning complete), **canonical `BATTLE_TUNE_DEFAULTS`** (battle + throw-lab, matches shipped physics without `localStorage`), Cloudflare Pages deploy, and “propose → approve → implement” preferences are reflected in `ARCHITECTURE.md`, `DESIGN.md` §14, `AGENTS.md`, `README.md`, and workspace `.cursor/rules/chat-context-and-docs.mdc`.
 
 ---
 
@@ -261,145 +262,124 @@ Abilities that reference "neighboring die" (Mimic, Blight, Flipper Lv2, Mirror) 
 
 ---
 
-## A. Config Foundation
+## A. Config Foundation — DONE (2026-04-08)
 
-Static data files. No logic, no state. Loaded before everything else.
+Static data files. No logic, no state. Loaded before everything else. All exported via `window.SCORING`, `window.DICE`, `window.ENCOUNTERS`, `window.BALANCE`, `window.STRINGS`.
 
-- [ ] **A1.** Scoring table config — standard combinations, scores, dice counts, short straights.
+- [x] **A1.** Scoring table config — `SINGLES`, `TRIPLE_BASE`, `N_OF_KIND_MULT`, `STRAIGHTS`, `THREE_PAIRS`, `BUST_CHANCE`.
   - Ref: DESIGN §3.1
-  - File: `src/config/scoring.js` → `window.config.scoring`
+  - File: `src/config/scoring.js` → `window.SCORING`
 
-- [ ] **A2.** Dice definitions — every die type: id, name, category, rarity, mechanic summary, weight distributions per level, ability type, level line data, visual hints.
-  - Ref: DESIGN §8.2–8.9
-  - File: `src/config/dice.js` → `window.config.dice`
+- [x] **A2.** Dice definitions — full roster (base + 17 common + 2 common utility + 14 rare + 4 rare utility + 1 exotic). Per die: id, name, rarity, utility flag, maxLevel, ability descriptor, weight distributions per level, visual hints. Plus `OPPOSITES`, `LOADOUT`, `RARITY_ORDER`.
+  - Ref: DESIGN §8.1–8.9
+  - File: `src/config/dice.js` → `window.DICE`
 
-- [ ] **A3.** Encounter definitions — bot entries from Common + Rare ladders: id, name, HP, difficulty tag, personality.
+- [x] **A3.** Encounter definitions — Common ladder (17 entries, win 1–36) + Rare ladder (16 entries, win 40–123). Per entry: win threshold, unlock die id, difficulty tag, encounter name, bot HP. Difficulty tiers with `riskThreshold`.
   - Ref: DESIGN §9.3, §9.4, §11
-  - File: `src/config/encounters.js` → `window.config.encounters`
+  - File: `src/config/encounters.js` → `window.ENCOUNTERS`
 
-- [ ] **A4.** Balance constants — player base HP, score-to-damage ratio, Hot Hand rules, bust thresholds.
-  - Ref: DESIGN §7.2, §7.3, §5
-  - File: `src/config/balance.js` → `window.config.balance`
+- [x] **A4.** Balance constants — `DICE_PER_TURN`, `PLAYER_BASE_HP`, `SCORE_TO_DAMAGE`, `HOT_HAND_THRESHOLD`, `HOT_HAND_AUTO_BANK`, pacing reference values.
+  - Ref: DESIGN §2, §5, §7.2, §7.3
+  - File: `src/config/balance.js` → `window.BALANCE`
 
-- [ ] **A5.** UI strings — all player-facing text (button labels, phase names, result messages, tutorial text stubs).
+- [x] **A5.** UI strings — battle banners, button labels, turn indicators, hub labels, result messages, ability buttons, tutorial chapter titles, misc.
   - Ref: DESIGN §10, §12
-  - File: `src/config/strings.js` → `window.config.strings`
+  - File: `src/config/strings.js` → `window.STRINGS`
+
+`src/index.html` updated: config scripts loaded after `store.js`, before `main.js`.
 
 ---
 
-## B. Scoring Engine
+## B. Scoring Engine — DONE (2026-04-08)
 
-Pure evaluation functions. No state ownership — called by turnSystem.
+Pure evaluation functions. No state ownership — called by turnSystem. Standard dice only; Joker/special-die decorations deferred to Groups J/M.
 
-- [ ] **B1.** Base scoring evaluator — given an array of dice values, return all valid scoring combinations from the standard table (singles 1/5, three-of-a-kind through six-of-a-kind, short straights, full straight, three pairs).
+- [x] **B1.** Base scoring evaluator — bitmask DP partition of dice values into optimal scoring groups. Singles (1/5), N-of-a-kind (3–6, exponential doubling `base × 2^(count−3)`), short straights (1-5 = 500, 2-6 = 750), full straight (1-2-3-4-5-6 = 1500). Three Pairs removed (not in rules). All values must be covered — no leftovers.
   - Ref: DESIGN §3.1
   - File: `src/systems/scoringSystem.js` → `window.scoringSystem`
 
-- [ ] **B2.** Selection validator — given a player's selected dice subset, determine if it forms a valid scoring combination. Return score or invalid. Respect click-order-first contract: do NOT auto-optimize.
+- [x] **B2.** Selection validator — contiguous-packet decomposition (click-order-first). Each packet is either a valid primitive group or a singles packet (all 1s/5s). Ambiguity detection when valid packets exist but full decomposition fails.
   - Ref: DESIGN §6
   - File: `src/systems/scoringSystem.js`
 
-- [ ] **B3.** Joker wildcard resolution — if Joker (value 1 = active) is in the selection, resolve as wildcard substitute for best valid combination in that exact selection. Joker alone = 100. Mixed selection: no separate 100.
+- [ ] **B3.** Joker wildcard resolution — deferred to exotic dice implementation. Infrastructure ready: scoring accepts plain value arrays, Joker layer can be added on top.
   - Ref: DESIGN §4
-  - File: `src/systems/scoringSystem.js`
 
-- [ ] **B4.** Bust detection — given remaining dice values, determine if any valid scoring subset exists. If none → bust.
+- [x] **B4.** Bust detection — brute-force all subsets, check if any valid primitive group exists. Returns boolean.
   - Ref: DESIGN §2.1 step 6
   - File: `src/systems/scoringSystem.js`
 
-- [ ] **B5.** Tests for scoring — all standard combinations, edge cases, Joker resolution, short straights, bust detection, click-order contract.
-  - File: `tests/test-scoring.js`
+- [x] **B5.** Tests — 108 assertions: singles, three/four/five/six of a kind (all faces), straights, mixed partitions, invalid selections, three pairs NOT valid, click-order decomposition, ambiguity detection, bust detection.
+  - File: `tests/test-scoring.js` (Node runner) + `tests/test-scoring.html` (browser runner)
+
+**DESIGN.md sync:** §3.1 N-of-a-kind formula corrected (exponential doubling), Three Pairs removed. §5 Hot Hand updated (score locked, not auto-banked; player continues).
+**Config sync:** `scoring.js` N_OF_KIND_MULT fixed to `{3:1, 4:2, 5:4, 6:8}`, THREE_PAIRS removed.
 
 ---
 
-## C. Turn State Machine
+## C. Turn State Machine — DONE (2026-04-08)
 
-Owns `state.turn`. The core `roll → select → score → decide` loop.
+Owns `state.turn`. The core `roll → select → score → decide` loop. Standard dice only; weighted distributions deferred to Group H.
 
-- [ ] **C1.** Turn system init — register state slice `state.turn` with: `rolledDice[]`, `heldDice[]`, `selectedIndices[]`, `accumulatedScore`, `phase` (roll/select/scored/decide), `bustFlag`, `hotHandFlag`, `diceCount`, `turnNumber`, `activeAbilities`.
-  - Ref: DESIGN §2.1, §16.1
+- [x] **C1.** Turn system init — `state.turn`: `rolledDice[]`, `heldDice[]`, `selectedIndices[]`, `accumulatedScore`, `phase` (idle/selecting/decide/bust), `diceCount`, `turnNumber`, `selectionScore`, `selectionValid`, `lastBankedScore`, `hotHandTriggered`.
   - File: `src/systems/turnSystem.js` → `window.turnSystem`
 
-- [ ] **C2.** `ROLL_DICE` handler — generate values for `diceCount` dice via `store.prng.next(1, 6)`. Apply weighted distributions if special dice are in loadout. Set phase to `select`. Auto-detect bust (call scoringSystem).
-  - Ref: DESIGN §2.1 step 1, §14.7
-  - File: `src/systems/turnSystem.js`
+- [x] **C2.** `ROLL_DICE` — generate `diceCount` values via `store.prng.next(1, 6)`. Auto-detect bust via `scoringSystem.hasPlayableDice()`. Phase → `selecting` or `bust`. Phase guard: only from `idle` or `decide`.
 
-- [ ] **C3.** `SELECT_DIE` / `DESELECT_DIE` handlers — toggle die in `selectedIndices[]`. Validate selection via scoringSystem on each change (enable/disable Score button).
-  - Ref: DESIGN §2.1 step 3, §6
-  - File: `src/systems/turnSystem.js`
+- [x] **C3.** `SELECT_DIE` / `DESELECT_DIE` — toggle index in `selectedIndices[]`. Live revalidation via `scoringSystem.scorePlayerSelection()` → sets `selectionScore` and `selectionValid`. Phase guard: only during `selecting`.
 
-- [ ] **C4.** `SCORE_SELECTION` handler — move selected dice to `heldDice[]`, add score to `accumulatedScore`, reduce `diceCount`. Check Hot Hand (all 6 held → auto-bank). Set phase to `decide`.
-  - Ref: DESIGN §2.1 steps 4–5, §5
-  - File: `src/systems/turnSystem.js`
+- [x] **C4.** `SCORE_SELECTION` — move selected to `heldDice`, accumulate score, reduce `diceCount`. Hot Hand check: if total held ≥ 6 → auto-bank (`lastBankedScore` set, turn reset, `hotHandTriggered = true`, phase `idle`). Otherwise phase → `decide`.
 
-- [ ] **C5.** `BANK` handler — finalize `accumulatedScore`, set `bankReady` flag for matchSystem to convert to damage. Reset turn state.
-  - Ref: DESIGN §2.1 step 5, §7.2
-  - File: `src/systems/turnSystem.js`
+- [x] **C5.** `BANK` — set `lastBankedScore = accumulatedScore`, reset turn state, phase → `idle`. Phase guard: only from `decide`.
 
-- [ ] **C6.** `BUST` handler — clear `accumulatedScore`, set `bustFlag`, reset turn state.
-  - Ref: DESIGN §2.1 step 6
-  - File: `src/systems/turnSystem.js`
+- [x] **C6.** `BUST` — explicit bust action (also detected inside ROLL_DICE). Clears accumulated, resets turn, phase → `idle`.
 
-- [ ] **C7.** `HOT_HAND` handler — auto-bank when all 6 dice scored in a turn. Bank accumulated score, then start fresh roll with 6 dice.
-  - Ref: DESIGN §5
-  - File: `src/systems/turnSystem.js`
+- [x] **C7.** Hot Hand — handled inside SCORE_SELECTION (not a separate action). Auto-bank accumulated score, reset dice to 6, phase `idle`. Player continues with fresh roll.
 
-- [ ] **C8.** Tests for turn flow — roll, select, score, bank, bust, hot hand, accumulated score tracking.
+- [x] **C8.** Tests — 60 assertions: init, START_TURN, ROLL_DICE (basic, deterministic, phase guard), SELECT/DESELECT (toggle, duplicate, invalid), selection validation (live score preview), SCORE_SELECTION (accumulate, held, diceCount, phase), BANK (lastBankedScore, reset, phase guard), continue rolling (decide → roll), BUST detection, Hot Hand (single-score and multi-score), accumulated persistence, SCORE_SELECTION guards.
   - File: `tests/test-turn.js`
 
+Actions registered: `START_TURN`, `ROLL_DICE`, `SELECT_DIE`, `DESELECT_DIE`, `SCORE_SELECTION`, `BANK`, `BUST`. All on slice `'turn'`.
+
 ---
 
-## D. Combat & Match System
+## D. Combat & Match System ✅
 
-Match lifecycle and HP damage bridge.
+Match lifecycle and HP damage bridge. **DONE.**
 
-- [ ] **D1.** Match system init — register `state.match` with: `phase` (hub/loadout/battle/result), `activePlayer` (player/enemy), `turnCount`, `winner`.
-  - Ref: DESIGN §10.1, §16.1
-  - File: `src/systems/matchSystem.js` → `window.matchSystem`
+Three IIFE systems:
 
-- [ ] **D2.** `START_BATTLE` handler — load encounter from config, initialize enemy HP, set phase to `battle`, set `activePlayer` to `player`.
-  - Ref: DESIGN §10.4
-  - File: `src/systems/matchSystem.js`
+- `playerSystem.js` → `state.player { hp, maxHp, name }`
+- `enemySystem.js`  → `state.enemy { hp, maxHp, name, difficulty }`
+- `matchSystem.js`  → `state.match { phase, activePlayer, turnCount, winner }`
 
-- [ ] **D3.** `END_TURN` handler — switch `activePlayer`, increment `turnCount`. If bank flag is set, dispatch `DEAL_DAMAGE`.
-  - Ref: DESIGN §7.2
-  - File: `src/systems/matchSystem.js`
+Actions registered (all on slice `'match'`): `START_BATTLE`, `DEAL_DAMAGE`, `END_TURN`.
 
-- [ ] **D4.** Player system init — register `state.player` with: `hp`, `loadout[]`, `collection[]`, `wins`, `name`.
-  - Ref: DESIGN §7.3, §16.1
-  - File: `src/systems/playerSystem.js` → `window.playerSystem`
+Caller sequence: BANK → DEAL_DAMAGE → END_TURN (Hot Hand: DEAL_DAMAGE only, no END_TURN).
 
-- [ ] **D5.** Enemy system init — register `state.enemy` with: `hp`, `maxHp`, `name`, `personality`, `loadout[]`.
-  - Ref: DESIGN §11, §16.1
-  - File: `src/systems/enemySystem.js` → `window.enemySystem`
-
-- [ ] **D6.** `DEAL_DAMAGE` handler — reduce target HP by banked score (1:1 ratio). If HP ≤ 0 → set `winner`, set phase to `result`.
-  - Ref: DESIGN §7.2
-  - File: `src/systems/playerSystem.js` (for player HP), `src/systems/enemySystem.js` (for enemy HP)
-
-- [ ] **D7.** Tests for combat — start battle, deal damage, HP reduction, win/lose detection, turn switching.
+- [x] **D1.** `matchSystem.js` — `state.match` with `phase` (hub/battle/result), `activePlayer`, `turnCount`, `winner`.
+- [x] **D2.** `START_BATTLE` — payload `{ enemyHp, enemyName, difficulty }`. Sets enemy stats, restores player HP, phase → `battle`, activePlayer → `player`.
+- [x] **D3.** `END_TURN` — switches activePlayer, increments turnCount. Phase guard: only in `battle`.
+- [x] **D4.** `playerSystem.js` — `state.player` with `hp`, `maxHp`, `name`. Init from `BALANCE.PLAYER_BASE_HP`.
+- [x] **D5.** `enemySystem.js` — `state.enemy` with `hp`, `maxHp`, `name`, `difficulty`. Zeroed on init; populated by START_BATTLE.
+- [x] **D6.** `DEAL_DAMAGE` — `{ target: 'player'|'enemy', amount }`. Applies `SCORE_TO_DAMAGE` multiplier, reduces HP, clamps to 0. HP ≤ 0 → winner set, phase → `result`. Phase guard: only in `battle`.
+- [x] **D7.** Tests — 34 assertions: init, START_BATTLE, DEAL_DAMAGE (enemy, player, kill, overkill, phase guard), END_TURN (toggle, turnCount, phase guard), full battle sequence, no damage after result.
   - File: `tests/test-match.js`
 
+Load order in `src/index.html`: `turnSystem.js` → `playerSystem.js` → `enemySystem.js` → `matchSystem.js`.
+
 ---
 
-## E. Battle UI — 2D Shell
+## E. Battle UI — 2D Shell ✅
 
-HTML + DOM rendering. Dispatches actions, subscribes to state.
+HTML + DOM rendering. Dispatches actions, subscribes to state. **DONE.**
 
-- [ ] **E1.** Battle screen HTML structure — dice area placeholder, held zone, HP bars (player + enemy), accumulated score display, turn indicator, action buttons (Roll / Bank / Continue), round history panel.
-  - Ref: DESIGN §10.5
-  - File: `src/index.html`
+Full 2D battle screen: HP bars, rolled dice (clickable), held zone, score display, phase hints, action buttons (Roll / Score'n'Play / Bank'n'Pass), banners (Bust / Bank / Hot Hand / Victory / Defeated), New Battle button.
 
-- [ ] **E2.** Battle UI module — mount/unmount, subscribe to `state.turn`, `state.player.hp`, `state.enemy.hp`, `state.match`. Update DOM on state changes.
-  - Ref: DESIGN §10.5
-  - File: `src/ui/battleUI.js` → `window.battleUI`
-
-- [ ] **E3.** Input handler — button click → `store.dispatch()` for ROLL_DICE, SELECT_DIE, SCORE_SELECTION, BANK. Enable/disable buttons based on turn phase.
-  - Ref: DESIGN §2.1
-  - File: `src/ui/inputHandler.js` → `window.inputHandler`
-
-- [ ] **E4.** Update `main.js` — wire system inits, system updates, battle UI mount. Update `index.html` script load order.
-  - File: `src/main.js`, `src/index.html`
+- [x] **E1.** `src/index.html` — battle UI HTML structure + CSS. Dark theme, centered 520px panel. Canvas hidden (ready for Group F). Load order updated with `ui/battleUI.js` and `ui/inputHandler.js`.
+- [x] **E2.** `src/ui/battleUI.js` → `window.battleUI`. mount/unmount, subscribes to store, renders: HP bars, rolled dice with selection highlight, held zone, accumulated + selection score, button enable/disable by phase, turn indicator, phase hints.
+- [x] **E3.** `src/ui/inputHandler.js` → `window.inputHandler`. Button clicks → dispatch sequences. Roll (+ bust detection → banner → BUST + START_TURN), Score (+ hot hand → DEAL_DAMAGE + banner), Bank (→ DEAL_DAMAGE → banner → START_TURN). Lock/unlock prevents double-clicks during banners. New Battle button resets match.
+- [x] **E4.** `src/main.js` — inits all systems (player, enemy, turn, match), mounts battleUI, binds inputHandler, dispatches START_BATTLE + START_TURN. Removed game loop (not needed for 2D; Group F will add render loop).
 
 ---
 
@@ -415,29 +395,29 @@ Connects store state to the custom BabylonJS + cannon-es engine.
 
 > **Note:** Most of the 3D rendering primitives are already validated in spike-v2 and will be extracted in Group 0C. Group F focuses on wiring the extracted engine to the store-driven game logic.
 
-- [ ] **F1.** Bridge initialization — `diceBridge.init(canvasEl)` calls `diceEngine.init()`, reads `config.dice` for die type definitions, subscribes to relevant state slices.
-  - Ref: DESIGN §14.2, §14.4, ARCHITECTURE §Engine ↔ Game Logic Contract
+- [x] **F1.** Bridge initialization — `diceBridge.init(canvas, store)` calls `diceEngine.init()`, subscribes to store actions (`ROLL_DICE`, `SELECT/DESELECT_DIE`, `SCORE_SELECTION`, `START_TURN`). Exposes `window.bridge3D`.
   - File: `src/engine/diceBridge.js`
 
-- [ ] **F2.** Roll rendering — subscribe to `state.turn.rolledDice`. On `ROLL_DICE`, call `diceEngine.throwAll(values)` with predetermined face values. Engine animates dice to land on those faces.
-  - Ref: DESIGN §14.7
+- [x] **F2.** Roll rendering — on `ROLL_DICE`, bridge calls `engine.throwPlayer()`. After physics settle, reads face values and dispatches `DICE_SETTLED` to sync store. **No face correction** — physics IS the outcome. `turnSystem.js` has new `DICE_SETTLED` action that overrides PRNG values and re-evaluates bust.
+  - Files: `src/engine/diceBridge.js`, `src/systems/turnSystem.js`
+
+- [x] **F3.** Die selection in 3D — pointer up on settled die → `store.dispatch('SELECT_DIE', { index })` / `DESELECT_DIE`. HighlightLayer glow driven by `state.turn.selectedIndices` via store subscriber.
   - File: `src/engine/diceBridge.js`
 
-- [ ] **F3.** Die selection in 3D — pointer observable on settled die → `store.dispatch('SELECT_DIE', { dieIndex })`. HighlightLayer glow on selected dice driven by `state.turn.selectedIndices`.
-  - Ref: DESIGN §14.3 items 5, §2.1 step 3
+- [x] **F4.** Held zone rendering — on `SCORE_SELECTION`, scored 3D dice animate into player held zone (3-column grid, lerp). Hot Hand clears all held dice.
   - File: `src/engine/diceBridge.js`
 
-- [ ] **F4.** Held zone rendering — on `SCORE_SELECTION`, animate scored dice into held area. On new roll, remaining dice re-throw.
-  - Ref: DESIGN §2.1 step 4
-  - File: `src/engine/diceBridge.js`
-
-- [ ] **F5.** Per-die-type visuals — read die type from loadout → apply body color, pip color, and any custom marks from `config.dice[type].visual`.
-  - Ref: DESIGN §14.5.6, §13
+- [ ] **F5.** Per-die-type visuals — DEFERRED. Uses default body/pip colors. Will read from `config.dice[type].visual` when loadout system is built.
   - File: `src/engine/diceBridge.js`, `src/config/dice.js`
 
-- [ ] **F6.** Drag-and-drop integration — (a) **roll sling**: table-plane pull-back → cluster kinematic → release → dynamic + impulse (see `battle.html`). (b) Future: drag dice to held / ability zones if design requires per-die pickup (spike-style).
-  - Ref: DESIGN §14.3, ARCHITECTURE §Interaction Model
-  - File: `src/engine/diceBridge.js`, `diceEngine.js`
+- [x] **F6.** Sling drag-to-throw — table-plane pull-back → cluster kinematic → release → `ROLL_DICE` dispatch + sling physics. SVG wedge visualization (anchor + segments + %) ported from `battle.html`. Sling works in `idle` phase (including after SCORE).
+  - Files: `src/engine/diceBridge.js`, `src/index.html` (SVG + CSS)
+
+- [ ] **F7.** UI layout refactor — port `battle.html` UI layout to `src/index.html`: three-column layout (HP widgets on left/right with avatar circles + badge slots, center info-bar docked to top, action buttons docked to bottom, glass morphism). Current vertical single-column layout does not match. `battleUI.js` needs corresponding DOM target updates.
+  - Ref: `battle.html` CSS + HTML structure
+  - Files: `src/index.html`, `src/ui/battleUI.js`
+
+**FSM changes in Group F:** removed `decide` phase. After `SCORE_SELECTION`, phase → `idle` (sling/ROLL available). `BANK` only from `selecting` with valid selection. Both SCORE and BANK buttons require valid selection. Matches `battle.html` 3D and `dicing/battle.html` 2D flow.
 
 ---
 
@@ -445,17 +425,14 @@ Connects store state to the custom BabylonJS + cannon-es engine.
 
 Same roll/select/score/bank structure as player. Automated decision-making.
 
-- [ ] **G1.** Bot turn logic — when `activePlayer === 'enemy'`: auto-roll, evaluate all valid combinations via scoringSystem, select highest-value combination, decide bank vs continue based on risk threshold.
-  - Ref: DESIGN §11
+- [x] **G1.** Bot turn logic — `botSystem.js` async loop: ROLL_DICE → wait 3D settle → findBestBotChoice → SELECT_DIE ×N (500ms each) → SCORE_SELECTION → threshold check → BANK or continue. Dispatches END_TURN + START_TURN on finish. inputHandler triggers bot via `scheduleBotTurn(800)` after player bank/bust.
   - File: `src/systems/botSystem.js` → `window.botSystem`
 
-- [ ] **G2.** Bot risk profiles — Cautious (bank early), Balanced, Greedy (push deep). Threshold driven by encounter personality from config.
-  - Ref: DESIGN §11
-  - File: `src/systems/botSystem.js`, `src/config/encounters.js`
+- [x] **G2.** Three difficulty levels: **Novice** (40% optimal subset, low bank threshold 350), **Advanced** (80% optimal, threshold ~480 with jitter), **Master** (always optimal, adaptive threshold based on HP/diceLeft). Default = `'advanced'`, passed via `START_BATTLE` payload `difficulty`.
+  - File: `src/systems/botSystem.js`
 
-- [ ] **G3.** Bot turn visualization — animate bot actions on the 3D board with delays: roll → pause → select → pause → bank/continue. Player watches live.
-  - Ref: DESIGN §10.5
-  - File: `src/systems/botSystem.js`, `src/bridge/diceBridge.js`
+- [x] **G3.** 3D integration — `diceBridge` uses `engine.throwBot()` for enemy rolls, notifies `botSystem.onSettled()` after physics settle, places held dice on bot shelf (`botDividerZ + shelfD/2`). Sling and die-click blocked during bot turn.
+  - Files: `src/engine/diceBridge.js`, `src/systems/botSystem.js`
 
 - [ ] **G4.** Tests for bot — correct selection logic, risk threshold behavior, turn completion.
   - File: `tests/test-bot.js`
@@ -817,6 +794,12 @@ Visual and audio juice.
 | Milestone | After Group | What's Playable | Status |
 |---|---|---|---|
 | **3D Engine Proven** | 0 | Full 3D battle: sling or ROLL, select, held, scoring, combat, bot AI | **DONE** |
+| **Engine Extraction** | 0C | dieFactory + diceEngine + diceBridge modules, smoke test at src/index.html | **DONE** (2026-04-08) |
+| **Config Foundation** | A | scoring.js, dice.js, encounters.js, balance.js, strings.js — all game data | **DONE** (2026-04-08) |
+| **Scoring Engine** | B | scoringSystem.js — bitmask DP, click-order validation, bust detection, 108 tests green | **DONE** (2026-04-08) |
+| **Turn State Machine** | C | turnSystem.js — roll/select/score/bank/bust/hot hand, 60 tests green | **DONE** (2026-04-08) |
+| **Combat & Match System** | D | playerSystem + enemySystem + matchSystem, START_BATTLE / DEAL_DAMAGE / END_TURN, 34 tests green | **DONE** (2026-04-08) |
+| **Battle UI — 2D Shell** | E | battleUI + inputHandler, full 2D battle: roll/select/score/bank/bust/hot-hand, banners, HP bars, New Battle | **DONE** (2026-04-08) |
 | **Battle UI Baseline** | 0 | Polished HP widgets, side turn indicators, compact info bar, 9x6 held zones, centered banners, badge slots | **DONE** (2026-04-07) |
 | **Dice Throw Physics Baseline** | 0D | ROLL + sling unified, gravity −300, mass 3.0, dieScale 3.06, smooth force-settle | **DONE** (2026-04-08) |
 | **Battle UX Polish** | 0E | Shelf 9×9, sling single-point, reroll, face reading, UI cleanup | **DONE** (2026-04-07) |

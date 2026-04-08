@@ -1,4 +1,4 @@
-// Entry point — seed, system init, game loop.
+// Entry point — seed, system init, UI mount, game start.
 // This is the only file allowed to call Date.now().
 
 ;(function() {
@@ -8,37 +8,23 @@
         var seed = Date.now()
         store.resetState(seed)
 
-        // >>> Initialize your systems here <<<
-        // Example: playerSystem.init(store)
-    }
+        playerSystem.init(store)
+        enemySystem.init(store)
+        turnSystem.init(store)
+        matchSystem.init(store)
+        botSystem.init(store)
 
-    var FIXED_DT    = 1 / 60
-    var accumulator = 0
-    var lastTime    = 0
+        battleUI.mount(store)
+        inputHandler.bind(store)
 
-    function gameLoop(timestamp) {
-        var elapsed = Math.min((timestamp - lastTime) / 1000, 0.1)
-        lastTime = timestamp
-        accumulator += elapsed
-
-        while (accumulator >= FIXED_DT) {
-            store.tick()
-
-            // >>> Update your systems here <<<
-            // Example: playerSystem.update(store.state, FIXED_DT)
-
-            accumulator -= FIXED_DT
-        }
-
-        render(store.state)
-        requestAnimationFrame(gameLoop)
-    }
-
-    function render(state) {
-        // >>> Visual rendering only — no game logic <<<
+        store.dispatch('START_BATTLE', {
+            enemyHp: 3000,
+            enemyName: 'Duelist',
+            difficulty: 'advanced'
+        })
+        store.dispatch('START_TURN')
     }
 
     init()
-    requestAnimationFrame(gameLoop)
 
 })()

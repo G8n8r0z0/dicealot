@@ -1,6 +1,17 @@
 # Dice-a-Lot — 3D Dice Battle Game
 
+**v1.0.0 — Playable 3D Battle**
+
 A browser-first dice RPG prototype inspired by Farkle. Special dice with unique abilities, loadout building, PvE bot battles, HP-based combat, and a full progression ladder — all rendered with 3D physics dice.
+
+### What's playable now
+
+- Full Farkle scoring: singles (1/5), N-of-a-kind (exponential), straights, Hot Hand
+- 3D physics dice with pull-back sling throw + ROLL button
+- Bot AI with 3 difficulty levels (Novice / Advanced / Master)
+- HP combat: 3000 HP each, banked score = direct damage, win/lose detection
+- Glass morphism UI overlay: side HP widgets, top info bar, bottom action buttons
+- Bust, Hot Hand, turn switching, victory/defeat banners
 
 ## 3D Engine
 
@@ -85,15 +96,36 @@ When the project lives inside a parent folder (e.g. **3D Dicing**), Cursor may l
 ├── legacy/
 │   └── dice-box-spike.html  # Older full-page dice-box prototype (was root index.html)
 ├── src/
-│   ├── index.html           # Entry point — IIFE scripts + engine module
-│   ├── main.js              # Game loop skeleton (IIFE)
+│   ├── index.html           # Entry point — IIFE scripts + engine module + SVG sling viz
+│   ├── main.js              # Init, system wiring, START_BATTLE + START_TURN (IIFE)
 │   ├── store/
 │   │   └── store.js         # State management engine (don't modify)
-│   └── engine/              # 3D rendering layer (ES modules) — to be extracted from spike
+│   ├── config/              # Designer data — read-only at runtime (IIFE)
+│   │   ├── scoring.js       #   Scoring table, N-of-a-kind multipliers
+│   │   ├── dice.js          #   Die type definitions
+│   │   ├── encounters.js    #   Encounter list
+│   │   ├── balance.js       #   HP, bot thresholds
+│   │   └── strings.js       #   UI strings
+│   ├── systems/             # One file = one state slice (IIFE)
+│   │   ├── turnSystem.js    #   FSM: idle → selecting → idle/bust, DICE_SETTLED
+│   │   ├── playerSystem.js  #   state.player (HP, loadout)
+│   │   ├── enemySystem.js   #   state.enemy (HP, AI)
+│   │   └── matchSystem.js   #   state.match (battle lifecycle)
+│   ├── engine/              # 3D rendering layer (ES modules, BabylonJS + cannon-es)
+│   │   ├── diceEngine.js    #   Scene, physics, render loop, throw functions
+│   │   ├── dieFactory.js    #   Procedural die geometry, FACE_UP_QUATS
+│   │   └── diceBridge.js    #   Store↔3D bridge, sling SVG viz, DICE_SETTLED
+│   └── ui/                  # View layer — dispatch and subscribeTo only (IIFE)
+│       ├── battleUI.js      #   DOM rendering: HP, dice, buttons, phase hints
+│       └── inputHandler.js  #   Player clicks → dispatch, banners, lock/unlock
 └── tests/
     ├── index.html           # Test runner — open in browser
     ├── helpers.js            # Minimal test framework (assert, assertEqual)
-    └── test-store.js         # Store engine tests (28 tests)
+    ├── test-store.js         # Store engine tests (28 tests)
+    ├── test-scoring.html     # Scoring engine browser tests
+    ├── test-scoring.js       # Scoring logic tests
+    ├── test-turn.js          # Turn FSM tests
+    └── test-match.js         # Match system tests
 ```
 
 **Rules** (permanent, define standards):
@@ -105,7 +137,7 @@ When the project lives inside a parent folder (e.g. **3D Dicing**), Cursor may l
 
 - **Local HTTP server required for `battle.html` / `spike-v2.html`.** They use `<script type="module">` + an import map pointing at **`./vendor/cannon-es.js`**. Browsers block this under `file://`. Use `node server.mjs` (port 4174) or any static host (e.g. GitHub Pages). **`npm install`** is only needed to refresh vendored files (`npm run vendor:sync`); the playable site does not require a bundler at runtime.
 - **Dual loading strategy (target architecture).** Game logic in `src/` uses IIFEs and `window` globals. The 3D engine layer (`src/engine/`) is planned to use ES modules. The current **`battle.html`** prototype is a single self-contained module script for speed; future work is to extract it per `TODO.md` group 0C.
-- **Deterministic replay.** All randomness goes through a seeded PRNG (`store.prng.next()`). `Math.random()` is forbidden in game logic. 3D physics animation is visual-only — face values are predetermined.
+- **Deterministic replay (2D).** All randomness goes through a seeded PRNG (`store.prng.next()`). `Math.random()` is forbidden in game logic. **In 3D mode**, physics determines actual face values — the bridge dispatches `DICE_SETTLED` with physics-read results, overriding PRNG values in the store.
 - **Pure state.** `store.state` contains only plain serializable data (numbers, strings, booleans, objects, arrays). No DOM refs, no class instances.
 - **Custom 3D dice.** No external 3D models or texture atlases. Dice geometry is procedural code (BabylonJS `VertexData`).
 
@@ -135,7 +167,7 @@ node server.mjs
 # http://127.0.0.1:4174/battle.html      — 3D battle prototype (play here)
 # http://127.0.0.1:4174/throw-lab.html   — throw tuning lab (shared Tune JSON)
 # http://127.0.0.1:4174/spike-v2.html   — 3D dice engine sandbox
-# http://127.0.0.1:4174/src/index.html   — game entry point (WIP)
+# http://127.0.0.1:4174/src/index.html   — game entry point (v1.0.0 playable)
 ```
 
 ## Running Tests

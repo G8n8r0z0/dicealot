@@ -48,14 +48,25 @@ The 3D engine reads game state and dispatches actions through the global `window
 Game logic (IIFE, window globals)
     ↕  window.store
 3D engine (ES module, imports)
-    ↕  store.subscribeTo / store.dispatch
+    ↕  store.subscribe / store.dispatch
 Visual output (BabylonJS canvas)
 ```
 
-- The engine subscribes to state changes via `store.subscribeTo('turn.rolledDice', fn)`.
-- User interaction on 3D dice dispatches actions via `store.dispatch('SELECT_DIE', { dieIndex })`.
+- `diceBridge.js` subscribes to the store via `store.subscribe(fn)` and reacts to action types: `ROLL_DICE`, `SELECT_DIE`, `DESELECT_DIE`, `SCORE_SELECTION`, `START_TURN`.
+- **Physics determines face values** — no PRNG face correction. After dice settle, the bridge reads each die's physics face value and dispatches `DICE_SETTLED` with the actual values. The store then re-evaluates bust/selecting.
+- User interaction on 3D dice dispatches `store.dispatch('SELECT_DIE', { index })` / `DESELECT_DIE`.
 - The engine never mutates `store.state` directly — all changes go through `dispatch`.
-- The engine module can access `window.store`, `window.config`, and other IIFE globals because module scripts execute after classic scripts.
+- The engine module accesses `window.store`, `window.inputHandler`, and other IIFE globals because module scripts execute after classic scripts.
+- `window.bridge3D` is set by the module script for IIFE code to detect 3D mode.
+
+**Action flow for a 3D roll:**
+```
+Button/Sling → ROLL_DICE → bridge throws dice → physics settle
+→ bridge reads face values → DICE_SETTLED(values)
+→ store re-evaluates bust/selecting → UI unlocks
+```
+
+**Sling SVG visualization:** `#slingVizSvg` overlay shows wedge indicator (direction + strength %) during drag, ported from `battle.html`.
 
 ```html
 <!-- src/index.html — load order matters -->
@@ -420,10 +431,17 @@ project/
 │   │   ├── turnSystem.js   #   only touches state.turn
 │   │   ├── matchSystem.js  #   only touches state.match
 │   │   └── ...
+│   ├── systems/            # One file = one state slice (IIFE)
+│   │   ├── turnSystem.js   #   FSM: idle → selecting → idle/bust, DICE_SETTLED
+│   │   ├── playerSystem.js #   state.player (HP, loadout)
+│   │   ├── enemySystem.js  #   state.enemy (HP, difficulty)
+│   │   ├── matchSystem.js  #   state.match (battle lifecycle, END_TURN)
+│   │   ├── botSystem.js    #   async bot AI: 3 difficulties, findBestBotChoice, risk threshold
+│   │   └── scoringSystem.js#   pure scoring functions (bitmask DP, bust detection)
 │   ├── engine/             # 3D rendering layer (ES modules, BabylonJS + cannon-es)
-│   │   ├── diceEngine.js   #   scene setup, physics world, render loop
-│   │   ├── dieFactory.js   #   createDiceVertexData, createPipsVertexData, createDie
-│   │   └── diceBridge.js   #   subscribeTo → 3D commands, pointer → dispatch
+│   │   ├── diceEngine.js   #   scene setup, physics world, render loop, throwPlayer/throwBot
+│   │   ├── dieFactory.js   #   createDiceVertexData, createPipsVertexData, createDie, FACE_UP_QUATS
+│   │   └── diceBridge.js   #   store subscriber → 3D commands, pointer → dispatch, sling SVG viz, DICE_SETTLED
 │   └── ui/                 # View layer — dispatch and subscribeTo only (IIFE)
 │       ├── battleUI.js
 │       ├── inputHandler.js
@@ -637,7 +655,9 @@ A standalone prototype implementing the full battle loop in a single HTML file. 
 | **UI overlay** | HP bars (player red, bot purple), turn indicator, round score, selection info, round history log, BUST/BANK/HOT HAND banners. |
 | **Dependencies** | `vendor/babylon.js`, `vendor/cannon-es.js` (no runtime CDN). |
 
-**Game phases (subset):** `waiting` → (`aiming` during sling) → `rolling` → `selecting` → … — `aiming` is player-only and hides the ROLL button until release.
+**Game phases (battle.html prototype):** `waiting` → (`aiming` during sling) → `rolling` → `selecting` → … — `aiming` is player-only and hides the ROLL button until release.
+
+**Game phases (src/index.html production):** `idle` → `selecting` → `idle` (after SCORE) or end turn (after BANK). No `decide` phase. `bust` detected via `DICE_SETTLED` after physics settle. `ROLL_DICE` generates PRNG values for 2D fallback; `DICE_SETTLED` overrides with physics values when 3D is active.
 
 ### Standalone architecture
 

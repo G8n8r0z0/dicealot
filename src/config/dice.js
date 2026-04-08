@@ -1,0 +1,346 @@
+// Dice roster config — pure data. Source of truth: DESIGN.md §8
+// Loaded via <script> tag — exports to window.DICE.
+//
+// Structure per entry:
+//   id        — unique key (matches loadout references)
+//   name      — display name
+//   rarity    — 'base' | 'common' | 'rare' | 'exotic'
+//   utility   — true if utility sub-category
+//   maxLevel  — 1 when no evolution line
+//   ability   — { type, button?, passive? } or null
+//   weights   — array[level-1] of { face: probability } for bias dice, null otherwise
+//   visual    — { body, pips, marks? } (rendering hints)
+
+;(function() {
+    'use strict'
+
+    var U = true  // utility shorthand
+
+    var roster = {
+
+        // ─── Base ──────────────────────────────────────────────────────
+
+        base: {
+            id: 'base', name: 'Base Die', rarity: 'base', utility: false, maxLevel: 1,
+            ability: null, weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        // ─── Common ────────────────────────────────────────────────────
+
+        frog: {
+            id: 'frog', name: 'Frog', rarity: 'common', utility: false, maxLevel: 1,
+            ability: { type: 'reroll', button: 'JUMP', passive: false },
+            weights: null,
+            visual: { body: '#5a8a32', pips: '#fffde0', marks: 'frog-eye on face 1' }
+        },
+
+        oneLove: {
+            id: 'oneLove', name: 'One Love', rarity: 'common', utility: false, maxLevel: 1,
+            ability: { type: 'bias', passive: true },
+            weights: [
+                { 1: 0.30, 2: 0.14, 3: 0.14, 4: 0.14, 5: 0.14, 6: 0.14 }
+            ],
+            visual: { body: 'pink', pips: 'white', marks: 'red heart on face 1' }
+        },
+
+        comrade: {
+            id: 'comrade', name: 'Comrade', rarity: 'common', utility: false, maxLevel: 1,
+            ability: { type: 'bias', passive: true },
+            weights: [
+                { 1: 0.14, 2: 0.14, 3: 0.14, 4: 0.14, 5: 0.30, 6: 0.14 }
+            ],
+            visual: { body: '#8b0000', pips: 'gold', marks: 'gold star on face 5' }
+        },
+
+        flipper: {
+            id: 'flipper', name: 'Flipper', rarity: 'common', utility: false, maxLevel: 3,
+            ability: { type: 'flip', button: 'FLIP', passive: false },
+            weights: null,
+            visual: { body: 'ivory', pips: 'dolphin-marks' }
+        },
+
+        evenDie: {
+            id: 'evenDie', name: 'Even Die', rarity: 'common', utility: false, maxLevel: 3,
+            ability: { type: 'bias', passive: true },
+            weights: [
+                { 1: 0.083, 2: 0.25,  3: 0.083, 4: 0.25,  5: 0.083, 6: 0.25  },
+                { 1: 0.05,  2: 0.283, 3: 0.05,  4: 0.283, 5: 0.05,  6: 0.283 },
+                { 1: 0.033, 2: 0.30,  3: 0.033, 4: 0.30,  5: 0.033, 6: 0.30  }
+            ],
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        oddDie: {
+            id: 'oddDie', name: 'Odd Die', rarity: 'common', utility: false, maxLevel: 3,
+            ability: { type: 'bias', passive: true },
+            weights: [
+                { 1: 0.25,  2: 0.083, 3: 0.25,  4: 0.083, 5: 0.25,  6: 0.083 },
+                { 1: 0.283, 2: 0.05,  3: 0.283, 4: 0.05,  5: 0.283, 6: 0.05  },
+                { 1: 0.30,  2: 0.033, 3: 0.30,  4: 0.033, 5: 0.30,  6: 0.033 }
+            ],
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        mathematician: {
+            id: 'mathematician', name: 'Mathematician Die', rarity: 'common', utility: false, maxLevel: 1,
+            ability: { type: 'bias', passive: true },
+            weights: [
+                { 1: 0.22, 2: 0.10, 3: 0.28, 4: 0.20, 5: 0.10, 6: 0.10 }
+            ],
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        cluster: {
+            id: 'cluster', name: 'Cluster Die', rarity: 'common', utility: false, maxLevel: 3,
+            ability: { type: 'bias', passive: true, synergy: ['oneLove', 'comrade'] },
+            weights: [
+                { 1: 0.10, 2: 0.20, 3: 0.20, 4: 0.20, 5: 0.10, 6: 0.20 },
+                { 1: 0.075, 2: 0.2125, 3: 0.2125, 4: 0.2125, 5: 0.075, 6: 0.2125 },
+                { 1: 0.05, 2: 0.225, 3: 0.225, 4: 0.225, 5: 0.05, 6: 0.225 }
+            ],
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        bounce: {
+            id: 'bounce', name: 'Bounce Die', rarity: 'common', utility: false, maxLevel: 3,
+            ability: { type: 'bounce', passive: true },
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        slime: {
+            id: 'slime', name: 'Slime Die', rarity: 'common', utility: false, maxLevel: 3,
+            ability: { type: 'spawn', passive: true, trigger: 6 },
+            weights: null,
+            visual: { body: '#4caf50', pips: 'white' }
+        },
+
+        bridge: {
+            id: 'bridge', name: 'Bridge Die', rarity: 'common', utility: false, maxLevel: 3,
+            ability: { type: 'bridge', passive: true },
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        match: {
+            id: 'match', name: 'Match Die', rarity: 'common', utility: false, maxLevel: 3,
+            ability: { type: 'match', passive: true, validFaces: [2, 3, 4, 6] },
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        chain: {
+            id: 'chain', name: 'Chain Die', rarity: 'common', utility: false, maxLevel: 3,
+            ability: { type: 'chain', passive: true },
+            weights: null,
+            visual: { body: '#8d6e63', pips: 'chain-marks', marks: 'CH badge' }
+        },
+
+        shrinking: {
+            id: 'shrinking', name: 'Shrinking Die', rarity: 'common', utility: false, maxLevel: 1,
+            ability: { type: 'directional', passive: true, step: -1 },
+            weights: null,
+            visual: { body: 'white', pips: 'number' }
+        },
+
+        growing: {
+            id: 'growing', name: 'Growing Die', rarity: 'common', utility: false, maxLevel: 1,
+            ability: { type: 'directional', passive: true, step: 1 },
+            weights: null,
+            visual: { body: 'white', pips: 'number' }
+        },
+
+        // ─── Common Utility ────────────────────────────────────────────
+
+        bandie: {
+            id: 'bandie', name: 'Bandie', rarity: 'common', utility: U, maxLevel: 3,
+            ability: { type: 'heal_self', passive: true },
+            healPerLevel: [100, 200, 300],
+            weights: null,
+            visual: { body: 'white', pips: 'red', marks: 'red cross' }
+        },
+
+        pulse: {
+            id: 'pulse', name: 'Pulse Die', rarity: 'common', utility: U, maxLevel: 3,
+            ability: { type: 'heal_packet', passive: true },
+            healPerDiePerLevel: [100, 200, 300],
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        // ─── Rare ──────────────────────────────────────────────────────
+
+        tuner: {
+            id: 'tuner', name: 'Tuner', rarity: 'rare', utility: false, maxLevel: 3,
+            ability: { type: 'tune', button: 'TUNE', passive: false },
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        royalI: {
+            id: 'royalI', name: 'Royal I', rarity: 'rare', utility: false, maxLevel: 1,
+            ability: { type: 'straight_bonus', passive: true, bonus: 150 },
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        forgeI: {
+            id: 'forgeI', name: 'Forge I', rarity: 'rare', utility: false, maxLevel: 1,
+            ability: { type: 'set_bonus', passive: true, bonus: 100 },
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        pin: {
+            id: 'pin', name: 'Pin Die', rarity: 'rare', utility: false, maxLevel: 1,
+            ability: { type: 'pin', passive: true },
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        devil: {
+            id: 'devil', name: 'Devil Die', rarity: 'rare', utility: false, maxLevel: 1,
+            ability: { type: 'devil', passive: true },
+            weights: null,
+            visual: { body: '#d32f2f', pips: 'white' }
+        },
+
+        mimic: {
+            id: 'mimic', name: 'Mimic Die', rarity: 'rare', utility: false, maxLevel: 1,
+            ability: { type: 'mimic', button: 'MIMIC', passive: false },
+            weights: null,
+            visual: { body: 'gray', pips: 'black', marks: 'copy sign' }
+        },
+
+        clone: {
+            id: 'clone', name: 'Clone Die', rarity: 'rare', utility: false, maxLevel: 1,
+            ability: { type: 'clone', button: 'CLONE', passive: false },
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        blight: {
+            id: 'blight', name: 'Blight Die', rarity: 'rare', utility: false, maxLevel: 1,
+            ability: { type: 'infect', button: 'INFECT', passive: false },
+            weights: null,
+            visual: { body: '#76ff03', pips: 'red', marks: 'biohazard on face 1' }
+        },
+
+        sacriDice: {
+            id: 'sacriDice', name: 'SacriDice', rarity: 'rare', utility: false, maxLevel: 1,
+            ability: { type: 'sacrifice', button: 'SACRIFICE', passive: false },
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        gravity: {
+            id: 'gravity', name: 'Gravity Die', rarity: 'rare', utility: false, maxLevel: 1,
+            ability: { type: 'gravity', passive: true },
+            weights: null,
+            visual: { body: '#4a148c', pips: 'moon', marks: 'G on face 1' }
+        },
+
+        mirror: {
+            id: 'mirror', name: 'Mirror Die', rarity: 'rare', utility: false, maxLevel: 3,
+            ability: { type: 'mirror', button: 'MIRROR', passive: false },
+            sideFaces: {
+                1: [2, 3, 5, 4],
+                2: [1, 4, 6, 3],
+                3: [1, 2, 6, 5],
+                4: [1, 5, 6, 2],
+                5: [1, 3, 6, 4],
+                6: [2, 4, 5, 3]
+            },
+            mirrorWeights: [
+                null,
+                { 1: 1.75, 5: 1.50 },
+                { 1: 2.50, 5: 2.00 }
+            ],
+            weights: null,
+            visual: { body: '#42a5f5', pips: 'sparkle' }
+        },
+
+        yin: {
+            id: 'yin', name: 'Yin', rarity: 'rare', utility: false, maxLevel: 1,
+            ability: { type: 'yinyang', passive: true, role: 'leader', partner: 'yang' },
+            complement: { 1: 6, 2: 5, 3: 4, 4: 3, 5: 2, 6: 1 },
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        yang: {
+            id: 'yang', name: 'Yang', rarity: 'rare', utility: false, maxLevel: 1,
+            ability: { type: 'yinyang', passive: true, role: 'follower', partner: 'yin' },
+            complement: { 1: 6, 2: 5, 3: 4, 4: 3, 5: 2, 6: 1 },
+            weights: null,
+            visual: { body: 'black', pips: 'white' }
+        },
+
+        // ─── Rare Utility ──────────────────────────────────────────────
+
+        leech: {
+            id: 'leech', name: 'Leech Die', rarity: 'rare', utility: U, maxLevel: 3,
+            ability: { type: 'leech', passive: true },
+            healPctPerLevel: [0.20, 0.30, 0.40],
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        transfusion: {
+            id: 'transfusion', name: 'Transfusion Die', rarity: 'rare', utility: U, maxLevel: 1,
+            ability: { type: 'transfusion', passive: true },
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        secondWind: {
+            id: 'secondWind', name: 'Second Wind Die', rarity: 'rare', utility: U, maxLevel: 3,
+            ability: { type: 'second_wind', passive: true },
+            thresholds: [
+                { triggerBelow: 0.50, lethalSave: true, healDelay: 300 },
+                { triggerBelow: 0.50, lethalSave: true, healDelay: 500 },
+                { triggerBelowHP: 500, lethalSave: true, healDelay: 1000 }
+            ],
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        siphon: {
+            id: 'siphon', name: 'Siphon Die', rarity: 'rare', utility: U, maxLevel: 3,
+            ability: { type: 'siphon', passive: true },
+            restorePctPerLevel: [0.10, 0.20, 0.30],
+            weights: null,
+            visual: { body: 'white', pips: 'black' }
+        },
+
+        // ─── Exotic ────────────────────────────────────────────────────
+
+        joker: {
+            id: 'joker', name: 'Joker', rarity: 'exotic', utility: false, maxLevel: 1,
+            ability: { type: 'joker', passive: true, activeFace: 1 },
+            weights: null,
+            visual: { body: 'white', pips: 'black', marks: 'joker' }
+        }
+    }
+
+    // Opposite-face mapping shared by Flipper and Yin/Yang
+    var OPPOSITES = { 1: 6, 2: 5, 3: 4, 4: 3, 5: 2, 6: 1 }
+
+    // Loadout rules (§8.2)
+    var LOADOUT = {
+        SLOTS: 6,
+        DEFAULT_FILL: 'base'
+    }
+
+    // Rarity sort order
+    var RARITY_ORDER = { base: 0, common: 1, rare: 2, exotic: 3 }
+
+    window.DICE = {
+        roster:      roster,
+        OPPOSITES:   OPPOSITES,
+        LOADOUT:     LOADOUT,
+        RARITY_ORDER: RARITY_ORDER
+    }
+
+})()
