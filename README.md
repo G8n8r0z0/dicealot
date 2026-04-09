@@ -1,6 +1,6 @@
 # Dice-a-Lot — 3D Dice Battle Game
 
-**v1.0.0 — Playable 3D Battle**
+**v1.0.3 — Loadout scaffold, bot AI, lighter dice**
 
 A browser-first dice RPG prototype inspired by Farkle. Special dice with unique abilities, loadout building, PvE bot battles, HP-based combat, and a full progression ladder — all rendered with 3D physics dice.
 
@@ -12,6 +12,8 @@ A browser-first dice RPG prototype inspired by Farkle. Special dice with unique 
 - HP combat: 3000 HP each, banked score = direct damage, win/lose detection
 - Glass morphism UI overlay: side HP widgets, top info bar, bottom action buttons
 - Bust, Hot Hand, turn switching, victory/defeat banners
+- Loadout editor scaffold (6 slots, modal UI, click-to-place — special dice inventory empty until Groups H–O)
+- Invalid selection feedback (selected values shown in red)
 
 ## 3D Engine
 
@@ -110,14 +112,21 @@ When the project lives inside a parent folder (e.g. **3D Dicing**), Cursor may l
 │   │   ├── turnSystem.js    #   FSM: idle → selecting → idle/bust, DICE_SETTLED
 │   │   ├── playerSystem.js  #   state.player (HP, loadout)
 │   │   ├── enemySystem.js   #   state.enemy (HP, AI)
-│   │   └── matchSystem.js   #   state.match (battle lifecycle)
+│   │   ├── matchSystem.js   #   state.match (battle lifecycle)
+│   │   ├── loadoutSystem.js #   state.loadout (6 slots, SET_LOADOUT)
+│   │   ├── botSystem.js     #   async bot AI: 3 difficulties, risk threshold
+│   │   └── scoringSystem.js #   pure scoring (bitmask DP, bust detection)
 │   ├── engine/              # 3D rendering layer (ES modules, BabylonJS + cannon-es)
 │   │   ├── diceEngine.js    #   Scene, physics, render loop, throw functions
 │   │   ├── dieFactory.js    #   Procedural die geometry, FACE_UP_QUATS
 │   │   └── diceBridge.js    #   Store↔3D bridge, sling SVG viz, DICE_SETTLED
+│   ├── vendor/              # Vendored libs (BabylonJS, cannon-es) — inside src/ for deploy
+│   │   ├── babylon.js
+│   │   └── cannon-es.js
 │   └── ui/                  # View layer — dispatch and subscribeTo only (IIFE)
 │       ├── battleUI.js      #   DOM rendering: HP, dice, buttons, phase hints
-│       └── inputHandler.js  #   Player clicks → dispatch, banners, lock/unlock
+│       ├── inputHandler.js  #   Player clicks → dispatch, banners, lock/unlock
+│       └── loadoutUI.js     #   Loadout editor modal (6 slots, inventory, detail panel)
 └── tests/
     ├── index.html           # Test runner — open in browser
     ├── helpers.js            # Minimal test framework (assert, assertEqual)

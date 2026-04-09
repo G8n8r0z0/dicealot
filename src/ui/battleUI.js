@@ -55,6 +55,13 @@
             }
             _el.selScore.textContent = vals.join(', ') + ' = ' + t.selectionScore + ' pts'
             _el.selScore.style.color = '#ffc91c'
+        } else if (t.selectedIndices.length > 0) {
+            var vals = []
+            for (var i = 0; i < t.selectedIndices.length; i++) {
+                vals.push(t.rolledDice[t.selectedIndices[i]])
+            }
+            _el.selScore.textContent = vals.join(', ') + ' = Invalid Selection'
+            _el.selScore.style.color = '#e74c3c'
         } else {
             _el.selScore.textContent = '\u00a0'
             _el.selScore.style.color = ''

@@ -71,13 +71,30 @@ Button/Sling → ROLL_DICE → bridge throws dice → physics settle
 ```html
 <!-- src/index.html — load order matters -->
 <script src="store/store.js"></script>
-<script src="config/units.js"></script>
+<script src="config/scoring.js"></script>
+<script src="config/dice.js"></script>
+<script src="config/encounters.js"></script>
 <script src="config/balance.js"></script>
+<script src="config/strings.js"></script>
+<script src="systems/scoringSystem.js"></script>
+<script src="systems/turnSystem.js"></script>
 <script src="systems/playerSystem.js"></script>
-<script src="systems/combatSystem.js"></script>
+<script src="systems/enemySystem.js"></script>
+<script src="systems/matchSystem.js"></script>
+<script src="systems/loadoutSystem.js"></script>
+<script src="systems/botSystem.js"></script>
+<script src="ui/battleUI.js"></script>
 <script src="ui/inputHandler.js"></script>
-<script src="ui/hpBar.js"></script>
+<script src="ui/loadoutUI.js"></script>
 <script src="main.js"></script>
+<!-- 3D engine layer (ES module, loaded after IIFE globals) -->
+<script src="vendor/babylon.js"></script>
+<script type="importmap">{ "imports": { "cannon-es": "./vendor/cannon-es.js" } }</script>
+<script type="module">
+  import * as bridge from './engine/diceBridge.js';
+  bridge.init(document.getElementById('renderCanvas'), window.store);
+  window.bridge3D = bridge;
+</script>
 ```
 
 ---
@@ -427,25 +444,24 @@ project/
 │   │   ├── balance.js      #   window.config.balance
 │   │   └── strings.js      #   window.config.strings
 │   ├── systems/            # One file = one state slice (IIFE)
-│   │   ├── playerSystem.js #   only touches state.player
-│   │   ├── turnSystem.js   #   only touches state.turn
-│   │   ├── matchSystem.js  #   only touches state.match
-│   │   └── ...
-│   ├── systems/            # One file = one state slice (IIFE)
 │   │   ├── turnSystem.js   #   FSM: idle → selecting → idle/bust, DICE_SETTLED
-│   │   ├── playerSystem.js #   state.player (HP, loadout)
+│   │   ├── playerSystem.js #   state.player (HP)
 │   │   ├── enemySystem.js  #   state.enemy (HP, difficulty)
 │   │   ├── matchSystem.js  #   state.match (battle lifecycle, END_TURN)
+│   │   ├── loadoutSystem.js#   state.loadout (6 slots, SET_LOADOUT)
 │   │   ├── botSystem.js    #   async bot AI: 3 difficulties, findBestBotChoice, risk threshold
 │   │   └── scoringSystem.js#   pure scoring functions (bitmask DP, bust detection)
 │   ├── engine/             # 3D rendering layer (ES modules, BabylonJS + cannon-es)
 │   │   ├── diceEngine.js   #   scene setup, physics world, render loop, throwPlayer/throwBot
 │   │   ├── dieFactory.js   #   createDiceVertexData, createPipsVertexData, createDie, FACE_UP_QUATS
 │   │   └── diceBridge.js   #   store subscriber → 3D commands, pointer → dispatch, sling SVG viz, DICE_SETTLED
+│   ├── vendor/             # Vendored libs inside src/ for Cloudflare Pages deploy
+│   │   ├── babylon.js
+│   │   └── cannon-es.js
 │   └── ui/                 # View layer — dispatch and subscribeTo only (IIFE)
-│       ├── battleUI.js
-│       ├── inputHandler.js
-│       └── ...
+│       ├── battleUI.js     #   DOM rendering: HP, dice, buttons, phase hints
+│       ├── inputHandler.js #   Player clicks → dispatch, banners, lock/unlock
+│       └── loadoutUI.js    #   Loadout editor modal (6 slots, inventory, detail panel)
 └── tests/
     ├── index.html          # Test runner — open in browser
     ├── helpers.js           # TestRunner: assert, assertEqual, printResults

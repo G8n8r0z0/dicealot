@@ -183,8 +183,8 @@ export function buildDie(ctx, opts = {}) {
   const sc = ctx.tune.mesh.dieScale;
 
   const oMat = new BABYLON.StandardMaterial(`o${id}`, ctx.scene);
-  oMat.diffuseColor  = BABYLON.Color3.FromHexString(ctx.bodyColor || '#eae8e3');
-  oMat.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08);
+  oMat.diffuseColor  = BABYLON.Color3.FromHexString(ctx.bodyColor || '#f4f2ef');
+  oMat.specularColor = new BABYLON.Color3(0.15, 0.15, 0.15);
 
   const root = new BABYLON.TransformNode(`die${id}`, ctx.scene);
   root.rotationQuaternion = BABYLON.Quaternion.Identity();

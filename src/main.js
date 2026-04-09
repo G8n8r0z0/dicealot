@@ -12,10 +12,12 @@
         enemySystem.init(store)
         turnSystem.init(store)
         matchSystem.init(store)
+        loadoutSystem.init(store)
         botSystem.init(store)
 
         battleUI.mount(store)
         inputHandler.bind(store)
+        loadoutUI.mount(store)
 
         store.dispatch('START_BATTLE', {
             enemyHp: 3000,

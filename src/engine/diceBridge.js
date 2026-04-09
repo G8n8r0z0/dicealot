@@ -13,9 +13,7 @@
  *
  * ES module. Depends on: window.BABYLON, ./diceEngine.js, ./dieFactory.js
  */
-import * as CANNON from 'cannon-es';
 import * as engine from './diceEngine.js';
-import { FACE_UP_QUATS } from './dieFactory.js';
 
 const BABYLON = window.BABYLON;
 
@@ -98,6 +96,7 @@ function handleAllSettled(dice) {
         values.push(dice[i].value);
     }
 
+    console.log('[DICE_SETTLED] engine values:', values.join(', '));
     _store.dispatch('DICE_SETTLED', { values: values });
 
     var isBot = _store.state.match.activePlayer === 'enemy';

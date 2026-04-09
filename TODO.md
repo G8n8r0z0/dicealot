@@ -442,6 +442,12 @@ Same roll/select/score/bank structure as player. Automated decision-making.
 
 > After groups A–G: full 3D Farkle battle against a bot. Roll, select, score, bank in 3D. Bot plays back (3 difficulties). HP combat works. Win/lose detected. Base dice only. Glass morphism UI overlay. Sling + ROLL. Force-settle without rotation. Hot Hand, Bust, banners. Tagged `v1.0.0` on GitHub.
 
+### Post-v1.0.0 incremental updates
+
+- **v1.0.1** — Repo cleanup: removed legacy files (old themes, tools, spikes, npm config).
+- **v1.0.2** — Moved `vendor/` into `src/vendor/` for Cloudflare Pages deploy (`wrangler pages deploy ./src/`).
+- **v1.0.3** — Loadout system scaffold (K3), bot AI 3D integration (G1–G3), lighter dice body color (`#f4f2ef`, specular 0.15), Invalid Selection UI feedback, held dice highlight fix, unused imports cleaned from `diceBridge.js`.
+
 ---
 
 ## H. Common Dice — Passive Mechanics
@@ -535,9 +541,9 @@ Game shell outside of battle.
   - Ref: DESIGN §10.1
   - File: `src/ui/hubUI.js` → `window.hubUI`
 
-- [ ] **K3.** Loadout editor — left: owned dice pool, right: 6 active slots, detail card. Dispatch `SET_LOADOUT` on confirm. Empty slots = base dice.
+- [x] **K3.** Loadout editor (scaffold) — modal with 6 slots, click-to-place, detail panel, LOADOUT button under player card. `loadoutSystem.js` manages `state.loadout`, `loadoutUI.js` renders the modal. Currently all slots show base dice (special dice inventory empty until Groups H–O populate `DICE.roster`). Drag-and-drop deferred.
   - Ref: DESIGN §10.3
-  - File: `src/ui/loadoutUI.js` → `window.loadoutUI`
+  - Files: `src/systems/loadoutSystem.js` → `window.loadoutSystem`, `src/ui/loadoutUI.js` → `window.loadoutUI`
 
 - [ ] **K4.** Phase transitions — hub → loadout → battle → result → hub. matchSystem handles phase changes, UI modules mount/unmount accordingly.
   - Ref: DESIGN §10.1
@@ -806,6 +812,7 @@ Visual and audio juice.
 | **Mobile Layout** | 0G | Responsive portrait layout, touch UX, camera for mobile | Pending |
 | **Playable Base Game (2D logic)** | 0 + A–E | Standard Farkle scoring + combat logic wired to the 3D battle shell | **DONE** (2026-04-08) |
 | **Playable 3D Battle (v1.0.0)** | 0 + A–G | Full 3D battle against bot (3 difficulties), base dice, glass morphism UI | **DONE** (2026-04-08) |
+| **v1.0.3 — Loadout + Polish** | 0 + A–G + K3 | Loadout scaffold, lighter dice, Invalid Selection UI, held dice fix | **DONE** (2026-04-08) |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |
 | **Full Dice Roster** | 0 + A–O | All dice types, full progression ladder | Pending |
 | **Feature Complete** | 0 + A–S | Tutorial, themes, polish, tests passing | Pending |

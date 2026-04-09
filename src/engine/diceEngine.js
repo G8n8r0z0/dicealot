@@ -58,7 +58,7 @@ const TABLE_DEFAULTS = {
   shelfD:             9,
   wallInsetZ:         0.5,
   ceilingOffset:      28,
-  bodyColor:         '#eae8e3',
+  bodyColor:         '#f4f2ef',
   pipColor:          '#141414',
 };
 
