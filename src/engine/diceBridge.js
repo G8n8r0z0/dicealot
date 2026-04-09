@@ -170,6 +170,7 @@ function onScoreSelection() {
         var row  = Math.floor(slot / cols);
         var tx   = (col - (cols - 1) / 2) * gap;
         var tz   = baseZ + zDir * row * gap;
+        engine.highlightDie(_ctx, toMove[k], false);
         engine.moveToHeld(_ctx, toMove[k], tx, baseY, tz, toMove[k].value);
     }
 

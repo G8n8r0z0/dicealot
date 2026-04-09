@@ -383,7 +383,7 @@ Full 2D battle screen: HP bars, rolled dice (clickable), held zone, score displa
 
 ---
 
-## ── MILESTONE: Playable Base Game (2D) ──
+## ── MILESTONE: Playable Base Game (2D) — COMPLETE (2026-04-08) ──
 
 > After groups A–E: standard Farkle with combat works in 2D (dice shown as text/numbers). Player can roll, select, score, bank, bust. HP damage works. Win/lose detected. No special dice, no 3D, no bot.
 
@@ -413,8 +413,7 @@ Connects store state to the custom BabylonJS + cannon-es engine.
 - [x] **F6.** Sling drag-to-throw — table-plane pull-back → cluster kinematic → release → `ROLL_DICE` dispatch + sling physics. SVG wedge visualization (anchor + segments + %) ported from `battle.html`. Sling works in `idle` phase (including after SCORE).
   - Files: `src/engine/diceBridge.js`, `src/index.html` (SVG + CSS)
 
-- [ ] **F7.** UI layout refactor — port `battle.html` UI layout to `src/index.html`: three-column layout (HP widgets on left/right with avatar circles + badge slots, center info-bar docked to top, action buttons docked to bottom, glass morphism). Current vertical single-column layout does not match. `battleUI.js` needs corresponding DOM target updates.
-  - Ref: `battle.html` CSS + HTML structure
+- [x] **F7.** UI layout refactor — ported `battle.html` layout to `src/index.html`: three-column layout (side HP widgets with avatar circles + badge slots, center info-bar top, action buttons bottom, glass morphism). `battleUI.js` updated with new DOM targets, `display:none` button toggling, `syncActionsVisibility()`.
   - Files: `src/index.html`, `src/ui/battleUI.js`
 
 **FSM changes in Group F:** removed `decide` phase. After `SCORE_SELECTION`, phase → `idle` (sling/ROLL available). `BANK` only from `selecting` with valid selection. Both SCORE and BANK buttons require valid selection. Matches `battle.html` 3D and `dicing/battle.html` 2D flow.
@@ -439,9 +438,9 @@ Same roll/select/score/bank structure as player. Automated decision-making.
 
 ---
 
-## ── MILESTONE: Playable 3D Battle ──
+## ── MILESTONE: Playable 3D Battle — v1.0.0 (COMPLETE 2026-04-08) ──
 
-> After groups A–G: full 3D Farkle battle against a bot. Roll, select, score, bank in 3D. Bot plays back. HP combat works. Win/lose detected. Base dice only.
+> After groups A–G: full 3D Farkle battle against a bot. Roll, select, score, bank in 3D. Bot plays back (3 difficulties). HP combat works. Win/lose detected. Base dice only. Glass morphism UI overlay. Sling + ROLL. Force-settle without rotation. Hot Hand, Bust, banners. Tagged `v1.0.0` on GitHub.
 
 ---
 
@@ -805,8 +804,8 @@ Visual and audio juice.
 | **Battle UX Polish** | 0E | Shelf 9×9, sling single-point, reroll, face reading, UI cleanup | **DONE** (2026-04-07) |
 | **Battle Stability Fixes** | 0F | Stack detection, settle timeout, face reading relaxed, bot race guard, reroll simplified | **DONE** (2026-04-07) |
 | **Mobile Layout** | 0G | Responsive portrait layout, touch UX, camera for mobile | Pending |
-| **Playable Base Game (2D logic)** | 0 + A–E | Standard Farkle scoring + combat logic wired to the 3D battle shell | Pending |
-| **Playable 3D Battle** | 0 + A–G | Full 3D battle against bot, base dice only | Pending |
+| **Playable Base Game (2D logic)** | 0 + A–E | Standard Farkle scoring + combat logic wired to the 3D battle shell | **DONE** (2026-04-08) |
+| **Playable 3D Battle (v1.0.0)** | 0 + A–G | Full 3D battle against bot (3 difficulties), base dice, glass morphism UI | **DONE** (2026-04-08) |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |
 | **Full Dice Roster** | 0 + A–O | All dice types, full progression ladder | Pending |
 | **Feature Complete** | 0 + A–S | Tutorial, themes, polish, tests passing | Pending |

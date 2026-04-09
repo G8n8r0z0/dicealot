@@ -1,1 +1,23 @@
 node_modules/
+
+# Legacy (removed in v1.0.1, preserved in git history)
+assets/themes/
+assets/ammo/
+assets/dice-roll.mp3
+assets/tavern-table-bg.png
+tools/
+legacy/
+scripts/
+vendor/Dice.js
+vendor/dice-box.es.js
+vendor/world.*.js
+spike-v2.html
+throw-lab.html
+throw-lab.mjs
+index.html
+package.json
+package-lock.json
+DESIGN_RULES.md
+NEXT_ITERATION_PROMPT.md
+Producer-Prompt.md
+Subagent Prompt.md
