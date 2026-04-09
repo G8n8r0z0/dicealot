@@ -454,7 +454,7 @@ project/
 │   ├── engine/             # 3D rendering layer (ES modules, BabylonJS + cannon-es)
 │   │   ├── diceEngine.js   #   scene setup, physics world, render loop, throwPlayer/throwBot
 │   │   ├── dieFactory.js   #   createDiceVertexData, createPipsVertexData, createDie, FACE_UP_QUATS
-│   │   └── diceBridge.js   #   store subscriber → 3D commands, pointer → dispatch, sling SVG viz, DICE_SETTLED
+│   │   └── diceBridge.js   #   store subscriber → 3D commands, pointer → dispatch, sling SVG viz, DICE_SETTLED, renderSlotPreview (mini physics scene)
 │   ├── vendor/             # Vendored libs inside src/ for Cloudflare Pages deploy
 │   │   ├── babylon.js
 │   │   └── cannon-es.js

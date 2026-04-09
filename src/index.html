@@ -219,6 +219,28 @@
     }
     .lo-slot.filled .lo-slot-well{border-style:solid;border-color:rgba(255,255,255,.12)}
     .lo-slot-icon{width:36px;height:36px;border-radius:8px}
+
+    .lo-die-face{
+      width:40px;height:40px;background:#f4f2ef;border-radius:6px;
+      display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:5px;
+      box-shadow:0 1px 4px rgba(0,0,0,.35);
+    }
+    .lo-die-face .lo-pip{
+      width:6px;height:6px;border-radius:50%;background:#1a1a1a;
+      align-self:center;justify-self:center;
+    }
+    .lo-die-face .lo-pip-hide{visibility:hidden}
+    .lo-detail-3d-wrap{display:flex;justify-content:center}
+    .lo-detail-3d{
+      width:100%;max-width:280px;aspect-ratio:1/1;border-radius:12px;
+      background:rgba(255,255,255,.03);display:block;cursor:grab;touch-action:none;
+    }
+    .lo-detail-3d:active{cursor:grabbing}
+    .lo-detail-hint{
+      font-size:.65rem;color:#555;text-align:center;margin-top:-4px;letter-spacing:.05em;
+      opacity:1;transition:opacity .45s ease;
+    }
+    .lo-hint-hidden{opacity:0}
     .lo-slot-name{font-size:.65rem;font-weight:600;color:#7f8ca8;text-align:center;line-height:1.2}
 
     .lo-tile{

@@ -1,6 +1,6 @@
 # Dice-a-Lot — 3D Dice Battle Game
 
-**v1.0.3 — Loadout scaffold, bot AI, lighter dice**
+**v1.0.4 — Loadout physics die drop, CSS pip slots, orbit-after-settle**
 
 A browser-first dice RPG prototype inspired by Farkle. Special dice with unique abilities, loadout building, PvE bot battles, HP-based combat, and a full progression ladder — all rendered with 3D physics dice.
 
@@ -12,7 +12,7 @@ A browser-first dice RPG prototype inspired by Farkle. Special dice with unique 
 - HP combat: 3000 HP each, banked score = direct damage, win/lose detection
 - Glass morphism UI overlay: side HP widgets, top info bar, bottom action buttons
 - Bust, Hot Hand, turn switching, victory/defeat banners
-- Loadout editor scaffold (6 slots, modal UI, click-to-place — special dice inventory empty until Groups H–O)
+- Loadout editor with interactive 3D detail panel (physics die drop, orbit-after-settle, CSS pip slot icons)
 - Invalid selection feedback (selected values shown in red)
 
 ## 3D Engine
@@ -119,7 +119,7 @@ When the project lives inside a parent folder (e.g. **3D Dicing**), Cursor may l
 │   ├── engine/              # 3D rendering layer (ES modules, BabylonJS + cannon-es)
 │   │   ├── diceEngine.js    #   Scene, physics, render loop, throw functions
 │   │   ├── dieFactory.js    #   Procedural die geometry, FACE_UP_QUATS
-│   │   └── diceBridge.js    #   Store↔3D bridge, sling SVG viz, DICE_SETTLED
+│   │   └── diceBridge.js    #   Store↔3D bridge, sling SVG viz, DICE_SETTLED, renderSlotPreview
 │   ├── vendor/              # Vendored libs (BabylonJS, cannon-es) — inside src/ for deploy
 │   │   ├── babylon.js
 │   │   └── cannon-es.js

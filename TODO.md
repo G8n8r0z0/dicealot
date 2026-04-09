@@ -447,6 +447,7 @@ Same roll/select/score/bank structure as player. Automated decision-making.
 - **v1.0.1** — Repo cleanup: removed legacy files (old themes, tools, spikes, npm config).
 - **v1.0.2** — Moved `vendor/` into `src/vendor/` for Cloudflare Pages deploy (`wrangler pages deploy ./src/`).
 - **v1.0.3** — Loadout system scaffold (K3), bot AI 3D integration (G1–G3), lighter dice body color (`#f4f2ef`, specular 0.15), Invalid Selection UI feedback, held dice highlight fix, unused imports cleaned from `diceBridge.js`.
+- **v1.0.4** — Loadout detail panel: physics die drop (cannon-es mini world, settle detection, orbit-after-settle), CSS pip slot icons, "drag to rotate" hint with fade-in after settle, dark floor disc visual.
 
 ---
 
@@ -541,7 +542,7 @@ Game shell outside of battle.
   - Ref: DESIGN §10.1
   - File: `src/ui/hubUI.js` → `window.hubUI`
 
-- [x] **K3.** Loadout editor (scaffold) — modal with 6 slots, click-to-place, detail panel, LOADOUT button under player card. `loadoutSystem.js` manages `state.loadout`, `loadoutUI.js` renders the modal. Currently all slots show base dice (special dice inventory empty until Groups H–O populate `DICE.roster`). Drag-and-drop deferred.
+- [x] **K3.** Loadout editor (scaffold) — modal with 6 slots (CSS pip faces), click-to-place, detail panel with **interactive 3D die** (cannon-es physics drop + orbit-after-settle), LOADOUT button under player card. `loadoutSystem.js` manages `state.loadout`, `loadoutUI.js` renders the modal, `diceBridge.renderSlotPreview()` creates a mini BabylonJS+cannon-es scene per slot click. Currently all slots show base dice (special dice inventory empty until Groups H–O populate `DICE.roster`). Drag-and-drop deferred.
   - Ref: DESIGN §10.3
   - Files: `src/systems/loadoutSystem.js` → `window.loadoutSystem`, `src/ui/loadoutUI.js` → `window.loadoutUI`
 
@@ -813,6 +814,7 @@ Visual and audio juice.
 | **Playable Base Game (2D logic)** | 0 + A–E | Standard Farkle scoring + combat logic wired to the 3D battle shell | **DONE** (2026-04-08) |
 | **Playable 3D Battle (v1.0.0)** | 0 + A–G | Full 3D battle against bot (3 difficulties), base dice, glass morphism UI | **DONE** (2026-04-08) |
 | **v1.0.3 — Loadout + Polish** | 0 + A–G + K3 | Loadout scaffold, lighter dice, Invalid Selection UI, held dice fix | **DONE** (2026-04-08) |
+| **v1.0.4 — Loadout Physics** | 0 + A–G + K3 | Physics die drop in detail panel, CSS pip slots, orbit-after-settle | **DONE** (2026-04-09) |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |
 | **Full Dice Roster** | 0 + A–O | All dice types, full progression ladder | Pending |
 | **Feature Complete** | 0 + A–S | Tutorial, themes, polish, tests passing | Pending |

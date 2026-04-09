@@ -1,5 +1,6 @@
-// Loadout editor modal — click-to-place, detail panel.
+// Loadout editor modal — click-to-place, detail panel with interactive 3D die.
 // mount(store) caches DOM, binds button. open/close/save.
+// Slots: CSS pip faces. Detail: interactive 3D BabylonJS preview via bridge3D.
 
 ;(function() {
     'use strict'
@@ -8,7 +9,28 @@
     var _el = {}
     var _editing = []
     var _selectedSlot = null
-    var _selectedInvId = null
+    var _3dPreview = null
+
+    // ── pip layout: 9-cell grid (0-8), which cells get a dot per face value ──
+    var PIP_MAP = {
+        1: [4],
+        2: [2, 6],
+        3: [2, 4, 6],
+        4: [0, 2, 6, 8],
+        5: [0, 2, 4, 6, 8],
+        6: [0, 2, 3, 5, 6, 8]
+    }
+
+    function pipFaceHTML(faceValue) {
+        var cells = PIP_MAP[faceValue] || PIP_MAP[1]
+        var h = '<div class="lo-die-face">'
+        for (var i = 0; i < 9; i++) {
+            var vis = cells.indexOf(i) !== -1
+            h += '<span class="lo-pip' + (vis ? '' : ' lo-pip-hide') + '"></span>'
+        }
+        h += '</div>'
+        return h
+    }
 
     function mount(store) {
         _store = store
@@ -32,13 +54,13 @@
     function open() {
         _editing = _store.state.loadout.slots.slice()
         _selectedSlot = null
-        _selectedInvId = null
         render()
         _el.backdrop.style.display = 'block'
         _el.modal.style.display = 'grid'
     }
 
     function close() {
+        dispose3D()
         _el.backdrop.style.display = 'none'
         _el.modal.style.display = 'none'
     }
@@ -48,148 +70,103 @@
         close()
     }
 
+    function dispose3D() {
+        if (_3dPreview) {
+            _3dPreview.dispose()
+            _3dPreview = null
+        }
+    }
+
     // ── render ────────────────────────────────────────────────────────────
 
     function render() {
+        dispose3D()
         renderSlots()
         renderInventory()
         renderDetail()
     }
 
-    function dieColor(def) {
-        var b = def.visual.body
-        if (b === 'white' || b === 'ivory') return '#e8e8ee'
-        if (b === 'pink') return '#e091a0'
-        if (b === 'gray') return '#888'
-        return b
-    }
-
     function renderSlots() {
         _el.slots.innerHTML = ''
         for (var i = 0; i < _editing.length; i++) {
-            var id  = _editing[i]
-            var def = id ? DICE.roster[id] : DICE.roster.base
             var sel = _selectedSlot === i
 
             var s = document.createElement('div')
-            s.className = 'lo-slot' + (sel ? ' selected' : '') + (id ? ' filled' : '')
-            s.innerHTML =
-                '<div class="lo-slot-well" style="border-color:' + (sel ? 'rgba(239,193,74,.7)' : '') + '">' +
-                    '<div class="lo-slot-icon" style="background:' + dieColor(def) + '"></div>' +
-                '</div>' +
-                '<div class="lo-slot-name">' + def.name + '</div>'
+            s.className = 'lo-slot filled' + (sel ? ' selected' : '')
             s.dataset.index = i
-            s.onclick = function(e) {
-                var idx = Number(e.currentTarget.dataset.index)
-                _selectedSlot = idx
-                _selectedInvId = null
-                render()
-            }
+
+            var well = document.createElement('div')
+            well.className = 'lo-slot-well'
+            if (sel) well.style.borderColor = 'rgba(239,193,74,.7)'
+            well.innerHTML = pipFaceHTML(1)
+
+            var label = document.createElement('div')
+            label.className = 'lo-slot-name'
+            label.textContent = 'Base Die'
+
+            s.appendChild(well)
+            s.appendChild(label)
             _el.slots.appendChild(s)
+
+            s.onclick = (function(idx) {
+                return function() {
+                    _selectedSlot = idx
+                    render()
+                }
+            })(i)
         }
     }
 
     function renderInventory() {
-        _el.inv.innerHTML = ''
-
-        var used = {}
-        for (var i = 0; i < _editing.length; i++) {
-            if (_editing[i]) used[_editing[i]] = true
-        }
-
-        var available = []
-        var keys = Object.keys(DICE.roster)
-        for (var k = 0; k < keys.length; k++) {
-            var d = DICE.roster[keys[k]]
-            if (d.rarity === 'base') continue
-            if (used[d.id]) continue
-            available.push(d)
-        }
-
-        if (available.length === 0) {
-            _el.inv.innerHTML = '<div class="lo-empty-msg">No special dice available yet</div>'
-            return
-        }
-
-        for (var j = 0; j < available.length; j++) {
-            var die = available[j]
-            var tile = document.createElement('div')
-            tile.className = 'lo-tile' + (_selectedInvId === die.id ? ' selected' : '')
-            tile.innerHTML =
-                '<div class="lo-tile-icon" style="background:' + dieColor(die) + '"></div>' +
-                '<div class="lo-tile-label">' + die.name + '</div>'
-            tile.dataset.id = die.id
-            tile.onclick = function(e) {
-                _selectedInvId = e.currentTarget.dataset.id
-                _selectedSlot = null
-                render()
-            }
-            _el.inv.appendChild(tile)
-        }
+        _el.inv.innerHTML = '<div class="lo-empty-msg">No special dice available yet</div>'
     }
 
     function renderDetail() {
-        var dieId = null
-        var isSlot = false
-
-        if (_selectedInvId) {
-            dieId = _selectedInvId
-        } else if (_selectedSlot !== null && _editing[_selectedSlot]) {
-            dieId = _editing[_selectedSlot]
-            isSlot = true
-        }
-
-        if (!dieId || !DICE.roster[dieId]) {
-            _el.detail.innerHTML = '<div class="lo-detail-placeholder">Select a die to see details</div>'
+        if (_selectedSlot === null) {
+            _el.detail.innerHTML = '<div class="lo-detail-placeholder">Select a die to inspect</div>'
             return
         }
 
-        var def = DICE.roster[dieId]
-        var rarityClass = 'lo-rarity-' + def.rarity
+        _el.detail.innerHTML = ''
 
-        var h = '<div class="lo-detail-card">' +
-            '<div class="lo-detail-icon-wrap"><div class="lo-detail-icon" style="background:' + dieColor(def) + '"></div></div>' +
-            '<div class="lo-detail-name">' + def.name + '</div>' +
-            '<div class="lo-detail-rarity ' + rarityClass + '">' + def.rarity.toUpperCase() + (def.utility ? ' UTILITY' : '') + '</div>'
+        var card = document.createElement('div')
+        card.className = 'lo-detail-card'
 
-        if (def.ability) {
-            var label = def.ability.button || def.ability.type
-            h += '<div class="lo-detail-ability">' + label + (def.ability.passive ? ' &middot; passive' : ' &middot; active') + '</div>'
-        }
+        var canvasWrap = document.createElement('div')
+        canvasWrap.className = 'lo-detail-3d-wrap'
 
-        if (!isSlot) {
-            h += '<button class="lo-action-btn lo-place-btn" id="loPlaceBtn">Place in Slot</button>'
-        } else {
-            if (dieId !== 'base') {
-                h += '<button class="lo-action-btn lo-remove-btn" id="loRemoveBtn">Remove</button>'
-            }
-        }
+        var canvas = document.createElement('canvas')
+        canvas.className = 'lo-detail-3d'
+        canvas.width = 280
+        canvas.height = 280
+        canvasWrap.appendChild(canvas)
+        card.appendChild(canvasWrap)
 
-        h += '</div>'
-        _el.detail.innerHTML = h
+        var hint = document.createElement('div')
+        hint.className = 'lo-detail-hint lo-hint-hidden'
+        hint.textContent = 'drag to rotate'
+        card.appendChild(hint)
 
-        var plc = document.getElementById('loPlaceBtn')
-        if (plc) plc.onclick = function() {
-            if (!_selectedInvId) return
-            var target = _selectedSlot
-            if (target === null) {
-                for (var i = 0; i < _editing.length; i++) {
-                    if (!_editing[i]) { target = i; break }
-                }
-            }
-            if (target === null) target = 0
-            _editing[target] = _selectedInvId
-            _selectedInvId = null
-            _selectedSlot = target
-            render()
-        }
+        var name = document.createElement('div')
+        name.className = 'lo-detail-name'
+        name.textContent = 'Base Die'
+        card.appendChild(name)
 
-        var rem = document.getElementById('loRemoveBtn')
-        if (rem) rem.onclick = function() {
-            if (_selectedSlot === null) return
-            _editing[_selectedSlot] = null
-            _selectedSlot = null
-            render()
+        var rarity = document.createElement('div')
+        rarity.className = 'lo-detail-rarity lo-rarity-base'
+        rarity.textContent = 'BASE'
+        card.appendChild(rarity)
+
+        _el.detail.appendChild(card)
+
+        if (window.bridge3D && window.bridge3D.renderSlotPreview) {
+            try {
+                _3dPreview = window.bridge3D.renderSlotPreview(canvas, 1, {
+                    onSettle: function() {
+                        hint.classList.remove('lo-hint-hidden')
+                    }
+                })
+            } catch (_) {}
         }
     }
 

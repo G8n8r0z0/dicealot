@@ -13,7 +13,9 @@
  *
  * ES module. Depends on: window.BABYLON, ./diceEngine.js, ./dieFactory.js
  */
+import * as CANNON from 'cannon-es';
 import * as engine from './diceEngine.js';
+import { createDiceVertexData, createPipsVertexData, FACE_UP_QUATS } from './dieFactory.js';
 
 const BABYLON = window.BABYLON;
 
@@ -386,6 +388,139 @@ function handlePointer(info) {
             }
         }
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SLOT PREVIEW — mini BabylonJS scene for loadout die preview
+// ═══════════════════════════════════════════════════════════════════════════
+
+export function renderSlotPreview(canvasEl, faceValue, opts) {
+    opts = opts || {};
+
+    var pEng = new BABYLON.Engine(canvasEl, true, { alpha: true }, true);
+    var scene = new BABYLON.Scene(pEng);
+    scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+
+    // ── Camera (orbit locked until settle) ───────────────────────────────
+    var cam = new BABYLON.ArcRotateCamera('pcam', -0.75, 0.85, 4.0,
+        new BABYLON.Vector3(0, 0.5, 0), scene);
+    cam.lowerRadiusLimit = 2.4;
+    cam.upperRadiusLimit = 6.0;
+    cam.wheelPrecision   = 60;
+    cam.panningSensibility = 0;
+
+    // ── Lights ────────────────────────────────────────────────────────────
+    new BABYLON.HemisphericLight('phemi', new BABYLON.Vector3(0, 1, 0), scene).intensity = 0.85;
+    var dir = new BABYLON.DirectionalLight('pdir', new BABYLON.Vector3(-0.4, -1, 0.3), scene);
+    dir.intensity = 0.65;
+
+    // ── Floor visual (subtle dark disc) ──────────────────────────────────
+    var floor = BABYLON.MeshBuilder.CreateDisc('pfloor', { radius: 2.5, tessellation: 48 }, scene);
+    floor.rotation.x = Math.PI / 2;
+    var floorMat = new BABYLON.StandardMaterial('pfmat', scene);
+    floorMat.diffuseColor = new BABYLON.Color3(0.12, 0.12, 0.14);
+    floorMat.specularColor = new BABYLON.Color3(0.03, 0.03, 0.03);
+    floorMat.backFaceCulling = false;
+    floor.material = floorMat;
+
+    // ── Geometry ──────────────────────────────────────────────────────────
+    var outerVD = createDiceVertexData();
+    var pipsVD  = createPipsVertexData();
+
+    var oMat = new BABYLON.StandardMaterial('po', scene);
+    oMat.diffuseColor  = BABYLON.Color3.FromHexString('#f4f2ef');
+    oMat.specularColor = new BABYLON.Color3(0.18, 0.18, 0.18);
+
+    var pipMat = new BABYLON.StandardMaterial('ppip', scene);
+    pipMat.diffuseColor = BABYLON.Color3.FromHexString('#141414');
+
+    var backMat = new BABYLON.StandardMaterial('pback', scene);
+    backMat.diffuseColor = new BABYLON.Color3(0.06, 0.06, 0.06);
+
+    var root = new BABYLON.TransformNode('proot', scene);
+    root.rotationQuaternion = BABYLON.Quaternion.Identity();
+
+    var outer = new BABYLON.Mesh('pouter', scene);
+    outerVD.applyToMesh(outer);
+    outer.material = oMat;
+    outer.parent = root;
+
+    var pips = new BABYLON.Mesh('ppips', scene);
+    pipsVD.applyToMesh(pips);
+    pips.material = pipMat;
+    pips.parent = root;
+
+    var backing = BABYLON.MeshBuilder.CreateBox('pback', { size: 0.9 }, scene);
+    backing.material = backMat;
+    backing.parent = root;
+
+    // ── Physics world ────────────────────────────────────────────────────
+    var world = new CANNON.World({ gravity: new CANNON.Vec3(0, -20, 0) });
+    world.broadphase = new CANNON.NaiveBroadphase();
+    world.solver.iterations = 10;
+    world.allowSleep = true;
+
+    var floorBody = new CANNON.Body({
+        mass: 0,
+        shape: new CANNON.Plane(),
+        material: new CANNON.Material({ friction: 0.4, restitution: 0.3 })
+    });
+    floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    world.addBody(floorBody);
+
+    var hs = 0.48;
+    var dieBody = new CANNON.Body({
+        mass: 2.0,
+        shape: new CANNON.Box(new CANNON.Vec3(hs, hs, hs)),
+        material: new CANNON.Material({ friction: 0.35, restitution: 0.25 }),
+        sleepTimeLimit: 0.4,
+        sleepSpeedLimit: 0.15,
+        linearDamping: 0.15,
+        angularDamping: 0.2,
+    });
+    dieBody.position.set(0, 4.0, 0);
+    var rx = (Math.random() - 0.5) * 3;
+    var ry = (Math.random() - 0.5) * 3;
+    var rz = (Math.random() - 0.5) * 3;
+    dieBody.quaternion.setFromEuler(rx, ry, rz);
+    dieBody.angularVelocity.set(
+        (Math.random() - 0.5) * 6,
+        (Math.random() - 0.5) * 6,
+        (Math.random() - 0.5) * 6
+    );
+    world.addBody(dieBody);
+
+    // ── Settle detection ─────────────────────────────────────────────────
+    var settled = false;
+
+    dieBody.addEventListener('sleep', function() {
+        if (settled) return;
+        settled = true;
+        cam.attachControl(canvasEl, true);
+        if (opts.onSettle) opts.onSettle();
+    });
+
+    // ── Render loop ──────────────────────────────────────────────────────
+    pEng.runRenderLoop(function() {
+        if (!settled) {
+            world.fixedStep();
+            root.position.set(dieBody.position.x, dieBody.position.y, dieBody.position.z);
+            root.rotationQuaternion.set(
+                dieBody.quaternion.x, dieBody.quaternion.y,
+                dieBody.quaternion.z, dieBody.quaternion.w
+            );
+        }
+        scene.render();
+    });
+
+    return {
+        dispose: function() {
+            cam.detachControl();
+            pEng.stopRenderLoop();
+            scene.dispose();
+            pEng.dispose();
+        }
+    };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
