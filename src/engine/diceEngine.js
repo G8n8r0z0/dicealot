@@ -422,16 +422,18 @@ function checkSettled(ctx) {
 //  DICE MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════
 
-export function syncActiveDice(ctx, n) {
+export function syncActiveDice(ctx, n, dieConfigs) {
   while (ctx.dice.length < n) {
-    const die = buildDie(ctx, {
+    const idx = ctx.dice.length;
+    const cfg = (dieConfigs && dieConfigs[idx]) || {};
+    const die = buildDie(ctx, Object.assign({
       onSleep: (d) => {
         d.body.allowSleep = false;
         const v = readFaceValue(d.body);
         if (v !== null) { d.value = v; d.settled = true; checkSettled(ctx); }
         else { d.body.allowSleep = true; }
       },
-    });
+    }, cfg));
     ctx.dice.push(die);
   }
   while (ctx.dice.length > n) teardownDie(ctx.dice.pop(), ctx);
@@ -569,6 +571,7 @@ function showDie(d) {
   d.outer.setEnabled(true);
   d.pips.setEnabled(true);
   d.backing.setEnabled(true);
+  if (d.markMeshes) for (const m of d.markMeshes) m.setEnabled(true);
 }
 
 export function throwPlayer(ctx) {
@@ -618,6 +621,7 @@ export function slingCluster(ctx, anchorX, anchorZ, pickX, pickZ) {
     d.outer.setEnabled(show);
     d.pips.setEnabled(show);
     d.backing.setEnabled(show);
+    if (d.markMeshes) for (const m of d.markMeshes) m.setEnabled(show);
     d.body.position.set(cx, spawnY, cz);
     if (!d._slingPose) {
       d._slingPose = true;

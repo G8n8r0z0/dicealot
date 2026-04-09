@@ -41,7 +41,13 @@
             weights: [
                 { 1: 0.30, 2: 0.14, 3: 0.14, 4: 0.14, 5: 0.14, 6: 0.14 }
             ],
-            visual: { body: 'pink', pips: 'white', marks: 'red heart on face 1' }
+            biasOffset: 0.41,
+            biasFace: 1,
+            visual: {
+                body: '#fc46aa', pips: '#ffffff',
+                specular: 0.3, edgeR: 0.2, pipR: 0.08,
+                marks: [{ face: 1, shape: 'heart', color: '#dc143c', bg: '#fc46aa' }]
+            }
         },
 
         comrade: {
@@ -50,7 +56,13 @@
             weights: [
                 { 1: 0.14, 2: 0.14, 3: 0.14, 4: 0.14, 5: 0.30, 6: 0.14 }
             ],
-            visual: { body: '#8b0000', pips: 'gold', marks: 'gold star on face 5' }
+            biasOffset: 0.41,
+            biasFace: 5,
+            visual: {
+                body: '#cc0000', pips: '#ffd700',
+                pipShape: { default: 'circle', 5: 'star5' },
+                specular: 0, edgeR: 0.02, pipR: { default: 0.1, 5: 0.15 }
+            }
         },
 
         flipper: {

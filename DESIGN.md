@@ -207,17 +207,17 @@ Dice names should be playful, weird, memorable, or slightly absurd. The requirem
 
 - **Category:** Common — plain bias die
 - **Role:** single-face scoring bias toward `1`
-- **Mechanic:** weighted distribution — `1 = 30%`, `2/3/4/5/6 = 14%` each
+- **Mechanic:** weighted distribution — `1 = 30%`, `2/3/4/5/6 = 14%` each. Physics bias: center-of-mass offset `0.41` toward face 1.
 - **No evolution line.** Standalone.
-- **Visual:** pink body, white pips, red heart mark on face 1.
+- **Visual:** hot pink body (`#fc46aa`), white pips, red heart mark on face 1 (procedural DynamicTexture with bg shield). Custom geometry: `edgeR: 0.2` (more rounded), `pipR: 0.08` (smaller pips), `specular: 0.3`. Mark plane uses `DOUBLESIDE` orientation for correct lighting on all faces.
 
 #### Comrade
 
 - **Category:** Common — plain bias die
 - **Role:** single-face scoring bias toward `5`
-- **Mechanic:** weighted distribution — `5 = 30%`, `1/2/3/4/6 = 14%` each
+- **Mechanic:** weighted distribution — `5 = 30%`, `1/2/3/4/6 = 14%` each. Physics bias: center-of-mass offset `0.41` toward face 5.
 - **No evolution line.** Standalone.
-- **Visual:** crimson-red body, gold pips, gold star marks on face 5.
+- **Visual:** bright red body (`#cc0000`), gold pips (`#ffd700`), 5-pointed star pips on face 5 only (other faces use standard circle pips). Custom geometry: `edgeR: 0.02` (nearly square), per-face `pipR: { default: 0.1, 5: 0.15 }` (larger stars), `specular: 0`. Star pip shape generated via `PIP_SHAPES.star5` outline function (10-vertex polygon, `inner = 0.42 × outer`).
 
 #### Flipper
 
@@ -820,13 +820,15 @@ Generates a 1×1×1 rounded box with pip notch depressions:
 - **Face-to-pip mapping:** Y+=1 pip, X+=2, Z+=3, Z-=4, X-=5, Y-=6 (opposite faces sum to 7).
 - **Normals:** computed via `BABYLON.VertexData.ComputeNormals` with automatic flip detection.
 
-#### 14.5.2 Pip Discs — `createPipsVertexData()`
+#### 14.5.2 Pip Meshes — `createPipsVertexData()`
 
-21 flat circular disc meshes (16-segment fan each) positioned flush with each face surface:
+21 flat pip meshes positioned flush with each face surface:
 
 - Rendered via `StandardMaterial` with `zOffset = -2` — always visible on top of the outer surface.
-- Pip color is independent of body color — shared `pipMat` updated in real time.
-- Pip radius: 0.1 units on a 1-unit face (20% of face width).
+- Pip color is independent of body color — per-die `pipMat` created when `opts.pipColor` specified.
+- Default pip radius: 0.1 units (20% of face width). Per-die override via `opts.pipR` (number or `{ default, faceVal }` object for per-face sizes).
+- **Custom pip shapes** via `PIP_SHAPES` map in `dieFactory.js`. Each shape is an `(angle, outerR) => radius` outline function. Built-in shapes: `circle` (16 segments, default), `star5` (10-vertex 5-pointed star, `inner = 0.42 × outer`). New shapes added by registering a function in the map.
+- **Per-face pip shapes** via `opts.pipShape`: string applies to all faces, object `{ default: 'circle', 5: 'star5' }` applies per face. Each face in the `pf` array carries its `val` (1-6) for lookup.
 
 #### 14.5.3 Backing Box
 
@@ -851,12 +853,25 @@ Each die consists of 4 components parented to a `TransformNode`:
 | 5 | X- | Left |
 | 6 | Y- | Bottom |
 
-#### 14.5.6 Extending the Constructor for Special Dice
+#### 14.5.6 Per-Die Visual Config System
 
-The per-die color system is proven. For dice with custom face marks (Frog eye, Joker J, biohazard symbol), the path forward is:
-- Replace specific pip discs with custom glyph meshes or textured quads
-- Per-face override in a die definition config
-- The outer geometry (rounded box) stays identical — only the surface decoration changes
+Each die reads visual parameters from `DICE.roster[id].visual`:
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `body` | hex string | `'#f4f2ef'` | Body material diffuse color |
+| `pips` | hex string | `'#141414'` | Pip material color |
+| `specular` | number | `0.15` | Specular intensity for body + mark materials |
+| `edgeR` | number | `0.13` | Edge rounding radius (generates custom geometry) |
+| `pipR` | number or `{default, N}` | `0.1` | Pip radius; object for per-face sizes |
+| `pipShape` | string or `{default, N}` | `'circle'` | Pip outline shape; object for per-face shapes |
+| `marks` | array of `{face, shape, color, bg}` | none | Face mark overlays (heart, star) |
+
+`buildDie` generates custom geometry per die when `edgeR`, `pipR`, or `pipShape` differ from defaults (otherwise uses shared cached geometry). Backing box size auto-scales with `edgeR`. Mark planes use `DOUBLESIDE` orientation, `useAlphaFromDiffuseTexture`, and `isPickable = false`.
+
+**Face mark textures** are procedural `DynamicTexture` (128×128 canvas). Supported shapes: `heart` (`drawHeart`), `star` (`drawStar`). Each draws a circular background disc (masks pip underneath) + the shape. Mark material specular matches body material.
+
+**Dice Constructor** (`tools/dice-constructor.html`): interactive preview tool with sliders for all visual params + Pip Shape dropdown + Face Mark dropdown (None/Heart/Star). Copy Config exports JSON for `dice.js`.
 
 ### 14.6 Audio Baseline
 

@@ -15,7 +15,7 @@
  */
 import * as CANNON from 'cannon-es';
 import * as engine from './diceEngine.js';
-import { createDiceVertexData, createPipsVertexData, FACE_UP_QUATS } from './dieFactory.js';
+import { createDiceVertexData, createPipsVertexData, createMarkTexture, FACE_UP_QUATS } from './dieFactory.js';
 
 const BABYLON = window.BABYLON;
 
@@ -65,6 +65,36 @@ export function init(canvas, store, opts) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  LOADOUT → per-die config
+// ═══════════════════════════════════════════════════════════════════════════
+
+function buildDieConfigs(count) {
+    var configs = [];
+    var slots = _store.state.loadout ? _store.state.loadout.slots : [];
+    for (var i = 0; i < count; i++) {
+        var slotId = slots[i] || null;
+        var def = slotId && window.DICE && window.DICE.roster[slotId]
+            ? window.DICE.roster[slotId]
+            : null;
+        if (!def) { configs.push({}); continue; }
+        var cfg = {};
+        var v = def.visual || {};
+        if (v.body && v.body !== 'white') cfg.bodyColor = v.body;
+        if (v.pips && v.pips !== 'black') cfg.pipColor = v.pips;
+        if (v.marks && Array.isArray(v.marks)) cfg.faceMarks = v.marks;
+        if (v.specular != null) cfg.specular = v.specular;
+        if (v.edgeR != null)    cfg.edgeR = v.edgeR;
+        if (v.pipR != null)     cfg.pipR = v.pipR;
+        if (v.pipShape)         cfg.pipShape = v.pipShape;
+        if (def.biasOffset && def.biasFace) {
+            cfg.bias = { face: def.biasFace, magnitude: def.biasOffset };
+        }
+        configs.push(cfg);
+    }
+    return configs;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  ROLL_DICE → 3D throw
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -76,7 +106,8 @@ function onRollDice() {
         return;
     }
 
-    engine.syncActiveDice(_ctx, _store.state.turn.diceCount);
+    var count = _store.state.turn.diceCount;
+    engine.syncActiveDice(_ctx, count, buildDieConfigs(count));
 
     var isBot = _store.state.match.activePlayer === 'enemy';
     if (isBot) {
@@ -200,6 +231,13 @@ function resetScene() {
 function disposeHeldDice() {
     for (var i = 0; i < _ctx.heldDice.length; i++) {
         var d = _ctx.heldDice[i];
+        if (d.markMeshes) {
+            for (var m = 0; m < d.markMeshes.length; m++) {
+                if (d.markMeshes[m].material) d.markMeshes[m].material.dispose();
+                d.markMeshes[m].dispose();
+            }
+        }
+        if (d._pipMat) d._pipMat.dispose();
         d.pips.dispose(); d.backing.dispose(); d.outer.dispose();
         d.root.dispose(); d.oMat.dispose();
     }
@@ -325,7 +363,8 @@ function handlePointer(info) {
             var p = engine.pickRollXZ(_ctx, ev.clientX, ev.clientY);
             if (!p) return;
 
-            engine.syncActiveDice(_ctx, _store.state.turn.diceCount);
+            var sCount = _store.state.turn.diceCount;
+            engine.syncActiveDice(_ctx, sCount, buildDieConfigs(sCount));
             var dice = engine.getDice(_ctx);
             for (var i = 0; i < dice.length; i++) delete dice[i]._slingPose;
 
@@ -423,16 +462,31 @@ export function renderSlotPreview(canvasEl, faceValue, opts) {
     floorMat.backFaceCulling = false;
     floor.material = floorMat;
 
+    // ── Die visual config from roster ────────────────────────────────────
+    var dieDef = opts.dieId && window.DICE && window.DICE.roster[opts.dieId]
+        ? window.DICE.roster[opts.dieId] : null;
+    var vis = dieDef ? dieDef.visual || {} : {};
+    var bodyHex = (vis.body && vis.body !== 'white') ? vis.body : '#f4f2ef';
+    var pipHex  = (vis.pips && vis.pips !== 'black') ? vis.pips : '#141414';
+    var spec    = vis.specular != null ? vis.specular : 0.18;
+
     // ── Geometry ──────────────────────────────────────────────────────────
-    var outerVD = createDiceVertexData();
-    var pipsVD  = createPipsVertexData();
+    var outerVD = createDiceVertexData(vis.edgeR != null ? vis.edgeR : undefined);
+    var pipsVD  = createPipsVertexData(vis.pipR != null ? vis.pipR : undefined, undefined, vis.pipShape || 'circle');
 
     var oMat = new BABYLON.StandardMaterial('po', scene);
-    oMat.diffuseColor  = BABYLON.Color3.FromHexString('#f4f2ef');
-    oMat.specularColor = new BABYLON.Color3(0.18, 0.18, 0.18);
+    oMat.diffuseColor  = BABYLON.Color3.FromHexString(bodyHex);
+    oMat.specularColor = new BABYLON.Color3(spec, spec, spec);
 
     var pipMat = new BABYLON.StandardMaterial('ppip', scene);
-    pipMat.diffuseColor = BABYLON.Color3.FromHexString('#141414');
+    if (vis.pips && vis.pips !== 'black') {
+        pipMat.disableLighting = true;
+        pipMat.emissiveColor = BABYLON.Color3.FromHexString(pipHex);
+        pipMat.diffuseColor  = BABYLON.Color3.Black();
+        pipMat.specularColor = BABYLON.Color3.Black();
+    } else {
+        pipMat.diffuseColor = BABYLON.Color3.FromHexString(pipHex);
+    }
 
     var backMat = new BABYLON.StandardMaterial('pback', scene);
     backMat.diffuseColor = new BABYLON.Color3(0.06, 0.06, 0.06);
@@ -450,9 +504,53 @@ export function renderSlotPreview(canvasEl, faceValue, opts) {
     pips.material = pipMat;
     pips.parent = root;
 
-    var backing = BABYLON.MeshBuilder.CreateBox('pback', { size: 0.9 }, scene);
+    var prevEdgeR = vis.edgeR != null ? vis.edgeR : 0.13;
+    var prevCornerR = (0.5 - prevEdgeR) + prevEdgeR / Math.sqrt(3);
+    var prevBackSize = Math.max(0.3, 2 * prevCornerR - 0.03);
+    var backing = BABYLON.MeshBuilder.CreateBox('pback', { size: prevBackSize }, scene);
     backing.material = backMat;
     backing.parent = root;
+
+    // ── Face mark overlays (heart, etc.) ──────────────────────────────────
+    if (vis.marks && Array.isArray(vis.marks)) {
+        var FACE_LOCALS = [
+            { x:  0, y:  1, z:  0, val: 1 },
+            { x:  0, y: -1, z:  0, val: 6 },
+            { x:  1, y:  0, z:  0, val: 2 },
+            { x: -1, y:  0, z:  0, val: 5 },
+            { x:  0, y:  0, z:  1, val: 3 },
+            { x:  0, y:  0, z: -1, val: 4 },
+        ];
+        for (var mi = 0; mi < vis.marks.length; mi++) {
+            var mark = vis.marks[mi];
+            var fl = null;
+            for (var fi = 0; fi < FACE_LOCALS.length; fi++) {
+                if (FACE_LOCALS[fi].val === mark.face) { fl = FACE_LOCALS[fi]; break; }
+            }
+            if (!fl) continue;
+            var plane = BABYLON.MeshBuilder.CreatePlane('pmark' + mi,
+              { size: 0.65, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, scene);
+            var mMat = new BABYLON.StandardMaterial('pmarkMat' + mi, scene);
+            var tex = createMarkTexture(mark, 'pmarkTex' + mi, scene);
+            if (!tex) continue;
+            mMat.diffuseTexture = tex;
+            mMat.diffuseTexture.hasAlpha = true;
+            mMat.useAlphaFromDiffuseTexture = true;
+            mMat.specularColor = oMat.specularColor.clone();
+            mMat.zOffset = -4;
+            plane.material = mMat;
+            plane.parent = root;
+            var off = 0.505;
+            plane.position.set(fl.x * off, fl.y * off, fl.z * off);
+            if (fl.y !== 0) {
+                plane.rotation.x = fl.y > 0 ? -Math.PI / 2 : Math.PI / 2;
+            } else if (fl.x !== 0) {
+                plane.rotation.y = fl.x > 0 ? Math.PI / 2 : -Math.PI / 2;
+            } else {
+                plane.rotation.y = fl.z > 0 ? 0 : Math.PI;
+            }
+        }
+    }
 
     // ── Physics world ────────────────────────────────────────────────────
     var world = new CANNON.World({ gravity: new CANNON.Vec3(0, -20, 0) });

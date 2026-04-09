@@ -5,8 +5,8 @@
     'use strict'
 
     function defaultSlots() {
-        var s = []
-        for (var i = 0; i < DICE.LOADOUT.SLOTS; i++) s.push(null)
+        var s = ['oneLove', 'comrade']
+        for (var i = 1; i < DICE.LOADOUT.SLOTS; i++) s.push(null)
         return s
     }
 

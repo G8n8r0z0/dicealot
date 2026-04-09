@@ -431,6 +431,9 @@ project/
 ├── battle.html             # Battle prototype (fullscreen 3D, Farkle + combat + bot + sling)
 ├── throw-lab.html          # Throw-only sandbox: ROLL + sling, physics tuning (see below)
 ├── throw-lab.mjs           # ES module: same `battleTune` object + localStorage `battle_tune_json_v1`
+├── tools/
+│   ├── dice-constructor.html  # Visual die designer: 3D preview + color/geometry/mark sliders + Copy Config
+│   └── calibrate-bias.mjs     # Headless cannon-es bias calibration script
 ├── index.html              # HTTP → battle; file:// → local-server instructions (RU)
 ├── src/
 │   ├── index.html          # Entry point — loads IIFE scripts + engine module
@@ -453,8 +456,8 @@ project/
 │   │   └── scoringSystem.js#   pure scoring functions (bitmask DP, bust detection)
 │   ├── engine/             # 3D rendering layer (ES modules, BabylonJS + cannon-es)
 │   │   ├── diceEngine.js   #   scene setup, physics world, render loop, throwPlayer/throwBot
-│   │   ├── dieFactory.js   #   createDiceVertexData, createPipsVertexData, createDie, FACE_UP_QUATS
-│   │   └── diceBridge.js   #   store subscriber → 3D commands, pointer → dispatch, sling SVG viz, DICE_SETTLED, renderSlotPreview (mini physics scene)
+│   │   ├── dieFactory.js   #   createDiceVertexData, createPipsVertexData, buildDie, PIP_SHAPES, FACE_UP_QUATS, createMarkTexture
+│   │   └── diceBridge.js   #   store subscriber → 3D commands, pointer → dispatch, sling SVG viz, DICE_SETTLED, renderSlotPreview, buildDieConfigs
 │   ├── vendor/             # Vendored libs inside src/ for Cloudflare Pages deploy
 │   │   ├── babylon.js
 │   │   └── cannon-es.js
@@ -578,15 +581,18 @@ world.allowSleep = true
 
 ### Die Composition
 
-Each die is a `TransformNode` parent with 3 visual children + 1 physics body:
+Each die is a `TransformNode` parent with 3+ visual children + 1 physics body:
 
 ```
 TransformNode (root)
-├── Mesh: outer       — rounded box geometry (body color material)
-├── Mesh: pips        — 21 flat disc meshes (pip color material, zOffset=-2)
-├── Mesh: backing     — dark interior box (size 0.9)
-└── CANNON.Body       — Box(0.48 * scale), mass, sleep events
+├── Mesh: outer       — rounded box geometry (body color material, per-die specular)
+├── Mesh: pips        — 21 flat pip meshes (per-die pip color, shape, size; zOffset=-2)
+├── Mesh: backing     — dark interior box (size scales with edgeR)
+├── Mesh[]: marks     — face mark planes (DOUBLESIDE, DynamicTexture, isPickable=false)
+└── CANNON.Body       — Box(0.48 * scale), mass, sleep events, optional center-of-mass offset
 ```
+
+Per-die visual customization: `buildDie(ctx, opts)` accepts `bodyColor`, `pipColor`, `specular`, `edgeR`, `pipR` (number or per-face object), `pipShape` (string or per-face object), `faceMarks` (array of `{face, shape, color, bg}`), `bias` (`{face, magnitude}`). Custom geometry generated on the fly when params differ from defaults; otherwise shared cached `VertexData` is used.
 
 ### Render Loop
 
@@ -639,7 +645,11 @@ const localUp = body.quaternion.conjugate().vmult(up)
 |-----------|-----------|---------|
 | State → Engine | `store.subscribeTo(slice, fn)` | `turn.rolledDice` changes → trigger roll animation |
 | Engine → State | `store.dispatch(type, payload)` | Click on die → `dispatch('SELECT_DIE', { dieIndex })` |
-| Config → Engine | Read `window.config.dice[type]` | Load die color, pip style from config |
+| Config → Engine | Read `window.DICE.roster[id]` | Load die color, pip shape, marks, bias from config |
+
+**Per-die config pipeline:** `diceBridge.buildDieConfigs(count)` reads `store.state.loadout.slots`, looks up each die in `DICE.roster`, and constructs per-die config objects with `bodyColor`, `pipColor`, `specular`, `edgeR`, `pipR`, `pipShape`, `faceMarks`, `bias`. These are passed to `engine.syncActiveDice(count, dieConfigs)` → `dieFactory.buildDie(ctx, opts)`.
+
+**Physics bias:** center-of-mass offset implemented by shifting the collision shape relative to body origin: `body.addShape(boxShape, new CANNON.Vec3(fl.x * mag, fl.y * mag, fl.z * mag))` where `fl` is the `FACE_LOCALS` direction for the bias face and `mag` is the bias magnitude.
 
 The engine never stores game-relevant data. All authoritative state lives in `store.state`.
 

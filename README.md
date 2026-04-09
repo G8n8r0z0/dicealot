@@ -1,6 +1,6 @@
 # Dice-a-Lot — 3D Dice Battle Game
 
-**v1.0.4 — Loadout physics die drop, CSS pip slots, orbit-after-settle**
+**v1.0.5 — Special dice: One Love + Comrade, custom pip shapes, physics bias, dice constructor**
 
 A browser-first dice RPG prototype inspired by Farkle. Special dice with unique abilities, loadout building, PvE bot battles, HP-based combat, and a full progression ladder — all rendered with 3D physics dice.
 
@@ -14,6 +14,10 @@ A browser-first dice RPG prototype inspired by Farkle. Special dice with unique 
 - Bust, Hot Hand, turn switching, victory/defeat banners
 - Loadout editor with interactive 3D detail panel (physics die drop, orbit-after-settle, CSS pip slot icons)
 - Invalid selection feedback (selected values shown in red)
+- **One Love die** — hot pink, white pips, red heart on face 1, ~30% bias toward 1 (physics center-of-mass offset)
+- **Comrade die** — bright red, gold star pips on face 5, ~30% bias toward 5 (physics center-of-mass offset)
+- **Per-die visual system** — custom body/pip colors, specular, edge rounding, pip size/shape per face, procedural face marks
+- **Dice Constructor** (`tools/dice-constructor.html`) — interactive 3D tool for designing die visuals with config export
 
 ## 3D Engine
 
@@ -95,6 +99,9 @@ When the project lives inside a parent folder (e.g. **3D Dicing**), Cursor may l
 ├── battle.html              # Battle prototype — full 3D Farkle + combat + bot AI + sling throw
 ├── throw-lab.html           # Throw sandbox: ROLL + sling, tune + «Реализм броска», roll log
 ├── throw-lab.mjs            # Module for throw-lab (same battleTune shape as battle)
+├── tools/
+│   ├── dice-constructor.html # Visual die designer with 3D preview + Copy Config
+│   └── calibrate-bias.mjs    # Headless cannon-es bias calibration
 ├── legacy/
 │   └── dice-box-spike.html  # Older full-page dice-box prototype (was root index.html)
 ├── src/
@@ -173,10 +180,11 @@ Two kinds of state changes, kept strictly separate:
 node server.mjs
 
 # Open in browser
-# http://127.0.0.1:4174/battle.html      — 3D battle prototype (play here)
-# http://127.0.0.1:4174/throw-lab.html   — throw tuning lab (shared Tune JSON)
-# http://127.0.0.1:4174/spike-v2.html   — 3D dice engine sandbox
-# http://127.0.0.1:4174/src/index.html   — game entry point (v1.0.0 playable)
+# http://127.0.0.1:4174/battle.html                — 3D battle prototype (play here)
+# http://127.0.0.1:4174/src/index.html              — game entry point (v1.0.0+ playable)
+# http://127.0.0.1:4174/tools/dice-constructor.html — dice visual designer tool
+# http://127.0.0.1:4174/throw-lab.html              — throw tuning lab (shared Tune JSON)
+# http://127.0.0.1:4174/spike-v2.html              — 3D dice engine sandbox
 ```
 
 ## Running Tests

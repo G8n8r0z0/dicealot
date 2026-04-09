@@ -5,7 +5,7 @@ assets/themes/
 assets/ammo/
 assets/dice-roll.mp3
 assets/tavern-table-bg.png
-tools/
+tools/dice-constructor/
 legacy/
 scripts/
 vendor/Dice.js

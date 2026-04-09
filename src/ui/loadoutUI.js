@@ -86,10 +86,17 @@
         renderDetail()
     }
 
+    function getDieDef(slotId) {
+        if (slotId && window.DICE && window.DICE.roster[slotId]) return window.DICE.roster[slotId]
+        return window.DICE && window.DICE.roster.base || { name: 'Base Die', rarity: 'base' }
+    }
+
     function renderSlots() {
         _el.slots.innerHTML = ''
         for (var i = 0; i < _editing.length; i++) {
             var sel = _selectedSlot === i
+            var def = getDieDef(_editing[i])
+            var vis = def.visual || {}
 
             var s = document.createElement('div')
             s.className = 'lo-slot filled' + (sel ? ' selected' : '')
@@ -98,11 +105,16 @@
             var well = document.createElement('div')
             well.className = 'lo-slot-well'
             if (sel) well.style.borderColor = 'rgba(239,193,74,.7)'
+            if (vis.body && vis.body !== 'white') well.style.backgroundColor = vis.body
             well.innerHTML = pipFaceHTML(1)
+            if (vis.pips && vis.pips !== 'black') {
+                var dots = well.querySelectorAll('.lo-pip:not(.lo-pip-hide)')
+                for (var d = 0; d < dots.length; d++) dots[d].style.backgroundColor = vis.pips
+            }
 
             var label = document.createElement('div')
             label.className = 'lo-slot-name'
-            label.textContent = 'Base Die'
+            label.textContent = def.name
 
             s.appendChild(well)
             s.appendChild(label)
@@ -127,6 +139,8 @@
             return
         }
 
+        var def = getDieDef(_editing[_selectedSlot])
+
         _el.detail.innerHTML = ''
 
         var card = document.createElement('div')
@@ -149,12 +163,12 @@
 
         var name = document.createElement('div')
         name.className = 'lo-detail-name'
-        name.textContent = 'Base Die'
+        name.textContent = def.name
         card.appendChild(name)
 
         var rarity = document.createElement('div')
-        rarity.className = 'lo-detail-rarity lo-rarity-base'
-        rarity.textContent = 'BASE'
+        rarity.className = 'lo-detail-rarity lo-rarity-' + def.rarity
+        rarity.textContent = def.rarity.toUpperCase()
         card.appendChild(rarity)
 
         _el.detail.appendChild(card)
@@ -162,6 +176,7 @@
         if (window.bridge3D && window.bridge3D.renderSlotPreview) {
             try {
                 _3dPreview = window.bridge3D.renderSlotPreview(canvas, 1, {
+                    dieId: _editing[_selectedSlot] || null,
                     onSettle: function() {
                         hint.classList.remove('lo-hint-hidden')
                     }
