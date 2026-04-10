@@ -508,11 +508,32 @@ Same roll/select/score/bank structure as player. Automated decision-making.
 
 ---
 
+## ── MILESTONE: Critical Bugfix + Bias Calibration — v1.0.9 (COMPLETE 2026-04-10) ──
+
+> Critical scoring bug fixed, non-working dice removed from IMPLEMENTED, Even/Odd bias recalibrated.
+
+- [x] **FIX: ROLL_DICE / DICE_SETTLED race condition** — `ROLL_DICE` handler used PRNG values for bust detection and reset `accumulatedScore = 0` on bust. In 3D mode, `DICE_SETTLED` later overrode values with physics results (potentially non-bust), but `accumulatedScore` was already zeroed. Fix: removed `accumulatedScore = 0` from ROLL_DICE bust path; BUST handler and DICE_SETTLED bust path handle the reset. Affected both player and bot.
+  - File: `src/systems/turnSystem.js`
+
+- [x] **Removed `slime` and `joker` from IMPLEMENTED** — both dice were listed as implemented but had no functional mechanics. Slime's `spawn` ability and Joker's `wildcard` scoring were never coded. Now only dice with working mechanics appear in the loadout inventory: base, frog, oneLove, comrade, evenDie, oddDie.
+  - File: `src/config/dice.js`
+
+- [x] **Even/Odd bias recalibrated** — ran `calibrate-bias.mjs` in diagonal mode (faces 1,3,5 share a cube vertex). Offset tuned from 0.50 → 0.55, giving ~77% on target parity (~25-26% per face). Matches level 1 design weights (75%).
+  - Files: `src/config/dice.js`, `tools/calibrate-bias.mjs`
+
+- [x] **Default loadout updated** — default slots now include oneLove, comrade, evenDie, oddDie (+ 2 base). Previous default was oneLove, comrade + 4 base.
+  - File: `src/systems/loadoutSystem.js`
+
+- [x] **Calibration tool enhanced** — `calibrate-bias.mjs` now supports two modes: `single` (one-axis, oneLove-style) and `diagonal` (multi-face parity, odd/even). Adds odd%/even% summary columns.
+  - File: `tools/calibrate-bias.mjs`
+
+---
+
 ## H. Common Dice — Passive Mechanics
 
 Weighted rolls and passive triggers. No player activation button needed.
 
-- [x] **H1.** Weighted roll support (partial) — Even Die and Odd Die have physics bias (center-of-mass offset 0.500). One Love and Comrade already had physics bias from v1.0.5. Remaining: Mathematician, Cluster weights (non-physics, PRNG-based) — deferred.
+- [x] **H1.** Weighted roll support (partial) — Even Die and Odd Die have diagonal physics bias (center-of-mass offset 0.55, calibrated ~77% target parity). One Love and Comrade already had single-axis physics bias (0.41) from v1.0.5. Remaining: Mathematician, Cluster weights (non-physics, PRNG-based) — deferred.
   - Ref: DESIGN §8.5 (One Love, Comrade, Even, Odd, Mathematician, Cluster)
   - File: `src/config/dice.js` (bias config), `src/engine/dieFactory.js` (center-of-mass offset)
 
@@ -876,6 +897,7 @@ Visual and audio juice.
 | **v1.0.6 — Battle UI Polish** | 0 + A–G + K3 | Damage fly-up + HP flash, Rules panel (was Loadout), red invalid highlights, round score green, die descriptions, imperative Round History, viewport-scaled modal (clamp+em) | **DONE** (2026-04-10) |
 | **v1.0.7 — Loadout & Rules Split** | 0 + A–G + K3 | Two-mode modal (Rules & Dices / Loadout), inventory grid, bigger dice slots, Clear Loadout, 7-slot bug fix | **DONE** (2026-04-10) |
 | **v1.0.8 — Frog Die + Loadout Polish** | 0 + A–G + K3 + I1–I2,I4–I5 | Frog JUMP (physics reroll, blink animation), Ability Panel, Even/Odd physics bias, mini-die visuals, drag-and-drop, loadout persistence, IMPLEMENTED filter, version tag | **DONE** (2026-04-10) |
+| **v1.0.9 — Critical Bugfix + Calibration** | — | Fix ROLL_DICE/DICE_SETTLED accumulatedScore race, remove slime/joker from IMPLEMENTED, recalibrate Even/Odd bias 0.50→0.55, default loadout updated | **DONE** (2026-04-10) |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |
 | **Full Dice Roster** | 0 + A–O | All dice types, full progression ladder | Pending |
 | **Feature Complete** | 0 + A–S | Tutorial, themes, polish, tests passing | Pending |

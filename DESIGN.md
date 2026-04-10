@@ -223,14 +223,19 @@ Dice names should be playful, weird, memorable, or slightly absurd. The requirem
 
 #### Flipper
 
+- **Category:** Common — Active control
 - **Role:** light control die (broad)
-- **Mechanic:** once per turn, `FLIP` changes the die to its opposite face.
+- **Mechanic:** once per turn, `FLIP` changes a die to its opposite face.
 - **Opposite mapping:** `1↔6`, `2↔5`, `3↔4`
 - **Level line:**
-  - Lv1: flip self
-  - Lv2: flip self or one adjacent die
-  - Lv3: flip any one die on the field
-- **Visual:** ivory body, dolphin marks replace active pips.
+  - Lv1: flip self. After pressing FLIP, Flipper auto-targets itself (no second click needed).
+  - Lv2: flip self or nearest die. After pressing FLIP, Flipper and the nearest die highlight blue — player clicks one to flip.
+  - Lv3: flip self or any die on the table. After pressing FLIP, all dice get a blue outline — hover brightens the target — player clicks to flip.
+- **Interaction:** select Flipper → ability panel shows `FLIP` → press FLIP → targeting per level → target die flips.
+- **Targeting highlight:** single blue color at two intensities — full glow for Lv2 candidates, thin outline + hover-brighten for Lv3. This targeting UX pattern reuses for Clone, Blight, Mimic, SacriDice.
+- **Animation:** target die launches upward (like Frog JUMP physics), at apex switches to kinematic, slerps to `FACE_UP_QUATS[oppositeValue]`, settles. Guaranteed opposite face landing.
+- **Constraint:** ability once per turn (resets at bank). Flipper stays on the table after FLIP and can be scored normally. If Flipper targets another die, Flipper keeps its rolled value.
+- **Visual:** ocean blue body (`#2878a8`), ivory pips (`#f0ece2`), specular `0.14`, `edgeR: 0.18` (noticeably rounder — smooth, aquatic feel), `pipR: 0.105`. Face 1 uses a **jumping dolphin silhouette** (DynamicTexture, like Frog eye) replacing the single pip — signature mark. Other faces use standard circle pips in ivory.
 - **Relationship to Tuner:** Flipper is the broad, playful control die. Tuner is the more precise control die and belongs in Rare.
 
 #### Even Die
@@ -255,9 +260,13 @@ Dice names should be playful, weird, memorable, or slightly absurd. The requirem
 
 #### Mathematician Die
 
-- **Category:** Common — standalone, no evolution line
-- **Role:** bias die with specific priority
-- **Mechanic:** elevated chance for `3/1/4` in descending priority. `2/5/6` remain least frequent.
+- **Category:** Common — standalone tribute die, no evolution line
+- **Role:** bias die with π-themed priority (`3.14…`)
+- **Mechanic:** weighted distribution biased toward `3 > 1 > 4`. The remaining faces (`2/5/6`) share equal reduced probability.
+- **Target distribution:** `3 = 24%`, `1 = 20%`, `4 = 14%`, `2 = 14%`, `5 = 14%`, `6 = 14%`.
+- **Physics bias:** combined center-of-mass offset in Y+Z+ direction (face 1 = Y+, face 3 = Z+). Face 4 (Z-, opposite of 3) lands slightly below baseline as a physics side-effect; the π identity is preserved by the strict frequency order `3 > 1 > 4 > rest`. Exact offset calibrated via `tools/calibrate-bias.mjs` (adapt sweep to multi-axis vector).
+- **Visual:** chalkboard green body (`#2d4a3a`), chalk-white digits (`#e8dfc8`), specular `0.03` (matte), `edgeR: 0.10` (slightly sharper), `pipR: 0.105`. **All faces use digit glyphs instead of pips** (DynamicTexture per face): faces 1, 2, 4, 5, 6 show their number as a single chalk-style digit. **Face 3** shows three digits — `3`, `1`, `4` — placed in the standard 3-pip diagonal positions (π easter egg). The die reads as a normal d6 by object count per face, but the digit rendering and face 3 easter egg mark it as the Mathematician tribute.
+- **No level line.** Standalone tribute die — one tier, no progression.
 
 #### Cluster Die
 
@@ -517,14 +526,14 @@ Dice names should be playful, weird, memorable, or slightly absurd. The requirem
 
 ### 8.9 Exotic Backlog
 
-| Die | Notes |
-|---|---|
-| **Joker** | See §4. Exotic by nature. Implemented in shared ruleset. |
-| **Super Mimic** | Copies the full neighboring die including special functionality |
-| **Replicant** | Copies another die as a full die object with functionality |
-| **Fuse Die** | Modifies or combines two other dice without sacrificing itself |
-| **Plague Die** | Stronger Exotic infection die (Blight is the Rare version) |
-| **Curse / Sabotage Dice** | Dice that interfere with the opponent's turn |
+| Die | Status | Core Identity | Notes |
+|---|---|---|---|
+| **Joker** | Live Stable | Shared-ruleset wildcard | See §4. Rolls 2–6 as normal, rolls 1 as active wildcard. Not part of the Exotic ladder. |
+| **Super Mimic** | Backlog | Full neighbor copy | Copies full neighboring die including special functionality (stronger Mimic). |
+| **Replicant** | Backlog | Full die-object copy | Copies another die as a full die object with functionality (stronger Clone). |
+| **Fuse Die** | Backlog | Two-die operator | Modifies or combines two other dice without sacrificing itself. Exact rule open. |
+| **Plague Die** | Reserved Backlog | Spreading infection | Stronger infection cousin of Blight. Likely spreading, lingering, or multi-target. |
+| **Curse / Sabotage Dice** | Open Backlog | Enemy-turn disruption | Interfere with opponent's turn or scoring. High-complexity, intentionally Exotic-only. |
 
 ---
 
@@ -563,46 +572,46 @@ Joker belongs to the Exotic layer by nature. It must not be forced into Common o
 
 ### 9.3 Common Draft Ladder
 
-| Win | Unlock | Notes | Difficulty | Encounter | Bot HP |
-|---|---|---|---|---|---|
-| 1 | Frog | | Novice | Tutorial Bot | 3000 |
-| 2 | One Love | plain bias die | Novice | Tutorial Bot | 3250 |
-| 3 | Comrade | plain bias die | Novice | Duelist | 3500 |
-| 4 | Flipper | | Novice+ | Trickster | 3800 |
-| 5 | Even Die | | Skilled | Pair Hunter | 4200 |
-| 7 | Odd Die | | Skilled | Parity Bot | 4600 |
-| 9 | Bandie | first heal unlock | Skilled | Sustain Test | 5000 |
-| 11 | Mathematician Die | | Veteran | Pattern Bot | 5500 |
-| 13 | Cluster Die | | Veteran | Set Boss | 6000 |
-| 15 | Bounce Die | | Veteran | Tempo Bot | 6600 |
-| 18 | Slime Die | | Elite | Split Boss | 7400 |
-| 21 | Bridge Die | | Elite | Straight Boss | 8300 |
-| 24 | Match Die | | Elite | Set Boss II | 9200 |
-| 27 | Chain Die | | Master | Precision Boss | 10200 |
-| 30 | Shrinking Die | | Master | Rhythm Boss | 11300 |
-| 33 | Growing Die | | Master+ | Double Bot | 12400 |
-| 36 | Pulse Die | second heal unlock | Common Finale | Common Finale Boss | 14000 |
+| Win | Gap | Unlock | Family | Difficulty | Encounter | Bot HP | Progression Note |
+|---|---|---|---|---|---|---|---|
+| 1 | 1 | Frog | Active reroll / tempo | Novice | Tutorial Bot | 3000 | First active die; teaches special dice can change turn state |
+| 2 | 1 | One Love | Bias: 1 | Novice | Tutorial Bot | 3250 | First clean scoring bias; reinforces 1-value identity |
+| 3 | 1 | Comrade | Bias: 5 | Novice | Duelist | 3500 | Completes the 1/5 scoring pair language |
+| 4 | 1 | Flipper | Control | Novice+ | Trickster | 3800 | First direct manipulation button |
+| 5 | 1 | Even Die | Parity bias | Skilled | Pair Hunter | 4200 | Introduces parity-weighted thinking |
+| 7 | 2 | Odd Die | Parity bias | Skilled | Parity Bot | 4600 | Completes parity pair; broadens loadout tuning |
+| 9 | 2 | Bandie | Utility sustain (heal) | Skilled | Sustain Test | 5000 | First heal unlock; clear recovery checkpoint |
+| 11 | 2 | Mathematician Die | Pattern bias | Veteran | Pattern Bot | 5500 | Weird but readable identity die; expands pool memorability |
+| 13 | 2 | Cluster Die | Set bias | Veteran | Set Boss | 6000 | Starts teaching set-family loadouts |
+| 15 | 2 | Bounce Die | Momentum / return | Veteran | Tempo Bot | 6600 | Introduces comeback tempo and re-entry |
+| 18 | 3 | Slime Die | Split / spawn | Elite | Split Boss | 7400 | Common complexity spike: extra die + board-width thinking |
+| 21 | 3 | Bridge Die | Straight helper | Elite | Straight Boss | 8300 | First dedicated straight helper; boss gate for route learning |
+| 24 | 3 | Match Die | Set helper | Elite | Set Boss II | 9200 | Direct set finisher; strong but readable common payoff |
+| 27 | 3 | Chain Die | 1/5 targeted helper | Master | Precision Boss | 10200 | Late-common targeted die demanding intentional selection |
+| 30 | 3 | Shrinking Die | Rhythm / memory | Master | Rhythm Boss | 11300 | First common rhythm die with persistent mental model |
+| 33 | 3 | Growing Die | Rhythm / memory | Master+ | Double Bot | 12400 | Completes rhythm pair; good place for two-bot pacing spike |
+| 36 | 3 | Pulse Die | Utility sustain (heal) | Common Finale | Common Finale Boss | 14000 | Second heal unlock; clean common finale reward |
 
 ### 9.4 Rare Draft Ladder
 
-| Win | Unlock | Notes | Difficulty | Encounter | Bot HP |
-|---|---|---|---|---|---|
-| 40 | Tuner | | Master | Rare Gatekeeper | 16000 |
-| 44 | Royal I | | Master | Straight Hunter | 17500 |
-| 48 | Forge I | | Master+ | Set Smith | 19000 |
-| 52 | Pin Die | | Master+ | Pattern Hunter | 20500 |
-| 56 | Devil Die | | Heroic | Sixes Boss | 22000 |
-| 60 | Mimic Die | | Heroic | Copycat Boss | 23500 |
-| 65 | Clone Die | | Heroic+ | Double Bot | 25500 |
-| 70 | Blight Die | | Nightmare | Infection Boss | 27500 |
-| 75 | Gravity Die | | Nightmare | Weight Boss | 30000 |
-| 81 | Mirror Die | | Nightmare+ | Reflective Boss | 33000 |
-| 87 | SacriDice | | Apex | Sacrifice Duel | 36500 |
-| 93 | Yin / Yang Dice | pair unlock | Apex | Twin Boss | 40000 |
-| 100 | Second Wind Die | rare sustain | Apex+ | Endurance Boss | 44000 |
-| 107 | Leech Die | rare sustain | Legend | Gauntlet (2 fights) | 48000 |
-| 115 | Siphon Die | rare sustain | Legend | Drain Boss | 52500 |
-| 123 | Transfusion Die | rare sustain finale | Legend Finale | Rare Finale Boss | 57500 |
+| Win | Gap | Unlock | Family | Difficulty | Encounter | Bot HP | Progression Note |
+|---|---|---|---|---|---|---|---|
+| 40 | 4 | Tuner | Precision control | Master | Rare Gatekeeper | 16000 | First rare; immediately useful and easy to parse |
+| 44 | 4 | Royal I | Straight payoff | Master | Straight Hunter | 17500 | Early rare route-specialist; clear straight reward path |
+| 48 | 4 | Forge I | Set payoff | Master+ | Set Smith | 19000 | Pairs with Royal as early set-focused rare payoff |
+| 52 | 4 | Pin Die | Value memory | Master+ | Pattern Hunter | 20500 | Next-roll planning without button clutter |
+| 56 | 4 | Devil Die | 6-route payoff | Heroic | Sixes Boss | 22000 | First narrow jackpot rare; rewards reading table for sixes |
+| 60 | 4 | Mimic Die | Value copy | Heroic | Copycat Boss | 23500 | First true adaptive copy die (value only) |
+| 65 | 5 | Clone Die | Value rewrite | Heroic+ | Double Bot | 25500 | Value rewrite + first rare double-bot spike |
+| 70 | 5 | Blight Die | Infection | Nightmare | Infection Boss | 27500 | Opens local manipulation in a readable way |
+| 75 | 5 | Gravity Die | Board-reading bias | Nightmare | Weight Boss | 30000 | Mid-rare board-reading check; rewards score hierarchy |
+| 81 | 6 | Mirror Die | Side-face reflection | Nightmare+ | Reflective Boss | 33000 | Major rules-depth spike; good place for harder boss |
+| 87 | 6 | SacriDice | Sacrifice conversion | Apex | Sacrifice Duel | 36500 | Strong tradeoff die; pushes board-value evaluation |
+| 93 | 6 | Yin / Yang Dice | Paired complementary | Apex | Twin Boss | 40000 | Pair unlock (2 dice); deepens loadout expression |
+| 100 | 7 | Second Wind Die | Emergency sustain (heal) | Apex+ | Endurance Boss | 44000 | First rare sustain; mid-game survival milestone |
+| 107 | 7 | Leech Die | Turn vampirism (heal) | Legend | Gauntlet (2 fights) | 48000 | Sustained recovery across a risky turn |
+| 115 | 8 | Siphon Die | On-hit sustain (heal) | Legend | Drain Boss | 52500 | Reactive sustain; stabilize after enemy hits |
+| 123 | 8 | Transfusion Die | Score-to-heal (heal) | Legend Finale | Rare Finale Boss | 57500 | Most deliberate rare sustain choice; rare-layer finale |
 
 ### 9.5 Draft Reading Notes
 

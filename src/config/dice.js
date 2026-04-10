@@ -79,10 +79,14 @@
 
         flipper: {
             id: 'flipper', name: 'Flipper', rarity: 'common', utility: false, maxLevel: 3,
-            desc: 'Flip this die to the opposite face.',
+            desc: 'Flip a die to its opposite face once per turn.',
             ability: { type: 'flip', button: 'FLIP', passive: false },
             weights: null,
-            visual: { body: 'ivory', pips: 'dolphin-marks' }
+            visual: {
+                body: '#2878a8', pips: '#f0ece2',
+                specular: 0.14, edgeR: 0.18, pipR: 0.105,
+                marks: [{ face: 1, shape: 'dolphin', color: '#f0ece2' }]
+            }
         },
 
         evenDie: {
@@ -94,7 +98,7 @@
                 { 1: 0.05,  2: 0.283, 3: 0.05,  4: 0.283, 5: 0.05,  6: 0.283 },
                 { 1: 0.033, 2: 0.30,  3: 0.033, 4: 0.30,  5: 0.033, 6: 0.30  }
             ],
-            biasOffset: 0.50,
+            biasOffset: 0.55,
             biasFaces: [2, 4, 6],
             visual: { body: 'white', pips: 'black' }
         },
@@ -108,19 +112,33 @@
                 { 1: 0.283, 2: 0.05,  3: 0.283, 4: 0.05,  5: 0.283, 6: 0.05  },
                 { 1: 0.30,  2: 0.033, 3: 0.30,  4: 0.033, 5: 0.30,  6: 0.033 }
             ],
-            biasOffset: 0.50,
+            biasOffset: 0.55,
             biasFaces: [1, 3, 5],
             visual: { body: 'white', pips: 'black' }
         },
 
         mathematician: {
             id: 'mathematician', name: 'Mathematician Die', rarity: 'common', utility: false, maxLevel: 1,
-            desc: 'Favours 1 and 3 — great for straights.',
+            desc: 'π tribute — faces 3, 1, 4 come up more often.',
             ability: { type: 'bias', passive: true },
             weights: [
-                { 1: 0.22, 2: 0.10, 3: 0.28, 4: 0.20, 5: 0.10, 6: 0.10 }
+                { 1: 0.20, 2: 0.14, 3: 0.24, 4: 0.14, 5: 0.14, 6: 0.14 }
             ],
-            visual: { body: 'white', pips: 'black' }
+            biasOffset: 0.325,
+            biasFaces: [1, 3, 3],
+            visual: {
+                body: '#2d4a3a', pips: '#e8dfc8',
+                specular: 0.03, edgeR: 0.10, pipR: 0.105,
+                marks: [
+                    { face: 1, shape: 'digit', text: '1', color: '#e8dfc8' },
+                    { face: 2, shape: 'digit', text: '2', color: '#e8dfc8' },
+                    { face: 3, shape: 'digits314', color: '#e8dfc8' },
+                    { face: 4, shape: 'digit', text: '4', color: '#e8dfc8' },
+                    { face: 5, shape: 'digit', text: '5', color: '#e8dfc8' },
+                    { face: 6, shape: 'digit', text: '6', color: '#e8dfc8' }
+                ],
+                pipShape: { default: 'hidden' }
+            }
         },
 
         cluster: {
@@ -403,7 +421,7 @@
 
     var IMPLEMENTED = [
         'base', 'frog', 'oneLove', 'comrade',
-        'evenDie', 'oddDie', 'slime', 'joker'
+        'evenDie', 'oddDie', 'flipper', 'mathematician'
     ]
 
     window.DICE = {

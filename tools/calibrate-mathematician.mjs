@@ -1,21 +1,22 @@
 /**
- * Headless cannon-es calibration bench for bias dice.
- * Sweeps center-of-mass offsets and measures face-landing distribution.
+ * Headless cannon-es calibration for Mathematician Die.
  *
- * Usage: node tools/calibrate-bias.mjs
+ * Bias toward face 3 (Z+) strongest, face 1 (Y+) secondary.
+ * Combined direction vector (0, Yw, Zw) normalized, Zw > Yw.
  *
- * Uses production physics constants from diceEngine.js BATTLE_TUNE_DEFAULTS.
+ * Target: 3 ≈ 24%, 1 ≈ 20%, rest ≈ 14% each.
+ *
+ * Usage: node tools/calibrate-mathematician.mjs
  */
 
 import * as CANNON from '../src/vendor/cannon-es.js';
 
-// ── Production physics constants ─────────────────────────────────────────────
 const GRAVITY        = -300;
 const DIE_MASS       = 3.0;
 const DIE_SCALE      = 3.06;
 const BOX_HALF       = 0.48;
-const HALF_EXTENT    = BOX_HALF * DIE_SCALE;   // 1.4688
-const DIE_EDGE       = 2 * HALF_EXTENT;        // 2.9376
+const HALF_EXTENT    = BOX_HALF * DIE_SCALE;
+const DIE_EDGE       = 2 * HALF_EXTENT;
 const THROW_MIN      = 100;
 const THROW_MAX      = 166;
 const MAIN_IMPULSE   = 5.61;
@@ -29,7 +30,6 @@ const SLEEP_TIME     = 0.3;
 const SLEEP_SPEED    = 0.05;
 const FLOOR_Y        = -4;
 
-// ── Face axis table (matches dieFactory.js) ──────────────────────────────────
 const FACE_LOCALS = [
   { x:  0, y:  1, z:  0, val: 1 },
   { x:  0, y: -1, z:  0, val: 6 },
@@ -53,7 +53,6 @@ function readFaceForced(q) {
   return bestVal;
 }
 
-// ── Single throw simulation ──────────────────────────────────────────────────
 function simulateThrow(biasOffsetVec) {
   const world = new CANNON.World({
     gravity: new CANNON.Vec3(0, GRAVITY, 0),
@@ -83,15 +82,12 @@ function simulateThrow(biasOffsetVec) {
   die.addShape(boxShape, biasOffsetVec);
   die.position.set(0, FLOOR_Y + DIE_EDGE * 3, 0);
 
-  // Random initial orientation
   die.quaternion.set(Math.random() - .5, Math.random() - .5, Math.random() - .5, Math.random() - .5);
   die.quaternion.normalize();
-
   world.addBody(die);
 
-  // Apply throw impulse (simulates average player ROLL)
   const f = THROW_MIN + Math.random() * (THROW_MAX - THROW_MIN);
-  const dirX = 0, dirZ = 1; // throw direction along Z
+  const dirX = 0, dirZ = 1;
   const cross = (Math.random() - 0.5) * f * CROSS_MUL;
   die.applyImpulse(
     new CANNON.Vec3(
@@ -110,7 +106,7 @@ function simulateThrow(biasOffsetVec) {
   die.wakeUp();
 
   const DT = 1 / 60;
-  const MAX_STEPS = 3000; // 50 seconds max
+  const MAX_STEPS = 3000;
   for (let step = 0; step < MAX_STEPS; step++) {
     world.step(DT);
     if (die.sleepState === CANNON.Body.SLEEPING) break;
@@ -119,38 +115,33 @@ function simulateThrow(biasOffsetVec) {
   return readFaceForced(die.quaternion);
 }
 
-// ── Sweep ────────────────────────────────────────────────────────────────────
-const THROWS_PER_OFFSET = 3000;
+// ── Sweep: direction (0, Yw, Zw) with Zw > Yw ──────────────────────────────
+// Phase 1: fix ratio Yw/Zw = 0.5 (face 3 gets ~2× the pull of face 1), sweep magnitude
+const YW = 0.5;
+const ZW = 1.0;
+const norm = Math.sqrt(YW * YW + ZW * ZW);
+const DIR = new CANNON.Vec3(0, YW / norm, ZW / norm);
 
-// Mode selection: 'single' for one-face bias, 'diagonal' for parity (odd/even)
-const MODE = process.argv[2] || 'diagonal';
+const THROWS_PER_OFFSET = 5000;
+const OFFSET_MIN  = 0.20;
+const OFFSET_MAX  = 0.55;
+const OFFSET_STEP = 0.025;
 
-let BIAS_DIR, OFFSET_MIN, OFFSET_MAX, OFFSET_STEP, label_header;
-
-if (MODE === 'single') {
-  BIAS_DIR = new CANNON.Vec3(0, 1, 0);
-  OFFSET_MIN = 0.35; OFFSET_MAX = 0.45; OFFSET_STEP = 0.005;
-  label_header = 'One Love bias (face 1 target ~30%)';
-} else {
-  // Odd parity: faces 1(Y+), 3(Z+), 5(X-) share a vertex at direction (-1,+1,+1)
-  const inv3 = 1 / Math.sqrt(3);
-  BIAS_DIR = new CANNON.Vec3(-inv3, inv3, inv3);
-  OFFSET_MIN = 0.25; OFFSET_MAX = 0.60; OFFSET_STEP = 0.025;
-  label_header = 'Odd Die diagonal bias (faces 1,3,5 target ~25% each ≈ 75% total)';
-}
-
-console.log(`Calibrating: ${label_header}`);
+console.log(`=== Mathematician Die calibration ===`);
+console.log(`Target: face 3 ≈ 24%, face 1 ≈ 20%, rest ≈ 14%`);
+console.log(`Bias direction: (0, ${(YW/norm).toFixed(3)}, ${(ZW/norm).toFixed(3)})`);
 console.log(`Throws per offset: ${THROWS_PER_OFFSET}`);
-console.log(`Physics: gravity=${GRAVITY}, mass=${DIE_MASS}, throwMin=${THROW_MIN}, throwMax=${THROW_MAX}`);
+console.log(`Physics: gravity=${GRAVITY}, mass=${DIE_MASS}, scale=${DIE_SCALE}`);
 console.log('');
-console.log('offset  | f1%    f2%    f3%    f4%    f5%    f6%    | odd%   even%');
-console.log('--------+------------------------------------------+-------------');
+console.log('offset  | f1%    f2%    f3%    f4%    f5%    f6%    | f3-f1 gap');
+console.log('--------+------------------------------------------+----------');
 
 for (let offset = OFFSET_MIN; offset <= OFFSET_MAX + 0.0001; offset += OFFSET_STEP) {
+  const mag = offset * HALF_EXTENT;
   const offsetVec = new CANNON.Vec3(
-    BIAS_DIR.x * offset * HALF_EXTENT,
-    BIAS_DIR.y * offset * HALF_EXTENT,
-    BIAS_DIR.z * offset * HALF_EXTENT
+    DIR.x * mag,
+    DIR.y * mag,
+    DIR.z * mag
   );
 
   const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
@@ -160,18 +151,23 @@ for (let offset = OFFSET_MIN; offset <= OFFSET_MAX + 0.0001; offset += OFFSET_ST
   }
 
   const pcts = {};
+  const pctNums = {};
   for (let f = 1; f <= 6; f++) {
-    pcts[f] = ((counts[f] / THROWS_PER_OFFSET) * 100).toFixed(1).padStart(5);
+    pctNums[f] = (counts[f] / THROWS_PER_OFFSET) * 100;
+    pcts[f] = pctNums[f].toFixed(1).padStart(5);
   }
 
-  const oddPct  = ((counts[1] + counts[3] + counts[5]) / THROWS_PER_OFFSET * 100).toFixed(1).padStart(5);
-  const evenPct = ((counts[2] + counts[4] + counts[6]) / THROWS_PER_OFFSET * 100).toFixed(1).padStart(5);
+  const gap = (pctNums[3] - pctNums[1]).toFixed(1).padStart(5);
+  const label = offset.toFixed(3).padStart(6);
 
-  const lbl = offset.toFixed(3).padStart(6);
   console.log(
-    `${lbl}  | ${pcts[1]}  ${pcts[2]}  ${pcts[3]}  ${pcts[4]}  ${pcts[5]}  ${pcts[6]}  | ${oddPct}  ${evenPct}`
+    `${label}  | ${pcts[1]}  ${pcts[2]}  ${pcts[3]}  ${pcts[4]}  ${pcts[5]}  ${pcts[6]}  | ${gap}`
   );
 }
 
+console.log('');
+console.log('Look for offset where f3 ≈ 24%, f1 ≈ 20%, gap ≈ 4.');
+console.log('If f1 too high relative to f3, increase ZW/YW ratio and re-run.');
+console.log('If both too low, increase offset. If both too high, decrease offset.');
 console.log('');
 console.log('Done.');

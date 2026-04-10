@@ -8,7 +8,7 @@
     var STORAGE_KEY = 'diceALot_loadout'
 
     function defaultSlots() {
-        var s = ['oneLove', 'comrade']
+        var s = ['oneLove', 'comrade', 'evenDie', 'oddDie']
         while (s.length < DICE.LOADOUT.SLOTS) s.push(null)
         return s
     }

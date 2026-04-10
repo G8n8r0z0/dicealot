@@ -249,6 +249,72 @@ export function createPipsVertexData(pipR = 0.1, pipOffset = PIP_OFFSET, pipShap
 
 // ── Procedural mark textures ─────────────────────────────────────────────────
 
+function drawDigit(ctx2d, size, digit, color, bgColor) {
+  ctx2d.save();
+  ctx2d.clearRect(0, 0, size, size);
+  if (bgColor) {
+    ctx2d.fillStyle = bgColor;
+    ctx2d.fillRect(0, 0, size, size);
+  }
+  ctx2d.fillStyle = color;
+  ctx2d.textAlign = 'center';
+  ctx2d.textBaseline = 'middle';
+  ctx2d.font = `bold ${Math.round(size * 0.72)}px serif`;
+  ctx2d.fillText(String(digit), size / 2, size / 2 + size * 0.04);
+  ctx2d.restore();
+}
+
+function drawDigits314(ctx2d, size, color, bgColor) {
+  ctx2d.save();
+  ctx2d.clearRect(0, 0, size, size);
+  if (bgColor) {
+    ctx2d.fillStyle = bgColor;
+    ctx2d.fillRect(0, 0, size, size);
+  }
+  ctx2d.fillStyle = color;
+  ctx2d.textAlign = 'center';
+  ctx2d.textBaseline = 'middle';
+  const fs = Math.round(size * 0.34);
+  ctx2d.font = `bold ${fs}px serif`;
+  const off = size * 0.27;
+  ctx2d.fillText('3', size / 2 - off, size / 2 - off);
+  ctx2d.fillText('1', size / 2,       size / 2);
+  ctx2d.fillText('4', size / 2 + off, size / 2 + off);
+  ctx2d.restore();
+}
+
+function drawDolphin(ctx2d, size, color, bgColor) {
+  ctx2d.save();
+  ctx2d.clearRect(0, 0, size, size);
+  if (bgColor) {
+    ctx2d.fillStyle = bgColor;
+    ctx2d.fillRect(0, 0, size, size);
+  }
+  const cx = size / 2, cy = size / 2;
+  const s = size / 128;
+  ctx2d.fillStyle = color;
+  ctx2d.beginPath();
+  ctx2d.moveTo(cx + 28*s, cy - 32*s);
+  ctx2d.quadraticCurveTo(cx + 36*s, cy - 44*s, cx + 24*s, cy - 48*s);
+  ctx2d.quadraticCurveTo(cx + 18*s, cy - 44*s, cx + 16*s, cy - 36*s);
+  ctx2d.quadraticCurveTo(cx + 6*s,  cy - 42*s, cx - 10*s, cy - 36*s);
+  ctx2d.quadraticCurveTo(cx - 28*s, cy - 26*s, cx - 34*s, cy - 6*s);
+  ctx2d.quadraticCurveTo(cx - 38*s, cy + 8*s,  cx - 30*s, cy + 20*s);
+  ctx2d.quadraticCurveTo(cx - 22*s, cy + 30*s, cx - 8*s,  cy + 36*s);
+  ctx2d.quadraticCurveTo(cx - 18*s, cy + 42*s, cx - 30*s, cy + 44*s);
+  ctx2d.quadraticCurveTo(cx - 18*s, cy + 48*s, cx - 6*s,  cy + 42*s);
+  ctx2d.quadraticCurveTo(cx + 10*s, cy + 34*s, cx + 22*s, cy + 18*s);
+  ctx2d.quadraticCurveTo(cx + 30*s, cy + 6*s,  cx + 34*s, cy - 10*s);
+  ctx2d.quadraticCurveTo(cx + 36*s, cy - 22*s, cx + 28*s, cy - 32*s);
+  ctx2d.closePath();
+  ctx2d.fill();
+  ctx2d.fillStyle = bgColor || '#2878a8';
+  ctx2d.beginPath();
+  ctx2d.arc(cx - 14*s, cy - 14*s, 3*s, 0, Math.PI * 2);
+  ctx2d.fill();
+  ctx2d.restore();
+}
+
 function drawHeart(ctx2d, size, color, bgColor) {
   const cx = size / 2, cy = size / 2;
   const r = size * 0.42;
@@ -339,11 +405,31 @@ export function createMarkTexture(mark, name, scene) {
     dt.update(false);
     return dt;
   }
-  if (mark.shape === 'letter') {
+  if (mark.shape === 'letter' || mark.shape === 'digit') {
     const dt = new BABYLON.DynamicTexture(name, sz, scene, true);
     dt.hasAlpha = true;
     const ctx2d = dt.getContext();
-    drawLetter(ctx2d, sz, mark.text || '?', mark.color || '#ffffff', mark.bg || null);
+    if (mark.shape === 'digit') {
+      drawDigit(ctx2d, sz, mark.text || '?', mark.color || '#ffffff', mark.bg || null);
+    } else {
+      drawLetter(ctx2d, sz, mark.text || '?', mark.color || '#ffffff', mark.bg || null);
+    }
+    dt.update(false);
+    return dt;
+  }
+  if (mark.shape === 'digits314') {
+    const dt = new BABYLON.DynamicTexture(name, sz, scene, true);
+    dt.hasAlpha = true;
+    const ctx2d = dt.getContext();
+    drawDigits314(ctx2d, sz, mark.color || '#e8dfc8', mark.bg || null);
+    dt.update(false);
+    return dt;
+  }
+  if (mark.shape === 'dolphin') {
+    const dt = new BABYLON.DynamicTexture(name, sz, scene, true);
+    dt.hasAlpha = true;
+    const ctx2d = dt.getContext();
+    drawDolphin(ctx2d, sz, mark.color || '#f0ece2', mark.bg || null);
     dt.update(false);
     return dt;
   }

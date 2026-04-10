@@ -66,6 +66,8 @@ Button/Sling → ROLL_DICE → bridge throws dice → physics settle
 → store re-evaluates bust/selecting → UI unlocks
 ```
 
+**ROLL_DICE / DICE_SETTLED contract (v1.0.9):** `ROLL_DICE` generates PRNG values for 2D fallback and detects bust via `hasPlayableDice()`, setting `phase = 'bust'`. However, it does **not** reset `accumulatedScore` — that is only done by the explicit `BUST` handler (dispatched by `inputHandler` or `botSystem` after bust is confirmed). In 3D mode, `DICE_SETTLED` overrides both `rolledDice` and `phase` with physics results, so a PRNG bust may be reversed by physics. If `ROLL_DICE` cleared `accumulatedScore`, the player's turn score would be silently lost when PRNG and physics disagree.
+
 **Sling SVG visualization:** `#slingVizSvg` overlay shows wedge indicator (direction + strength %) during drag, ported from `battle.html`.
 
 ```html

@@ -82,8 +82,7 @@
                 if (t.dieSlotMap.length !== t.diceCount) initSlotMap(t)
 
                 if (!window.scoringSystem.hasPlayableDice(values)) {
-                    t.phase            = 'bust'
-                    t.accumulatedScore = 0
+                    t.phase = 'bust'
                 } else {
                     t.phase = 'selecting'
                 }
