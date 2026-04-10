@@ -1,0 +1,14 @@
+v1.0.8 -- Frog Die complete (JUMP ability + blink), Ability Panel, Even/Odd bias, mini-die visuals, loadout polish
+
+- Frog die: green body, animated blinking eye (DynamicTexture), JUMP physics reroll (upSpeed 90, direct velocity, single-die re-settle)
+- Ability Panel (abilityUI.js): context-sensitive button when 1 ability die selected, uses dieSlotMap for correct ID
+- dieSlotMap in turnSystem: maps rolledDice indices to original loadout slots, survives SCORE_SELECTION
+- USE_ABILITY / JUMP_SETTLED actions in turnSystem (phase: selecting -> jumping -> selecting)
+- Even/Odd die physics bias: center-of-mass offset 0.500
+- Loadout persistence: localStorage save/load
+- IMPLEMENTED filter: dice.js array controls inventory visibility
+- Mini-die 2D visuals: CSS grid + gradients + animated marks (frog blink, love heartbeat, comrade stars)
+- Drag-and-drop in loadout: pointer-event-based, ghost element, drop-target highlight
+- Pip picking fix: findDieAtPick checks _extraPipMeshes and markMeshes
+- Version tag: fixed bottom-left corner (v1.0.8)
+- Docs updated: ARCHITECTURE.md, DESIGN.md, TODO.md, README.md

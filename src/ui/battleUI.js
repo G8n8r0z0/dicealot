@@ -135,6 +135,8 @@
             hint = 'Drag on the table or press ROLL'
         } else if (t.phase === 'selecting') {
             hint = 'Click dice to select'
+        } else if (t.phase === 'jumping') {
+            hint = 'Frog is jumping...'
         } else if (t.phase === 'bust') {
             hint = ''
         }

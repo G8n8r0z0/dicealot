@@ -796,7 +796,20 @@ export function rollXZToClient(ctx, xw, zw) {
 export function findDieAtPick(ctx, pickInfo) {
   if (!pickInfo || !pickInfo.hit) return null;
   const m = pickInfo.pickedMesh;
-  return ctx.dice.find(d => d.outer === m || d.pips === m || d.backing === m) || null;
+  return ctx.dice.find(d => {
+    if (d.outer === m || d.pips === m || d.backing === m) return true;
+    if (d._extraPipMeshes) {
+      for (let i = 0; i < d._extraPipMeshes.length; i++) {
+        if (d._extraPipMeshes[i] === m) return true;
+      }
+    }
+    if (d.markMeshes) {
+      for (let i = 0; i < d.markMeshes.length; i++) {
+        if (d.markMeshes[i] === m) return true;
+      }
+    }
+    return false;
+  }) || null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

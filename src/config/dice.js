@@ -34,7 +34,13 @@
             desc: 'Reroll this die once per turn.',
             ability: { type: 'reroll', button: 'JUMP', passive: false },
             weights: null,
-            visual: { body: '#5a8a32', pips: '#fffde0', marks: 'frog-eye on face 1' }
+            visual: {
+                body: '#2c8217', pips: '#f7d746',
+                specular: 0.08, edgeR: 0.13,
+                pipR: { default: 0.12, 1: 0.22 },
+                pipColors: { default: '#f7d746', 1: '#c8b87a' },
+                marks: [{ face: 1, shape: 'frogEye', color: '#070808' }]
+            }
         },
 
         oneLove: {
@@ -374,7 +380,12 @@
             desc: 'Wild card — adds 1 to any combination.',
             ability: { type: 'joker', passive: true, activeFace: 1 },
             weights: null,
-            visual: { body: 'white', pips: 'black', marks: 'joker' }
+            visual: {
+                body: '#d54141', pips: '#ffffff',
+                specular: 0.12,
+                pipShape: { default: 'circle', 1: 'hidden' },
+                marks: [{ face: 1, shape: 'letter', text: 'J', color: '#ffffff' }]
+            }
         }
     }
 
@@ -390,11 +401,17 @@
     // Rarity sort order
     var RARITY_ORDER = { base: 0, common: 1, rare: 2, exotic: 3 }
 
+    var IMPLEMENTED = [
+        'base', 'frog', 'oneLove', 'comrade',
+        'evenDie', 'oddDie', 'slime', 'joker'
+    ]
+
     window.DICE = {
-        roster:      roster,
-        OPPOSITES:   OPPOSITES,
-        LOADOUT:     LOADOUT,
-        RARITY_ORDER: RARITY_ORDER
+        roster:       roster,
+        OPPOSITES:    OPPOSITES,
+        LOADOUT:      LOADOUT,
+        RARITY_ORDER: RARITY_ORDER,
+        IMPLEMENTED:  IMPLEMENTED
     }
 
 })()

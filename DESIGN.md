@@ -199,9 +199,11 @@ Dice names should be playful, weird, memorable, or slightly absurd. The requirem
 
 - **Role:** light reroll / control die
 - **Mechanic:** once per turn, this die may jump to a random face
-- **Interaction:** player selects Frog → presses `JUMP` → die changes to a random value
-- **Visual:** frog-green body, cream pips. Face 1 uses a single blinking frog eye mark (vertical lens pupil). Hub and battle use the same frog-eye language.
-- **Audio:** silent on selection; short croak only on `JUMP` activation.
+- **Interaction:** player selects Frog → presses `JUMP` → die physically jumps and re-settles on a new face
+- **Visual:** frog-green body (`#2c8217`), cream/gold pips (`#f7d746`), specular 0.08, edgeR 0.13. Face 1 uses a single animated blinking frog eye mark (vertical lens pupil, `DynamicTexture`, 1–2s blink delay). Per-face config: `pipR: { default: 0.12, 1: 0.22 }`, `pipColors: { default: '#f7d746', 1: '#c8b87a' }`, `marks: [{ face: 1, shape: 'frogEye', color: '#070808' }]`.
+- **Audio:** silent on selection; short croak only on `JUMP` activation (not yet implemented).
+- **JUMP physics:** direct velocity set (`upSpeed: 90`, `upRandom: 15`, `hSpeed: 12`, `spin: 30`), `allowSleep` temporarily disabled for 400ms, `onAllSettled` callback swapped to `handleJumpSettled` for single-die re-settle. Edge/stuck retry uses the same reroll logic as normal rolls.
+- **Implementation status:** DONE (v1.0.8). Visual, blink animation, JUMP ability (physics reroll), ability panel UI, `dieSlotMap` tracking.
 
 #### One Love
 
@@ -235,6 +237,7 @@ Dice names should be playful, weird, memorable, or slightly absurd. The requirem
 
 - **Role:** common parity bias die
 - **Mechanic:** elevated chance for `2/4/6`.
+- **Physics bias:** center-of-mass offset `0.500` toward the `2/4/6` cluster. Calibrated to ~25% per even face at Lv1.
 - **Level line:**
   - Lv1: `2/4/6 = 25%` each, `1/3/5 = 8.3%` each
   - Lv2: `2/4/6 = 28.3%` each, `1/3/5 = 5%` each
@@ -244,6 +247,7 @@ Dice names should be playful, weird, memorable, or slightly absurd. The requirem
 
 - **Role:** common parity bias die
 - **Mechanic:** elevated chance for `1/3/5`.
+- **Physics bias:** center-of-mass offset `0.500` toward the `1/3/5` cluster. Calibrated to ~25% per odd face at Lv1.
 - **Level line:**
   - Lv1: `1/3/5 = 25%` each, `2/4/6 = 8.3%` each
   - Lv2: `1/3/5 = 28.3%` each, `2/4/6 = 5%` each
@@ -643,10 +647,13 @@ Two buttons on the player side panel open the same modal in different modes:
 **Shared UI:**
 - No modal title bar — GAME RULES / YOUR DICE / INVENTORY are section headers (1.1em, 800 weight, light color)
 - Close button (×) in top-right corner
-- 6 dice in one row, full-width aspect-ratio 1:1 slots with large die faces (80% fill, 20% border-radius, percentage-based pips). Die body color applied to the `.lo-die-face` element.
+- 6 dice in one row, full-width aspect-ratio 1:1 slots with **mini-die** 2D visuals (CSS grid 3×3, gradient backgrounds, animated marks: frog blink, love heartbeat, comrade stars). Colors synced with `dice.js` config. Showcase faces: Comrade shows face 5 (stars), Frog shows face 1 (eye), One Love shows face 1 (heart).
 - Each die has a `desc` field in `dice.js` shown in the detail panel (e.g. "Higher chance of rolling 1 (30%)")
 - Joker is a normal special die in this flow
 - Empty slots read as base dice
+- **Drag-and-drop** — pointer-event-based drag between inventory tiles and loadout slots (ghost element follows cursor, drop-target highlight, `ev.preventDefault()` blocks text selection)
+- **Persistence** — loadout saved to `localStorage` on Save, restored on page load
+- **IMPLEMENTED filter** — `DICE.IMPLEMENTED` array in `dice.js` controls which dice appear in the inventory grid (only visually/functionally complete dice shown)
 
 **Viewport scaling:** `.lo-modal` uses `font-size: clamp(1rem, 1.5vmin, 1.25rem)` as the scaling anchor. All sizes inside (fonts, dice, slots, detail card) use `em` instead of `rem`/`px`, so the entire panel scales proportionally with the viewport. On small screens (laptop ~768px vmin) the floor is `1rem` (16px) — same as before. On large screens (1440px+ vmin) everything grows up to `1.25rem` (20px), filling the space. Mobile breakpoint (≤700px) uses `clamp(13px, 2.5vw, 1rem)`.
 
@@ -666,7 +673,8 @@ botDifficulty: novice | advanced | master
 - Round Score, dice field, HP readability, core combat actions
 - **Player roll affordance:** primary is **drag on the 3D table** (pull-back sling into the roll zone); **ROLL** button remains a clear fallback
 - Bot turns play back on the live board: animated roll, sequential packet selection, held-dice collect, round-score update, bank or bust
-- Secondary action buttons (JUMP, TUNE, FLIP, etc.) in a reserved row under main actions
+- **Ability Panel** (`#abilityPanel`) — context-sensitive: appears when exactly 1 non-passive ability die is selected during `selecting` phase. Main button (JUMP for Frog, TUNE ±1 for Tuner). Uses `dieSlotMap` to resolve selected die's true identity from loadout. Panel dispatches `USE_ABILITY`.
+- **Version tag** — fixed bottom-left corner, shows current version (e.g. `v1.0.8`), semi-transparent, pointer-events:none
 - Round History in the right rail under bot block — **imperative logging** via `battleUI.logHistory(text, color)`, called at event sites in `diceBridge.js`, `inputHandler.js`, `botSystem.js`
 - **Damage visualization** — on bank/hot-hand: fly-up "-N" number near HP widget (CSS `dmgFly` 1.5s), HP bar flash + widget shake
 - **Invalid selection highlights** — when 2+ dice selected and `selectionValid === false`, all selected 3D dice glow red instead of green
@@ -989,7 +997,7 @@ These systems are documented in the old project but are **not** part of the acti
 | `state.match` | Phase (hub/loadout/battle/result), active player, turn count | `matchSystem.js` |
 | `state.player` | HP, loadout, collection, wins | `playerSystem.js` |
 | `state.enemy` | HP, loadout, personality, name | `enemySystem.js` |
-| `state.turn` | Rolled dice values, held dice, accumulated score, phase (`idle`/`selecting`/`bust`), bust flag, hot hand flag, active die effects | `turnSystem.js` |
+| `state.turn` | Rolled dice values, held dice, accumulated score, phase (`idle`/`selecting`/`jumping`/`bust`), bust flag, hot hand flag, `dieSlotMap` (maps rolledDice indices → original loadout slots), `jumpUsed`, `jumpingDie`, active die effects | `turnSystem.js` |
 | `state.campaign` | Unlock ladder progress, completed encounters | `campaignSystem.js` |
 
 ### 16.2 Key Actions
@@ -1004,7 +1012,9 @@ These systems are documented in the old project but are **not** part of the acti
 | `BUST` | `{}` | `turn` |
 | `HOT_HAND` | `{}` | `turn` |
 | `END_TURN` | `{}` | `match` |
-| `USE_ABILITY` | `{ dieIndex, ability, target? }` | `turn` |
+| `USE_ABILITY` | `{ dieIndex, ability, target? }` | `turn` — sets `jumpUsed`/`jumpingDie`, phase → `jumping` |
+| `JUMP_SETTLED` | `{ dieIndex, newValue }` | `turn` — updates die value after physics re-settle, phase → `selecting` |
+| `DICE_SETTLED` | `{ values[] }` | `turn` — overrides PRNG values with physics face reads |
 | `START_BATTLE` | `{ enemyId, difficulty }` | `match`, `enemy` |
 | `SET_LOADOUT` | `{ dice[] }` | `player` |
 | `UNLOCK_DIE` | `{ dieType }` | `player`, `campaign` |

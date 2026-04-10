@@ -11,6 +11,7 @@
     var _selectedSlot = null
     var _3dPreview = null
     var _mode = 'rules'
+    var _drag = null
 
     var PIP_MAP = {
         1: [4],
@@ -21,12 +22,77 @@
         6: [0, 2, 3, 5, 6, 8]
     }
 
+    var COMRADE_STAR_SVG = '<svg viewBox="0 0 64 64" aria-hidden="true"><g transform="translate(0 1)">'
+        + '<path fill="#d89c24" d="M32 6L39.2 20.8L55.4 23.1L43.6 34.2L47 50L32 42.1L17 50L20.4 34.2L8.6 23.1L24.8 20.8z"/>'
+        + '<path fill="#ffe36a" d="M32 8.7L38.5 22.1L53.3 24.2L42.5 34.4L45.6 48.8L32 41.6L18.4 48.8L21.5 34.4L10.7 24.2L25.5 22.1z"/>'
+        + '<path fill="#f6d36f" d="M32 10.8L37.7 22.7L50.9 24.6L41.3 33.6L44 46.4L32 40.1L20 46.4L22.7 33.6L13.1 24.6L26.3 22.7z"/>'
+        + '</g></svg>'
+
+    var SHOWCASE_FACE = { comrade: 5, oneLove: 1, frog: 1 }
+
+    function buildMiniDie(dieId, faceValue) {
+        var def = getDieDef(dieId)
+        var cls = dieId || 'base'
+        if (SHOWCASE_FACE[cls]) faceValue = SHOWCASE_FACE[cls]
+        var die = document.createElement('div')
+        die.className = 'mini-die ' + cls
+
+        if (cls === 'joker') {
+            var j = document.createElement('div')
+            j.className = 'mini-die-joker'
+            j.textContent = 'J'
+            die.appendChild(j)
+            return die
+        }
+
+        var cells = PIP_MAP[faceValue] || PIP_MAP[1]
+        var isFrog = cls === 'frog'
+        var isLove = cls === 'oneLove'
+        var isComradeStar = cls === 'comrade' && faceValue === 5
+
+        for (var i = 0; i < 9; i++) {
+            var active = cells.indexOf(i) !== -1
+            var pip = document.createElement('span')
+            pip.className = 'pip' + (active ? '' : ' pip-hide')
+
+            if (isComradeStar && active) {
+                pip.classList.add('comrade-star-slot')
+                var star = document.createElement('span')
+                star.className = 'mini-pip-comrade-star'
+                star.innerHTML = COMRADE_STAR_SVG
+                pip.appendChild(star)
+            }
+            die.appendChild(pip)
+        }
+
+        if (isFrog && faceValue === 1) {
+            var fm = document.createElement('span')
+            fm.className = 'mini-frogmark'
+            var eye = document.createElement('span')
+            eye.className = 'mini-frog-eye'
+            fm.appendChild(eye)
+            die.appendChild(fm)
+        }
+        if (isLove && faceValue === 1) {
+            var centerPip = die.querySelectorAll('.pip')[4]
+            if (centerPip) centerPip.style.visibility = 'hidden'
+            var lm = document.createElement('span')
+            lm.className = 'mini-lovemark'
+            var heart = document.createElement('span')
+            heart.className = 'mini-love-heart'
+            lm.appendChild(heart)
+            die.appendChild(lm)
+        }
+
+        return die
+    }
+
     function pipFaceHTML(faceValue) {
         var cells = PIP_MAP[faceValue] || PIP_MAP[1]
-        var h = '<div class="lo-die-face">'
+        var h = '<div class="mini-die base">'
         for (var i = 0; i < 9; i++) {
             var vis = cells.indexOf(i) !== -1
-            h += '<span class="lo-pip' + (vis ? '' : ' lo-pip-hide') + '"></span>'
+            h += '<span class="pip' + (vis ? '' : ' pip-hide') + '"></span>'
         }
         h += '</div>'
         return h
@@ -83,6 +149,104 @@
         render()
     }
 
+    // ── drag'n'drop ───────────────────────────────────────────────────────
+
+    var DRAG_THRESHOLD = 8
+
+    function startDrag(source, srcEl, ev) {
+        if (_mode !== 'loadout' || ev.button > 0) return
+        ev.preventDefault()
+        _drag = {
+            source: source,
+            srcEl: srcEl,
+            startX: ev.clientX,
+            startY: ev.clientY,
+            active: false,
+            ghost: null
+        }
+        document.addEventListener('pointermove', onDragMove)
+        document.addEventListener('pointerup', onDragEnd)
+        document.addEventListener('pointercancel', onDragEnd)
+    }
+
+    function onDragMove(ev) {
+        if (!_drag) return
+        var dx = ev.clientX - _drag.startX
+        var dy = ev.clientY - _drag.startY
+        if (!_drag.active && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
+            _drag.active = true
+            _drag.srcEl.classList.add('drag-source')
+            var dieId = _drag.source.type === 'slot'
+                ? _editing[_drag.source.index]
+                : _drag.source.dieId
+            var ghost = document.createElement('div')
+            ghost.className = 'lo-drag-ghost'
+            ghost.appendChild(buildMiniDie(dieId, 1))
+            document.body.appendChild(ghost)
+            _drag.ghost = ghost
+        }
+        if (_drag.active && _drag.ghost) {
+            _drag.ghost.style.left = ev.clientX + 'px'
+            _drag.ghost.style.top = ev.clientY + 'px'
+        }
+        clearDropTargets()
+        var el = document.elementFromPoint(ev.clientX, ev.clientY)
+        if (el) {
+            var slot = el.closest('.lo-slot[data-index]')
+            if (slot) slot.classList.add('drop-target')
+        }
+    }
+
+    function onDragEnd(ev) {
+        if (!_drag) return
+        var wasDrag = _drag.active
+        var source = _drag.source
+        clearDropTargets()
+        if (_drag.ghost && _drag.ghost.parentNode) _drag.ghost.parentNode.removeChild(_drag.ghost)
+        _drag.srcEl.classList.remove('drag-source')
+        document.removeEventListener('pointermove', onDragMove)
+        document.removeEventListener('pointerup', onDragEnd)
+        document.removeEventListener('pointercancel', onDragEnd)
+
+        if (wasDrag) {
+            var el = document.elementFromPoint(ev.clientX, ev.clientY)
+            var targetSlot = el ? el.closest('.lo-slot[data-index]') : null
+            var targetInv = el ? el.closest('#loadoutLeft') : null
+
+            if (targetSlot) {
+                var ti = Number(targetSlot.dataset.index)
+                if (source.type === 'slot') {
+                    var tmp = _editing[ti]
+                    _editing[ti] = _editing[source.index]
+                    _editing[source.index] = tmp
+                } else {
+                    _editing[ti] = source.dieId
+                }
+                _selectedSlot = ti
+                render()
+            } else if (targetInv && source.type === 'slot') {
+                _editing[source.index] = null
+                _selectedSlot = null
+                render()
+            }
+        } else {
+            if (source.type === 'slot') {
+                _selectedSlot = source.index
+                render()
+            } else if (source.type === 'inventory' && _selectedSlot !== null) {
+                _editing[_selectedSlot] = source.dieId
+                render()
+            }
+        }
+
+        _drag = null
+    }
+
+    function clearDropTargets() {
+        var els = document.querySelectorAll('.lo-slot.drop-target')
+        for (var i = 0; i < els.length; i++) els[i].classList.remove('drop-target')
+    }
+
     function dispose3D() {
         if (_3dPreview) {
             _3dPreview.dispose()
@@ -121,7 +285,6 @@
         for (var i = 0; i < _editing.length; i++) {
             var sel = _selectedSlot === i
             var def = getDieDef(_editing[i])
-            var vis = def.visual || {}
 
             var s = document.createElement('div')
             s.className = 'lo-slot filled' + (sel ? ' selected' : '')
@@ -130,13 +293,7 @@
             var well = document.createElement('div')
             well.className = 'lo-slot-well'
             if (sel) well.style.borderColor = 'rgba(239,193,74,.7)'
-            well.innerHTML = pipFaceHTML(1)
-            var face = well.querySelector('.lo-die-face')
-            if (face && vis.body && vis.body !== 'white') face.style.backgroundColor = vis.body
-            if (vis.pips && vis.pips !== 'black') {
-                var dots = well.querySelectorAll('.lo-pip:not(.lo-pip-hide)')
-                for (var d = 0; d < dots.length; d++) dots[d].style.backgroundColor = vis.pips
-            }
+            well.appendChild(buildMiniDie(_editing[i], 1))
 
             var label = document.createElement('div')
             label.className = 'lo-slot-name'
@@ -146,12 +303,11 @@
             s.appendChild(label)
             _el.slots.appendChild(s)
 
-            s.onclick = (function(idx) {
-                return function() {
-                    _selectedSlot = idx
-                    render()
+            s.onpointerdown = (function(idx, el) {
+                return function(ev) {
+                    startDrag({ type: 'slot', index: idx }, el, ev)
                 }
-            })(i)
+            })(i, s)
         }
     }
 
@@ -161,8 +317,11 @@
         var roster = window.DICE && window.DICE.roster
         if (!roster) { _el.left.innerHTML = '<div class="lo-empty-msg">No dice available</div>'; return }
 
+        var impl = window.DICE.IMPLEMENTED || []
         var order = window.DICE.RARITY_ORDER || {}
-        var keys = Object.keys(roster).sort(function(a, b) {
+        var keys = Object.keys(roster).filter(function(k) {
+            return impl.indexOf(k) !== -1
+        }).sort(function(a, b) {
             var ra = order[roster[a].rarity] || 0, rb = order[roster[b].rarity] || 0
             return ra - rb || a.localeCompare(b)
         })
@@ -170,20 +329,13 @@
         _el.left.innerHTML = ''
         for (var k = 0; k < keys.length; k++) {
             var def = roster[keys[k]]
-            var vis = def.visual || {}
             var tile = document.createElement('div')
             tile.className = 'lo-tile'
             tile.dataset.dieId = def.id
 
             var well = document.createElement('div')
             well.className = 'lo-slot-well'
-            well.innerHTML = pipFaceHTML(1)
-            var face = well.querySelector('.lo-die-face')
-            if (face && vis.body && vis.body !== 'white') face.style.backgroundColor = vis.body
-            if (vis.pips && vis.pips !== 'black') {
-                var dots = well.querySelectorAll('.lo-pip:not(.lo-pip-hide)')
-                for (var d = 0; d < dots.length; d++) dots[d].style.backgroundColor = vis.pips
-            }
+            well.appendChild(buildMiniDie(def.id, 1))
 
             var label = document.createElement('div')
             label.className = 'lo-tile-label'
@@ -193,14 +345,11 @@
             tile.appendChild(label)
             _el.left.appendChild(tile)
 
-            tile.onclick = (function(id) {
-                return function() {
-                    if (_selectedSlot !== null) {
-                        _editing[_selectedSlot] = id
-                        render()
-                    }
+            tile.onpointerdown = (function(id, el) {
+                return function(ev) {
+                    startDrag({ type: 'inventory', dieId: id }, el, ev)
                 }
-            })(def.id)
+            })(def.id, tile)
         }
     }
 

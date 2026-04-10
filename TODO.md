@@ -489,13 +489,32 @@ Same roll/select/score/bank structure as player. Automated decision-making.
 
 ---
 
+## ── MILESTONE: Frog Die Complete + Loadout Polish — v1.0.8 (COMPLETE 2026-04-10) ──
+
+> Frog die: full visual (green body, animated blink eye mark) + JUMP ability (physics-based reroll). Ability Panel UI. Even/Odd die physics bias. Loadout: mini-die 2D visuals (ported from battle.html, synced colors), drag-and-drop, persistence (localStorage), IMPLEMENTED inventory filter. Version tag in bottom-left corner.
+
+- [x] **Frog visual** — green body `#2c8217`, cream/gold pips `#f7d746`, blinking frog eye on face 1 (`DynamicTexture`, 1–2s blink delay, `drawFrogEye` with `openAmount` parameter). `startBlinkLoop()` / `stopBlinkLoop()` on die object.
+- [x] **Frog JUMP ability** — physics-based reroll: `applyJumpImpulse()` sets direct velocity (upSpeed 90, upRandom 15, hSpeed 12, spin 30), temporarily disables `allowSleep` for 400ms. `handleJumpSettled()` reads new face value, dispatches `JUMP_SETTLED`. Edge/stuck retry via `handleJumpEdge()`.
+- [x] **Ability Panel** — `abilityUI.js`: `mount(store)` + `refresh()`. Shows context-sensitive button when exactly 1 non-passive ability die selected during `selecting` phase. Uses `dieSlotMap` for correct die identification.
+- [x] **`dieSlotMap`** — `turnSystem.js`: maps current `rolledDice` indices to original loadout slot indices. Updated on `START_TURN`, `ROLL_DICE`, `SCORE_SELECTION`. Ensures correct ability-die identification after dice are scored and array shifts.
+- [x] **`USE_ABILITY` / `JUMP_SETTLED` actions** — `turnSystem.js` reducers. `USE_ABILITY` sets `jumpUsed`/`jumpingDie`, phase → `jumping`. `JUMP_SETTLED` updates die value, phase → `selecting`.
+- [x] **Even/Odd die physics bias** — center-of-mass offset `0.500` for both Even Die and Odd Die in `dice.js`. Calibrated for ~25% per target face at Lv1.
+- [x] **Loadout persistence** — `localStorage` save/load in `loadoutSystem.js`. Loadout survives browser reload.
+- [x] **IMPLEMENTED filter** — `DICE.IMPLEMENTED` array in `dice.js`. `loadoutUI.js` `renderInventory()` only shows dice in this list.
+- [x] **Mini-die 2D visuals** — CSS grid 3×3 with gradient backgrounds, animated marks (frog blink, love heartbeat, comrade stars as absolutely-positioned SVGs). Colors synced with `dice.js`. Ported from `battle.html`.
+- [x] **Drag-and-drop** — pointer-event-based drag between inventory tiles and loadout slots. Ghost element, drop-target highlight, `ev.preventDefault()` blocks text selection.
+- [x] **Pip picking fix** — `findDieAtPick` in `diceBridge.js` now checks `_extraPipMeshes` and `markMeshes`.
+- [x] **Version tag** — fixed bottom-left (`position:fixed`), semi-transparent, shows `v1.0.8`.
+
+---
+
 ## H. Common Dice — Passive Mechanics
 
 Weighted rolls and passive triggers. No player activation button needed.
 
-- [ ] **H1.** Weighted roll support — during ROLL_DICE, check each die's weight distribution from config. Use `store.prng` with weighted random selection instead of uniform.
+- [x] **H1.** Weighted roll support (partial) — Even Die and Odd Die have physics bias (center-of-mass offset 0.500). One Love and Comrade already had physics bias from v1.0.5. Remaining: Mathematician, Cluster weights (non-physics, PRNG-based) — deferred.
   - Ref: DESIGN §8.5 (One Love, Comrade, Even, Odd, Mathematician, Cluster)
-  - File: `src/systems/turnSystem.js`
+  - File: `src/config/dice.js` (bias config), `src/engine/dieFactory.js` (center-of-mass offset)
 
 - [ ] **H2.** Cluster loadout synergy — if One Love and/or Comrade in loadout, adjust Cluster weights per design.
   - Ref: DESIGN §8.5 Cluster
@@ -522,25 +541,25 @@ Weighted rolls and passive triggers. No player activation button needed.
 
 Require player activation via a button press.
 
-- [ ] **I1.** `USE_ABILITY` handler scaffold — generic handler that routes to ability-specific logic based on `payload.ability`.
+- [x] **I1.** `USE_ABILITY` handler scaffold — `turnSystem.js` registers `USE_ABILITY` and `JUMP_SETTLED`. Routes `reroll` ability to Frog jump logic. Generic scaffold extensible for Flipper/Tuner.
   - Ref: DESIGN §16.2
-  - File: `src/systems/diceAbilitySystem.js` → `window.diceAbilitySystem`
+  - File: `src/systems/turnSystem.js`
 
-- [ ] **I2.** Frog — JUMP: reroll selected Frog die to a random face via `store.prng`. Once per turn.
+- [x] **I2.** Frog — JUMP: physics-based reroll via `applyJumpImpulse()` in `diceBridge.js`. Single-die re-settle, reads new face value, dispatches `JUMP_SETTLED`. Once per turn (`jumpUsed` flag).
   - Ref: DESIGN §8.5 Frog
-  - File: `src/systems/diceAbilitySystem.js`
+  - File: `src/engine/diceBridge.js`, `src/systems/turnSystem.js`
 
 - [ ] **I3.** Flipper — FLIP: change die to opposite face (1↔6, 2↔5, 3↔4). Level line: self → adjacent → any.
   - Ref: DESIGN §8.5 Flipper
-  - File: `src/systems/diceAbilitySystem.js`
+  - File: `src/systems/turnSystem.js`, `src/engine/diceBridge.js`
 
-- [ ] **I4.** Ability button UI — secondary action button row under main buttons. Show/hide per ability availability. JUMP, FLIP buttons dispatch `USE_ABILITY`.
+- [x] **I4.** Ability button UI — `abilityUI.js` mounted in `main.js`. Context-sensitive panel: shows JUMP when single Frog selected, extensible for TUNE ±1. Uses `dieSlotMap` for correct die-to-loadout mapping.
   - Ref: DESIGN §10.5
   - File: `src/ui/abilityUI.js` → `window.abilityUI`
 
-- [ ] **I5.** 3D ability feedback — die rotation/value-change animation when ability activates.
+- [x] **I5.** 3D ability feedback (Frog JUMP) — die physically jumps from table with randomized velocity/spin, re-settles on new face. Blink animation starts/stops with settle cycle.
   - Ref: DESIGN §14.8
-  - File: `src/bridge/diceBridge.js`
+  - File: `src/engine/diceBridge.js`
 
 - [ ] **I6.** Tests for active abilities.
   - File: `tests/test-dice-active.js`
@@ -856,6 +875,7 @@ Visual and audio juice.
 | **v1.0.5 — Special Dice Visuals** | 0 + A–G + K3 | One Love + Comrade dies (visuals, physics bias), custom pip shapes (circle/star5/heart), per-face pip colors, dice constructor with per-face overrides, per-die config pipeline | **DONE** (2026-04-09) |
 | **v1.0.6 — Battle UI Polish** | 0 + A–G + K3 | Damage fly-up + HP flash, Rules panel (was Loadout), red invalid highlights, round score green, die descriptions, imperative Round History, viewport-scaled modal (clamp+em) | **DONE** (2026-04-10) |
 | **v1.0.7 — Loadout & Rules Split** | 0 + A–G + K3 | Two-mode modal (Rules & Dices / Loadout), inventory grid, bigger dice slots, Clear Loadout, 7-slot bug fix | **DONE** (2026-04-10) |
+| **v1.0.8 — Frog Die + Loadout Polish** | 0 + A–G + K3 + I1–I2,I4–I5 | Frog JUMP (physics reroll, blink animation), Ability Panel, Even/Odd physics bias, mini-die visuals, drag-and-drop, loadout persistence, IMPLEMENTED filter, version tag | **DONE** (2026-04-10) |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |
 | **Full Dice Roster** | 0 + A–O | All dice types, full progression ladder | Pending |
 | **Feature Complete** | 0 + A–S | Tutorial, themes, polish, tests passing | Pending |

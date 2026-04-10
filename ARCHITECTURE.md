@@ -86,6 +86,7 @@ Button/Sling → ROLL_DICE → bridge throws dice → physics settle
 <script src="ui/battleUI.js"></script>
 <script src="ui/inputHandler.js"></script>
 <script src="ui/loadoutUI.js"></script>
+<script src="ui/abilityUI.js"></script>
 <script src="main.js"></script>
 <!-- 3D engine layer (ES module, loaded after IIFE globals) -->
 <script src="vendor/babylon.js"></script>
@@ -464,7 +465,8 @@ project/
 │   └── ui/                 # View layer — dispatch and subscribeTo only (IIFE)
 │       ├── battleUI.js     #   DOM rendering: HP, dice, buttons, phase hints, showDamage fly-up, logHistory/clearHistory (imperative Round History)
 │       ├── inputHandler.js #   Player clicks → dispatch, banners, lock/unlock, imperative history calls
-│       └── loadoutUI.js    #   Two-mode modal: RULES & DICES (Game Rules + scoring combos) or LOADOUT (inventory grid + editable slots + Clear/Save). Viewport-scaled via clamp+em
+│       ├── loadoutUI.js    #   Two-mode modal: RULES & DICES (Game Rules + scoring combos) or LOADOUT (inventory grid + editable slots + drag-and-drop + Clear/Save). Mini-die 2D visuals (CSS grid + gradient + animated marks). Viewport-scaled via clamp+em. Loadout persisted to localStorage.
+│       └── abilityUI.js    #   Ability Panel: context-sensitive button (JUMP, TUNE, etc.) shown when single ability die selected. Uses dieSlotMap for correct die identification.
 └── tests/
     ├── index.html          # Test runner — open in browser
     ├── helpers.js           # TestRunner: assert, assertEqual, printResults

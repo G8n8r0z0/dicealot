@@ -15,7 +15,7 @@
  */
 import * as CANNON from 'cannon-es';
 import * as engine from './diceEngine.js';
-import { createDiceVertexData, createPipsVertexData, createMarkTexture, FACE_UP_QUATS } from './dieFactory.js';
+import { createDiceVertexData, createPipsVertexData, createMarkTexture, readFaceValue, readFaceValueForced, FACE_UP_QUATS } from './dieFactory.js';
 
 const BABYLON = window.BABYLON;
 
@@ -60,6 +60,11 @@ export function init(canvas, store, opts) {
                 break;
             case 'START_TURN':
                 resetScene();
+                break;
+            case 'USE_ABILITY':
+                if (state.turn.phase === 'jumping') {
+                    onJump(state.turn.jumpingDie);
+                }
                 break;
         }
     });
@@ -106,6 +111,7 @@ function buildDieConfigs(count) {
 
 function onRollDice() {
     _settled = false;
+    stopBlinkLoops();
 
     if (_slingThrew) {
         _slingThrew = false;
@@ -127,8 +133,23 @@ function onRollDice() {
 //  SETTLE → read physics faces → dispatch DICE_SETTLED
 // ═══════════════════════════════════════════════════════════════════════════
 
+function startBlinkLoops(dice) {
+    for (var i = 0; i < dice.length; i++) {
+        if (dice[i].startBlinkLoop) dice[i].startBlinkLoop();
+    }
+}
+
+function stopBlinkLoops() {
+    var dice = engine.getDice(_ctx);
+    for (var i = 0; i < dice.length; i++) {
+        if (dice[i].stopBlinkLoop) dice[i].stopBlinkLoop();
+    }
+}
+
 function handleAllSettled(dice) {
     _settled = true;
+
+    startBlinkLoops(dice);
 
     var values = [];
     for (var i = 0; i < dice.length; i++) {
@@ -161,6 +182,120 @@ function handleEdgeReroll() {
     } else {
         if (window.inputHandler) window.inputHandler.showReroll();
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  FROG JUMP — physical rethrow of a single die
+// ═══════════════════════════════════════════════════════════════════════════
+
+var _jumpRetries = 0;
+var JUMP_MAX_RETRIES = 3;
+
+function onJump(dieIndex) {
+    var dice = engine.getDice(_ctx);
+    if (dieIndex < 0 || dieIndex >= dice.length) return;
+    var d = dice[dieIndex];
+
+    _jumpRetries = 0;
+    stopBlinkLoops();
+    clearHighlights();
+    applyJumpImpulse(d);
+}
+
+// ── Jump tuning ──────────────────────────────────────────────────────────
+var JUMP = {
+    upSpeed:     90,     // vertical velocity (units/s)
+    upRandom:    15,     // ± random added to upSpeed (max ~105 → height ~18, ceiling at 28)
+    hSpeed:      12,     // max horizontal drift (±)
+    spin:        30,     // max angular velocity per axis (±)
+    sleepDelay:  400     // ms before body can sleep again
+};
+
+function applyJumpImpulse(d) {
+    d.settled = false;
+    d.value = null;
+
+    d.body.type = CANNON.Body.DYNAMIC;
+    d.body.sleepState = 0;
+    d.body.allowSleep = false;
+    d.body.wakeUp();
+
+    _ctx._allSettledFired = false;
+    _ctx._settleFrames = 0;
+
+    d.body.velocity.set(
+        (Math.random() - 0.5) * JUMP.hSpeed,
+        JUMP.upSpeed + Math.random() * JUMP.upRandom,
+        (Math.random() - 0.5) * JUMP.hSpeed
+    );
+    d.body.angularVelocity.set(
+        (Math.random() - 0.5) * JUMP.spin,
+        (Math.random() - 0.5) * JUMP.spin,
+        (Math.random() - 0.5) * JUMP.spin
+    );
+
+    setTimeout(function() {
+        d.body.allowSleep = true;
+    }, JUMP.sleepDelay);
+
+    _ctx.onAllSettled = handleJumpSettled;
+    _ctx.onEdgeReroll = handleJumpEdge;
+    engine.startSettleTimer(_ctx);
+}
+
+function handleJumpSettled(dice) {
+    _ctx.onAllSettled = handleAllSettled;
+    _ctx.onEdgeReroll = handleEdgeReroll;
+
+    var t = _store.state.turn;
+    var idx = t.jumpingDie;
+    if (idx < 0 || idx >= dice.length) return;
+
+    var d = dice[idx];
+    var val = d.value;
+    if (val === null) val = readFaceValue(d.body);
+    if (val === null) {
+        handleJumpEdge(dice);
+        return;
+    }
+
+    console.log('[JUMP_SETTLED] Frog landed on', val);
+    startBlinkLoops(dice);
+    _store.dispatch('JUMP_SETTLED', { value: val });
+
+    if (_store.state.turn.phase === 'bust') {
+        if (window.inputHandler) window.inputHandler.handleBust();
+    } else {
+        if (window.inputHandler) window.inputHandler.unlock();
+    }
+}
+
+function handleJumpEdge(dice) {
+    _jumpRetries++;
+    var t = _store.state.turn;
+    var idx = t.jumpingDie;
+    if (idx < 0 || idx >= dice.length) return;
+
+    if (_jumpRetries >= JUMP_MAX_RETRIES) {
+        console.log('[JUMP] max retries — force settling');
+        _ctx.onAllSettled = handleAllSettled;
+        _ctx.onEdgeReroll = handleEdgeReroll;
+        var d = dice[idx];
+        var val = readFaceValueForced(d.body);
+        d.value = val;
+        d.settled = true;
+        startBlinkLoops(dice);
+        _store.dispatch('JUMP_SETTLED', { value: val });
+        if (_store.state.turn.phase === 'bust') {
+            if (window.inputHandler) window.inputHandler.handleBust();
+        } else {
+            if (window.inputHandler) window.inputHandler.unlock();
+        }
+        return;
+    }
+
+    console.log('[JUMP] die stuck, retry', _jumpRetries);
+    applyJumpImpulse(dice[idx]);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

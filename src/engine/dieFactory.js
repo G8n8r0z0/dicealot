@@ -209,13 +209,18 @@ export function createPipsVertexData(pipR = 0.1, pipOffset = PIP_OFFSET, pipShap
   ];
   if (facesFilter) pf = pf.filter(f => facesFilter.indexOf(f.val) !== -1);
   function outlineForFace(faceVal) {
-    if (typeof pipShape === 'string') return PIP_SHAPES[pipShape] || PIP_SHAPES.circle;
+    if (typeof pipShape === 'string') {
+      if (pipShape === 'hidden') return null;
+      return PIP_SHAPES[pipShape] || PIP_SHAPES.circle;
+    }
     const key = pipShape[faceVal] || pipShape.default || 'circle';
+    if (key === 'hidden') return null;
     return PIP_SHAPES[key] || PIP_SHAPES.circle;
   }
   for (const { val, fA, fV, uA, vA, pips } of pf) {
     const sign = Math.sign(fV);
     const outline = outlineForFace(val);
+    if (!outline) continue;
     const PR = prForFace(val);
     const isCircle = outline === PIP_SHAPES.circle;
     const isHeart  = outline === PIP_SHAPES.heart;
@@ -291,9 +296,38 @@ function drawStar(ctx2d, size, color, bgColor) {
   ctx2d.restore();
 }
 
+function drawLetter(ctx2d, size, letter, color, bgColor) {
+  ctx2d.save();
+  ctx2d.clearRect(0, 0, size, size);
+  if (bgColor) {
+    ctx2d.fillStyle = bgColor;
+    ctx2d.fillRect(0, 0, size, size);
+  }
+  ctx2d.fillStyle = color;
+  ctx2d.textAlign = 'center';
+  ctx2d.textBaseline = 'middle';
+  ctx2d.font = `bold ${Math.round(size * 0.72)}px sans-serif`;
+  ctx2d.fillText(letter, size / 2, size / 2 + size * 0.04);
+  ctx2d.restore();
+}
+
+function drawFrogEye(ctx2d, size, color, openAmount) {
+  if (openAmount === undefined) openAmount = 1.0;
+  const cx = size / 2, cy = size / 2;
+  ctx2d.save();
+  ctx2d.clearRect(0, 0, size, size);
+  if (openAmount > 0.01) {
+    ctx2d.fillStyle = color;
+    ctx2d.beginPath();
+    ctx2d.ellipse(cx, cy, size * 0.08, size * 0.34 * openAmount, 0, 0, Math.PI * 2);
+    ctx2d.fill();
+  }
+  ctx2d.restore();
+}
+
 export function createMarkTexture(mark, name, scene) {
+  const sz = 128;
   if (mark.shape === 'heart' || mark.shape === 'star') {
-    const sz = 128;
     const dt = new BABYLON.DynamicTexture(name, sz, scene, true);
     dt.hasAlpha = true;
     const ctx2d = dt.getContext();
@@ -302,6 +336,22 @@ export function createMarkTexture(mark, name, scene) {
     } else {
       drawStar(ctx2d, sz, mark.color || '#ffd700', mark.bg || null);
     }
+    dt.update(false);
+    return dt;
+  }
+  if (mark.shape === 'letter') {
+    const dt = new BABYLON.DynamicTexture(name, sz, scene, true);
+    dt.hasAlpha = true;
+    const ctx2d = dt.getContext();
+    drawLetter(ctx2d, sz, mark.text || '?', mark.color || '#ffffff', mark.bg || null);
+    dt.update(false);
+    return dt;
+  }
+  if (mark.shape === 'frogEye') {
+    const dt = new BABYLON.DynamicTexture(name, sz, scene, true);
+    dt.hasAlpha = true;
+    const ctx2d = dt.getContext();
+    drawFrogEye(ctx2d, sz, mark.color || '#070808');
     dt.update(false);
     return dt;
   }
@@ -427,6 +477,7 @@ export function buildDie(ctx, opts = {}) {
 
   // Face mark overlays (heart, frog-eye, star, etc.)
   const markMeshes = [];
+  let _frogEyeDT = null, _frogEyeCtx = null, _frogEyeColor = null;
   if (opts.faceMarks) {
     for (const mark of opts.faceMarks) {
       const fl = FACE_LOCALS.find(f => f.val === mark.face);
@@ -451,8 +502,12 @@ export function buildDie(ctx, opts = {}) {
       } else {
         plane.rotation.y = fl.z > 0 ? 0 : Math.PI;
       }
-      plane.isPickable = false;
       markMeshes.push(plane);
+      if (mark.shape === 'frogEye' && tex instanceof BABYLON.DynamicTexture) {
+        _frogEyeDT = tex;
+        _frogEyeCtx = tex.getContext();
+        _frogEyeColor = mark.color || '#070808';
+      }
     }
   }
 
@@ -511,7 +566,45 @@ export function buildDie(ctx, opts = {}) {
   const _ownsPipMat = !!(opts.pipColor || (opts.pipColors && typeof opts.pipColors === 'object'));
   const die = { id, root, outer, pips, backing, body, oMat, markMeshes,
     _pipMat: _ownsPipMat ? usePipMat : null, _extraPipMeshes: extraPipMeshes, _extraPipMats: extraPipMats,
-    value: null, settled: false };
+    value: null, settled: false,
+    _blinkTimer: null, _blinkAnim: null };
+
+  if (_frogEyeDT) {
+    const SZ = 128;
+    const BLINK_FRAMES = [1.0, 0.5, 0.0, 0.5, 1.0];
+    const FRAME_MS = 40;
+
+    function drawBlinkFrame(openAmount) {
+      drawFrogEye(_frogEyeCtx, SZ, _frogEyeColor, openAmount);
+      _frogEyeDT.update(false);
+    }
+
+    die.startBlinkLoop = function () {
+      if (die._blinkTimer) return;
+      function scheduleBlink() {
+        const delay = 1000 + Math.random() * 1000;
+        die._blinkTimer = setTimeout(function () {
+          let fi = 0;
+          die._blinkAnim = setInterval(function () {
+            drawBlinkFrame(BLINK_FRAMES[fi]);
+            fi++;
+            if (fi >= BLINK_FRAMES.length) {
+              clearInterval(die._blinkAnim);
+              die._blinkAnim = null;
+              scheduleBlink();
+            }
+          }, FRAME_MS);
+        }, delay);
+      }
+      scheduleBlink();
+    };
+
+    die.stopBlinkLoop = function () {
+      if (die._blinkTimer) { clearTimeout(die._blinkTimer); die._blinkTimer = null; }
+      if (die._blinkAnim) { clearInterval(die._blinkAnim); die._blinkAnim = null; }
+      drawBlinkFrame(1.0);
+    };
+  }
 
   if (opts.onSleep) {
     body.addEventListener('sleep', () => opts.onSleep(die));
@@ -522,6 +615,7 @@ export function buildDie(ctx, opts = {}) {
 
 /** Remove die meshes from scene and body from physics world. */
 export function teardownDie(die, ctx) {
+  if (die.stopBlinkLoop) die.stopBlinkLoop();
   ctx.hl.removeMesh(die.outer);
   ctx.shadowGen.removeShadowCaster(die.outer);
   if (die.markMeshes) {

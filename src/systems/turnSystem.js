@@ -28,6 +28,7 @@
                 rolledDice:        [],
                 heldDice:          [],
                 selectedIndices:   [],
+                dieSlotMap:        [],
                 accumulatedScore:  0,
                 phase:             'idle',
                 diceCount:         B.DICE_PER_TURN,
@@ -35,10 +36,17 @@
                 selectionScore:    0,
                 selectionValid:    false,
                 lastBankedScore:   0,
-                hotHandTriggered:  false
+                hotHandTriggered:  false,
+                jumpUsed:          false,
+                jumpingDie:        -1
             }
 
             // ── START_TURN ─────────────────────────────────────────
+            function initSlotMap(t) {
+                t.dieSlotMap = []
+                for (var i = 0; i < t.diceCount; i++) t.dieSlotMap.push(i)
+            }
+
             store.register('START_TURN', function(state) {
                 var t = state.turn
                 t.turnNumber++
@@ -51,6 +59,9 @@
                 t.selectionValid    = false
                 t.lastBankedScore   = 0
                 t.hotHandTriggered  = false
+                t.jumpUsed          = false
+                t.jumpingDie        = -1
+                initSlotMap(t)
                 t.phase             = 'idle'
             }, 'turn')
 
@@ -68,6 +79,7 @@
                 t.selectionScore    = 0
                 t.selectionValid    = false
                 t.hotHandTriggered  = false
+                if (t.dieSlotMap.length !== t.diceCount) initSlotMap(t)
 
                 if (!window.scoringSystem.hasPlayableDice(values)) {
                     t.phase            = 'bust'
@@ -129,14 +141,17 @@
                 t.heldDice = t.heldDice.concat(selectedValues)
                 t.accumulatedScore += t.selectionScore
 
-                // Remove scored dice from rolled pool
+                // Remove scored dice from rolled pool (preserve slot mapping)
                 var remaining = []
+                var remainingMap = []
                 for (var j = 0; j < t.rolledDice.length; j++) {
                     if (t.selectedIndices.indexOf(j) === -1) {
                         remaining.push(t.rolledDice[j])
+                        remainingMap.push(t.dieSlotMap[j])
                     }
                 }
                 t.rolledDice      = remaining
+                t.dieSlotMap      = remainingMap
                 t.diceCount       = remaining.length
                 t.selectedIndices = []
                 t.selectionScore  = 0
@@ -149,6 +164,7 @@
                     t.accumulatedScore = 0
                     t.heldDice         = []
                     t.diceCount        = B.DICE_PER_TURN
+                    initSlotMap(t)
                     t.phase            = 'idle'
                 } else {
                     t.phase = 'idle'
@@ -168,6 +184,9 @@
                 t.selectionScore    = 0
                 t.selectionValid    = false
                 t.hotHandTriggered  = false
+                t.jumpUsed          = false
+                t.jumpingDie        = -1
+                initSlotMap(t)
                 t.phase             = 'idle'
             }, 'turn')
 
@@ -184,7 +203,46 @@
                 t.selectionScore    = 0
                 t.selectionValid    = false
                 t.hotHandTriggered  = false
+                initSlotMap(t)
                 t.phase             = 'idle'
+            }, 'turn')
+
+            // ── USE_ABILITY ─────────────────────────────────────────
+            store.register('USE_ABILITY', function(state, payload) {
+                var t = state.turn
+                if (t.phase !== 'selecting') return
+                if (state.match.activePlayer !== 'player') return
+
+                var idx = payload.dieIndex
+                if (idx < 0 || idx >= t.rolledDice.length) return
+
+                if (payload.ability === 'reroll') {
+                    if (t.jumpUsed) return
+                    t.jumpUsed = true
+                    t.jumpingDie = idx
+                    t.selectedIndices = []
+                    t.selectionScore = 0
+                    t.selectionValid = false
+                    t.phase = 'jumping'
+                }
+            }, 'turn')
+
+            // ── JUMP_SETTLED — Frog landed after JUMP ───────────────
+            store.register('JUMP_SETTLED', function(state, payload) {
+                var t = state.turn
+                if (t.phase !== 'jumping') return
+                t.rolledDice[t.jumpingDie] = payload.value
+                t.jumpingDie = -1
+                t.selectedIndices = []
+                t.selectionScore = 0
+                t.selectionValid = false
+
+                if (!window.scoringSystem.hasPlayableDice(t.rolledDice)) {
+                    t.phase = 'bust'
+                    t.accumulatedScore = 0
+                } else {
+                    t.phase = 'selecting'
+                }
             }, 'turn')
         }
     }

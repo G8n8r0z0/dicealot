@@ -17,6 +17,7 @@
 
         battleUI.mount(store)
         inputHandler.bind(store)
+        abilityUI.mount(store)
         loadoutUI.mount(store)
 
         store.dispatch('START_BATTLE', {
