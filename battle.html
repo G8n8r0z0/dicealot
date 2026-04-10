@@ -528,7 +528,7 @@ const BATTLE_TUNE_DEFAULTS = {
   },
   sling: {
     maxPullWorld: 12.5, clickEpsMul: 0.02, pickYOffset: 0.55,
-    impulseHMin: 36, impulseHMax: 224, impulseYMin: 3, impulseYMax: 12,
+    impulseHMin: 120, impulseHMax: 950, impulseYMin: 4, impulseYMax: 28,
   },
   viz: { halfAngle: 0.38, rInner: 12, rSpan: 292, segments: 4 },
   spawn: { minSpacingMul: 1.18, stackYStepMul: 0.05, jitterMul: 0.32 },
@@ -537,6 +537,7 @@ const BATTLE_TUNE_DEFAULTS = {
   rollImpulseLever: 0.28,
   mesh: { dieScale: 3.06, boxHalfPerScale: 0.48 },
   settle: { alignThreshold: 0.92, angKick: 3, speedLo: 0.02, speedHi: 1.5 },
+  diceDice: { friction: 0.15, restitution: 0.45 },
 };
 
 function deepCloneTune(obj) {
@@ -1450,7 +1451,7 @@ function applyStaticEnvCollision(body) {
 }
 
 const world = new CANNON.World({ allowSleep: true, gravity: new CANNON.Vec3(0, battleTune.world.gravity, 0) });
-world.solver.iterations = 20;
+world.solver.iterations = 30;
 world.defaultContactMaterial.restitution = battleTune.world.restitution;
 world.defaultContactMaterial.friction = battleTune.world.friction;
 
@@ -1461,6 +1462,12 @@ const wallDiceCM = new CANNON.ContactMaterial(wallMat, diceMat, {
   restitution: battleTune.world.restitution,
 });
 world.addContactMaterial(wallDiceCM);
+world.addContactMaterial(new CANNON.ContactMaterial(diceMat, diceMat, {
+  friction: battleTune.diceDice.friction,
+  restitution: battleTune.diceDice.restitution,
+  contactEquationStiffness: 1e8,
+  contactEquationRelaxation: 3,
+}));
 
 const floorBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
 floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
@@ -1882,7 +1889,7 @@ function throwDice(who, opts = {}) {
   const baseZ = edge.z + dirIn.z * inset;
 
   game.selectedIndices = [];
-  for (const d of dice) { d.value = null; d.settled = false; d._rerollCount = 0; hl.removeMesh(d.outer); }
+  for (const d of dice) { d.value = null; d.settled = false; d._rerollCount = 0; d.stallFrames = 0; d._kickApplied = false; hl.removeMesh(d.outer); }
   game.phase = 'rolling';
   startSettleTimer();
   updateUI();
@@ -2144,6 +2151,11 @@ function positionKinematicClusterSling(anchorX, anchorZ, pickX, pickZ) {
     d.body.type = CANNON.Body.KINEMATIC;
     d.body.velocity.setZero();
     d.body.angularVelocity.setZero();
+    d._forceSettle = null;
+    d.settled = false;
+    d.value = null;
+    d.stallFrames = 0;
+    d._kickApplied = false;
     const show = (i === 0);
     d.outer.setEnabled(show);
     d.pips.setEnabled(show);
@@ -2163,20 +2175,22 @@ function applyRollImpulsesFromCurrentPositions(sling) {
   const aimZ = sling.aimZ;
   const strength = sling.strength;
   game.selectedIndices = [];
-  for (const d of dice) { d.value = null; d.settled = false; d._rerollCount = 0; hl.removeMesh(d.outer); }
+  for (const d of dice) { d.value = null; d.settled = false; d._rerollCount = 0; d.stallFrames = 0; d._kickApplied = false; hl.removeMesh(d.outer); }
   game.phase = 'rolling';
   startSettleTimer();
   updateUI();
 
-  const b = battleTune.body;
+  const sl = battleTune.sling;
   const rp = battleTune.rollPlayer;
   const perpX = -aimZ;
   const perpZ =  aimX;
   const leverR = getDieEdge() * 0.10;
-  const fBase = b.throwMin + (b.throwMax - b.throwMin) * strength;
+  const impulseH = sl.impulseHMin + (sl.impulseHMax - sl.impulseHMin) * strength;
+  const impulseY = sl.impulseYMin + (sl.impulseYMax - sl.impulseYMin) * strength;
 
   slingDisableDiceDiceCollision(150);
 
+  const scatterR = getDieEdge() * 0.6;
   for (let i = 0; i < dice.length; i++) {
     const d = dice[i];
     d.outer.setEnabled(true);
@@ -2185,13 +2199,18 @@ function applyRollImpulsesFromCurrentPositions(sling) {
     d.body.type = CANNON.Body.DYNAMIC;
     d.body.velocity.setZero();
     d.body.angularVelocity.setZero();
+    if (dice.length > 1) {
+      const sa = (2 * Math.PI * i / dice.length) + (Math.random() - 0.5) * 0.4;
+      d.body.position.x += Math.cos(sa) * scatterR;
+      d.body.position.z += Math.sin(sa) * scatterR;
+    }
 
-    const cross = (Math.random() - 0.5) * fBase * rp.impulseCrossMul;
+    const cross = (Math.random() - 0.5) * impulseH * rp.impulseCrossMul;
     d.body.applyImpulse(
       new CANNON.Vec3(
-        aimX * fBase * rp.mainImpulse + perpX * cross,
-        fBase * rp.impulseYMul,
-        aimZ * fBase * rp.mainImpulse + perpZ * cross
+        aimX * impulseH + perpX * cross,
+        impulseY,
+        aimZ * impulseH + perpZ * cross
       ),
       new CANNON.Vec3((Math.random() - 0.5) * leverR, (Math.random() - 0.5) * leverR, (Math.random() - 0.5) * leverR)
     );
@@ -2229,7 +2248,7 @@ function finishPlayerSling(ev) {
 //  SETTLE + BUST CHECK
 // ═══════════════════════════════════════════════════
 function getStackedDice() {
-  const stackY = FLOOR_Y + getDieEdge() * 1.1;
+  const stackY = FLOOR_Y + getDieEdge() * 0.75;
   return dice.filter(d => d.settled && d.body && d.body.position.y > stackY);
 }
 
@@ -2241,12 +2260,20 @@ function checkAllSettled() {
 
   const stacked = getStackedDice();
   if (stacked.length) {
+    console.log('[REROLL:checkAllSettled] stacked=' + stacked.length + ' currentPlayer=' + game.currentPlayer);
+    clearTimeout(_settleTimer);
+    for (const d of dice) {
+      d._forceSettle = null; d.settled = false; d.value = null; d._kickApplied = false;
+      d.body.type = CANNON.Body.KINEMATIC;
+      d.body.velocity.set(0, 0, 0);
+      d.body.angularVelocity.set(0, 0, 0);
+      d.body.allowSleep = false;
+    }
     if (game.currentPlayer === 'player') {
       showBanner('REROLL!', 'banner-reroll');
       game.phase = 'waiting';
       updateUI();
     } else {
-      for (const d of dice) { d.value = null; d.settled = false; }
       game.phase = 'rolling';
       startSettleTimer();
       throwDice('bot');
@@ -2304,9 +2331,37 @@ function rerollDie(d) {
 }
 
 // ═══════════════════════════════════════════════════
-//  SETTLE TIMEOUT — force-drop unsettled dice after delay
+//  STALL HELPERS — directed kick + reroll trigger
 // ═══════════════════════════════════════════════════
-const SETTLE_TIMEOUT_MS = 4000;
+function applyDirectedKick(d) {
+  const q = d.body.quaternion;
+  const worldUp = new CANNON.Vec3(0, 1, 0);
+  let bestDot = -2;
+  const bestLocal = new CANNON.Vec3();
+  for (const f of _faceLocals) {
+    _faceLv.set(f.x, f.y, f.z);
+    q.vmult(_faceLv, _faceTmp);
+    const dot = _faceTmp.dot(worldUp);
+    if (dot > bestDot) { bestDot = dot; bestLocal.copy(_faceLv); }
+  }
+  if (bestDot > 0.95) return;
+  const currentDir = new CANNON.Vec3();
+  q.vmult(bestLocal, currentDir);
+  const rotAxis = new CANNON.Vec3();
+  currentDir.cross(worldUp, rotAxis);
+  const axLen = rotAxis.length();
+  if (axLen < 1e-6) return;
+  rotAxis.scale(1 / axLen, rotAxis);
+  const kickStrength = 3 * (1 - bestDot);
+  d.body.angularVelocity.x += rotAxis.x * kickStrength;
+  d.body.angularVelocity.y += rotAxis.y * kickStrength;
+  d.body.angularVelocity.z += rotAxis.z * kickStrength;
+}
+
+// ═══════════════════════════════════════════════════
+//  SETTLE TIMEOUT — force-settle or reroll if dice not on face
+// ═══════════════════════════════════════════════════
+const SETTLE_TIMEOUT_MS = 2500;
 let _settleTimer = 0;
 
 function startSettleTimer() {
@@ -2320,40 +2375,51 @@ function forceSettleUnsettled() {
   const unsettled = dice.filter(d => !d.settled);
   if (!unsettled.length) return;
 
+  const stackY = FLOOR_Y + getDieEdge() * 0.75;
+  const hasStacked = dice.some(d => d.body && d.body.position.y > stackY);
+  const hasEdge = unsettled.some(d => readFaceValue(d.body) === null);
+  const needsReroll = hasStacked || hasEdge;
+  if (needsReroll) {
+    console.log('[REROLL:forceSettle] stacked=' + hasStacked + ' edge=' + hasEdge + ' currentPlayer=' + game.currentPlayer);
+    clearTimeout(_settleTimer);
+    for (const d of dice) {
+      d._forceSettle = null; d.settled = false; d.value = null; d._kickApplied = false;
+      d.body.type = CANNON.Body.KINEMATIC;
+      d.body.velocity.set(0, 0, 0);
+      d.body.angularVelocity.set(0, 0, 0);
+      d.body.allowSleep = false;
+    }
+    if (game.currentPlayer === 'player') {
+      showBanner('REROLL!', 'banner-reroll');
+      game.phase = 'waiting';
+      updateUI();
+    } else {
+      game.phase = 'rolling';
+      startSettleTimer();
+      throwDice('bot');
+    }
+    return;
+  }
+
   const de = getDieEdge();
-  const stackY = FLOOR_Y + de * 1.1;
   const floorY = FLOOR_Y + de * 0.5;
 
   for (const d of unsettled) {
-    let px = d.body.position.x;
-    let pz = d.body.position.z;
-    const isStacked = d.body.position.y > stackY;
-
-    if (isStacked) {
-      const angle = Math.random() * Math.PI * 2;
-      px += Math.cos(angle) * de * 1.2;
-      pz += Math.sin(angle) * de * 1.2;
-    }
-
-    const hw = ROLL_FLOOR_W / 2 - de;
-    px = Math.max(-hw, Math.min(hw, px));
-    pz = Math.max(DIVIDER_Z + de * 0.6, Math.min(BOT_DIVIDER_Z - de * 0.6, pz));
-
-    const val = readFaceValueForced(d.body);
+    const val = readFaceValue(d.body);
     const bq = FACE_UP_QUATS[val];
 
     d.body.type = CANNON.Body.KINEMATIC;
     d.body.velocity.set(0, 0, 0);
     d.body.angularVelocity.set(0, 0, 0);
     d._forceSettle = {
-      tx: px, ty: floorY, tz: pz,
+      tx: d.body.position.x, ty: floorY, tz: d.body.position.z,
       qx: bq ? bq.x : 0, qy: bq ? bq.y : 0, qz: bq ? bq.z : 0, qw: bq ? bq.w : 1,
       val,
     };
   }
 }
 
-const FORCE_SETTLE_LERP = 0.08;
+const FORCE_SETTLE_LERP = 0.15;
 
 // ═══════════════════════════════════════════════════
 //  SLING + SELECTION (pointer)
@@ -2800,8 +2866,39 @@ restartBtn.addEventListener('click', () => {
 // ═══════════════════════════════════════════════════
 //  RENDER LOOP
 // ═══════════════════════════════════════════════════
+let _lastRenderTime = performance.now() / 1000;
 engine.runRenderLoop(() => {
-  world.fixedStep();
+  const now = performance.now() / 1000;
+  const dt = Math.min(now - _lastRenderTime, 0.1);
+  _lastRenderTime = now;
+  world.step(1 / 120, dt, 10);
+
+  /* ── overlap correction: push apart any interpenetrating dice (rolling only) ── */
+  if (game.phase === 'rolling') {
+  const minSep = getDieEdge() * 1.05;
+  for (let i = 0; i < dice.length; i++) {
+    const a = dice[i];
+    if (a.body.type !== CANNON.Body.DYNAMIC) continue;
+    for (let j = i + 1; j < dice.length; j++) {
+      const b = dice[j];
+      if (b.body.type !== CANNON.Body.DYNAMIC) continue;
+      const dx = b.body.position.x - a.body.position.x;
+      const dy = b.body.position.y - a.body.position.y;
+      const dz = b.body.position.z - a.body.position.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (dist < minSep && dist > 0.001) {
+        const overlap = (minSep - dist) * 0.5;
+        const nx = dx / dist, ny = dy / dist, nz = dz / dist;
+        a.body.position.x -= nx * overlap;
+        a.body.position.y -= ny * overlap;
+        a.body.position.z -= nz * overlap;
+        b.body.position.x += nx * overlap;
+        b.body.position.y += ny * overlap;
+        b.body.position.z += nz * overlap;
+      }
+    }
+  }
+  } // end overlap correction (rolling only)
 
   for (const d of dice) {
     if (d._forceSettle) {
@@ -2832,7 +2929,7 @@ engine.runRenderLoop(() => {
     d.root.position.set(d.body.position.x, d.body.position.y, d.body.position.z);
     d.root.rotationQuaternion.set(d.body.quaternion.x, d.body.quaternion.y, d.body.quaternion.z, d.body.quaternion.w);
 
-    if (!d.settled) {
+    if (!d.settled && d.body.type === CANNON.Body.DYNAMIC) {
       const spd = d.body.velocity.length() + d.body.angularVelocity.length();
       const st = battleTune.settle;
       if (spd > st.speedLo && spd < st.speedHi) {
@@ -2853,7 +2950,7 @@ engine.runRenderLoop(() => {
 
   if (game.phase === 'rolling') {
     for (const d of dice) {
-      if (d.settled) continue;
+      if (d.settled || d.body.type !== CANNON.Body.DYNAMIC) continue;
       const spd2 = d.body.velocity.lengthSquared() + d.body.angularVelocity.lengthSquared();
       if (spd2 >= 0.0004) continue;
       const v = readFaceValue(d.body);
@@ -2862,6 +2959,9 @@ engine.runRenderLoop(() => {
         d.value = v;
         d.settled = true;
         checkAllSettled();
+      } else if (!d._kickApplied) {
+        applyDirectedKick(d);
+        d._kickApplied = true;
       }
     }
   }

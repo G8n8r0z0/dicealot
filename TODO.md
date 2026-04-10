@@ -449,14 +449,29 @@ Same roll/select/score/bank structure as player. Automated decision-making.
 - **v1.0.3** — Loadout system scaffold (K3), bot AI 3D integration (G1–G3), lighter dice body color (`#f4f2ef`, specular 0.15), Invalid Selection UI feedback, held dice highlight fix, unused imports cleaned from `diceBridge.js`.
 - **v1.0.4** — Loadout detail panel: physics die drop (cannon-es mini world, settle detection, orbit-after-settle), CSS pip slot icons, "drag to rotate" hint with fade-in after settle, dark floor disc visual.
 - **v1.0.5** — Special dice visuals and physics bias:
-  - **One Love die** — full implementation: hot pink body (#fc46aa), white pips, red heart mark on face 1 (procedural DynamicTexture), physics bias (center-of-mass offset 0.41 toward face 1), custom edgeR/pipR/specular, loadout integration.
+  - **One Love die** — full implementation: pink body (#ff5ccd), white pips, red heart-shaped pip on face 1 (via PIP_SHAPES.heart), physics bias (center-of-mass offset 0.41 toward face 1), custom edgeR/pipR/specular, per-face pipColors, loadout integration.
   - **Comrade die** — full implementation: bright red body (#cc0000), gold star pips on face 5 (circle pips on other faces), physics bias (center-of-mass offset 0.41 toward face 5), per-face pipR { default: 0.1, 5: 0.15 }.
-  - **Per-die visual config system** — buildDie accepts bodyColor, pipColor, specular, edgeR, pipR, pipShape, faceMarks, bias. Custom geometry generated per die. Dynamic backing box scaling with edgeR.
-  - **Custom pip shapes** — PIP_SHAPES map (circle, star5) in dieFactory.js. createPipsVertexData generalized for per-face shape/size. star5: 10-vertex polygon, inner = 0.42 × outer, sharp points.
-  - **Face mark system** — DynamicTexture-based procedural marks (heart, star). DOUBLESIDE plane, alpha-from-diffuse, isPickable=false, specular matching body.
-  - **Dice Constructor tool** (tools/dice-constructor.html) — interactive 3D preview with body/pip color pickers, specular/edgeR/pipR/notchD sliders, pip shape dropdown, face mark dropdown (None/Heart/Star), mark color + shield color pickers, Copy Config export.
+  - **Per-die visual config system** — buildDie accepts bodyColor, pipColor, specular, edgeR, pipR, pipShape, pipColors, faceMarks, bias. Custom geometry generated per die. Dynamic backing box scaling with edgeR.
+  - **Custom pip shapes** — PIP_SHAPES map (circle, star5, heart) in dieFactory.js. createPipsVertexData generalized for per-face shape/size with facesFilter param. heart: precomputed polar lookup (360 entries), 24 segments. star5: 10-vertex polygon, inner = 0.42 × outer, sharp points.
+  - **Per-face pip colors** — pipColors config `{ default, N }` groups faces by color, each group gets its own pip mesh + material. Extra meshes tracked in _extraPipMeshes/_extraPipMats.
+  - **Face mark system** (legacy) — DynamicTexture-based procedural marks (heart, star). One Love now uses heart pip shape instead of mark.
+  - **Dice Constructor tool** (tools/dice-constructor.html) — interactive 3D preview with body/pip color pickers, specular/edgeR/pipR/notchD sliders, default pip shape dropdown, Per-Face Overrides section (6 face tabs with individual shape/size/color toggles), Copy Config export with per-face objects.
   - **Bias calibration** — headless cannon-es calibration script (tools/calibrate-bias.mjs) for tuning center-of-mass offset.
   - **Loadout UI** — color-coded slot icons (body/pip colors from die definition), mark interception fix.
+
+---
+
+## ── MILESTONE: Battle UI Polish — v1.0.6 (COMPLETE 2026-04-10) ──
+
+> Visual polish and UX improvements for the battle screen.
+
+- [x] **Damage fly-up + HP bar flash/shake** — on bank, a "-N" number animates upward from the enemy/player HP widget (CSS `dmgFly` 1.5s) with HP bar flash (`hpFlash`) and widget shake (`hpShake`). `battleUI.showDamage(target, amount)` called from `inputHandler.js` and `botSystem.js`.
+- [x] **Loadout panel → Game Rules** — left column of loadout modal reworked: INVENTORY → GAME RULES with Goal, How to Play, Scoring Combos table (with inline mini pip-face dice), and multiplier labels (Four of a Kind = "Three ×2", etc.). Button renamed from "Loadout" to "Rules & Dices". Bust Chance section removed. `loadoutUI.js` `renderGameRules()` replaces `renderInventory()`.
+- [x] **Invalid selection red highlights** — when 2+ dice selected and combo is invalid, all selected 3D dice glow red instead of green. `highlightDie()` in `diceEngine.js` accepts optional color param; `syncHighlights()` in `diceBridge.js` reads `selectionValid`.
+- [x] **Round Score display** — `.round-label` bumped to 1.25rem, `.round-value` to 1.55rem. Valid selection color changed from yellow (`#ffc91c`) to green (`#2ecc71`). Invalid stays red.
+- [x] **Die descriptions** — `desc` field added to all 34 dice in `dice.js`. Shown in loadout detail panel under name + rarity. e.g. "Higher chance of rolling 1 (30%)."
+- [x] **Round History (imperative)** — `battleUI.logHistory(text, color)` and `battleUI.clearHistory()` exposed as public API. Imperative calls placed at event sites: `diceBridge.js` (rolled values after DICE_SETTLED), `inputHandler.js` (player bust/score/bank/hot hand/result, clear on new battle), `botSystem.js` (bot turn/bust/score/bank/hot hand/result). Replaces earlier diff-based approach.
+- [x] **Strings** — added `RULES_GOAL`, `RULES_HOW`, `HUB_LOADOUT` updated to "Rules & Dices".
 
 ---
 
@@ -824,7 +839,8 @@ Visual and audio juice.
 | **Playable 3D Battle (v1.0.0)** | 0 + A–G | Full 3D battle against bot (3 difficulties), base dice, glass morphism UI | **DONE** (2026-04-08) |
 | **v1.0.3 — Loadout + Polish** | 0 + A–G + K3 | Loadout scaffold, lighter dice, Invalid Selection UI, held dice fix | **DONE** (2026-04-08) |
 | **v1.0.4 — Loadout Physics** | 0 + A–G + K3 | Physics die drop in detail panel, CSS pip slots, orbit-after-settle | **DONE** (2026-04-09) |
-| **v1.0.5 — Special Dice Visuals** | 0 + A–G + K3 | One Love + Comrade dies (visuals, physics bias), custom pip shapes, dice constructor tool, per-die config pipeline | **DONE** (2026-04-09) |
+| **v1.0.5 — Special Dice Visuals** | 0 + A–G + K3 | One Love + Comrade dies (visuals, physics bias), custom pip shapes (circle/star5/heart), per-face pip colors, dice constructor with per-face overrides, per-die config pipeline | **DONE** (2026-04-09) |
+| **v1.0.6 — Battle UI Polish** | 0 + A–G + K3 | Damage fly-up + HP flash, Rules panel (was Loadout), red invalid highlights, round score green, die descriptions, imperative Round History | **DONE** (2026-04-10) |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |
 | **Full Dice Roster** | 0 + A–O | All dice types, full progression ladder | Pending |
 | **Feature Complete** | 0 + A–S | Tutorial, themes, polish, tests passing | Pending |

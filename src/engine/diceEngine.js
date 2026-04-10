@@ -11,10 +11,9 @@ import * as CANNON from 'cannon-es';
 import {
   createDiceVertexData, createPipsVertexData,
   buildDie, teardownDie,
-  readFaceValue, readFaceValueForced,
+  readFaceValue,
   FACE_UP_QUATS,
   applyStaticEnvCollision,
-  STATIC_ENV_GROUP, DICE_COLLISION_GROUP, DICE_COLLISION_MASK,
 } from './dieFactory.js';
 
 const BABYLON = window.BABYLON;
@@ -26,13 +25,15 @@ const BABYLON = window.BABYLON;
 export const BATTLE_TUNE_DEFAULTS = {
   world:  { gravity: -300, restitution: 0.35, friction: 0.5 },
   body:   { mass: 3.0, linearDamping: 0.05, angularDamping: 0.1, sleepTime: 0.3, sleepSpeed: 0.05, throwMin: 100, throwMax: 166 },
-  sling:  { maxPullWorld: 12.5, clickEpsMul: 0.02, pickYOffset: 0.55 },
+  sling:  { maxPullWorld: 12.5, clickEpsMul: 0.02, pickYOffset: 0.55,
+            impulseHMin: 120, impulseHMax: 1100, impulseYMin: 4, impulseYMax: 32 },
   spawn:  { minSpacingMul: 1.18, stackYStepMul: 0.05, jitterMul: 0.32 },
   rollPlayer: { spawnYOffset: 1, planeJitter: 0.5, impulseYMul: 0.17, impulseCrossMul: 0.32, mainImpulse: 5.61 },
   rollBot:    { spawnYOffset: 5.5, planeJitter: 0.55, impulseYMul: 0.2, impulseCrossMul: 0.28, mainImpulse: 5.225 },
   rollImpulseLever: 0.28,
   mesh:   { dieScale: 3.06, boxHalfPerScale: 0.48 },
   settle: { alignThreshold: 0.92, angKick: 3, speedLo: 0.02, speedHi: 1.5 },
+  diceDice: { friction: 0.15, restitution: 0.45 },
 };
 
 function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
@@ -208,7 +209,7 @@ export function init(canvas, opts = {}) {
 
   // ── cannon-es Physics ────────────────────────────────────────────────
   const world = new CANNON.World({ allowSleep: true, gravity: new CANNON.Vec3(0, tune.world.gravity, 0) });
-  world.solver.iterations = 20;
+  world.solver.iterations = 30;
   world.defaultContactMaterial.restitution = tune.world.restitution;
   world.defaultContactMaterial.friction = tune.world.friction;
 
@@ -217,6 +218,12 @@ export function init(canvas, opts = {}) {
   world.addContactMaterial(new CANNON.ContactMaterial(wallMat, diceMat, {
     friction: 0.0,
     restitution: tune.world.restitution,
+  }));
+  world.addContactMaterial(new CANNON.ContactMaterial(diceMat, diceMat, {
+    friction: tune.diceDice.friction,
+    restitution: tune.diceDice.restitution,
+    contactEquationStiffness: 1e8,
+    contactEquationRelaxation: 3,
   }));
 
   const floorBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
@@ -274,10 +281,11 @@ export function init(canvas, opts = {}) {
     dice: [],
     heldDice: [],
     _settleTimer: 0,
-    _slingCollisionTimer: null,
+    _settleFrames: 0,
     _allSettledFired: false,
     onDieSettled: opts.onDieSettled || null,
     onAllSettled: opts.onAllSettled || null,
+    onEdgeReroll: opts.onEdgeReroll || null,
   };
 
   // ── Ortho frustum ────────────────────────────────────────────────────
@@ -330,65 +338,40 @@ function updateOrthoFrustum(ctx) {
 //  RENDER TICK
 // ═══════════════════════════════════════════════════════════════════════════
 
-const FORCE_SETTLE_LERP = 0.08;
+const STOP_SPEED_SQ = 0.0004;
+const SETTLE_CONFIRM_FRAMES = 8;
+
+let _lastRenderTime = performance.now() / 1000;
 
 function renderTick(ctx) {
-  ctx.world.fixedStep();
+  const now = performance.now() / 1000;
+  const dt = Math.min(now - _lastRenderTime, 0.1);
+  _lastRenderTime = now;
+  ctx.world.step(1 / 120, dt, 10);
 
   for (const d of ctx.dice) {
-    if (d._forceSettle) {
-      const t = d._forceSettle, p = d.body.position, q = d.body.quaternion;
-      p.x += (t.tx - p.x) * FORCE_SETTLE_LERP;
-      p.y += (t.ty - p.y) * FORCE_SETTLE_LERP;
-      p.z += (t.tz - p.z) * FORCE_SETTLE_LERP;
-      const bq = new BABYLON.Quaternion(q.x, q.y, q.z, q.w);
-      const tq = new BABYLON.Quaternion(t.qx, t.qy, t.qz, t.qw);
-      BABYLON.Quaternion.SlerpToRef(bq, tq, FORCE_SETTLE_LERP, bq);
-      q.set(bq.x, bq.y, bq.z, bq.w);
-      const dist = Math.abs(p.x - t.tx) + Math.abs(p.y - t.ty) + Math.abs(p.z - t.tz);
-      if (dist < 0.05) {
-        p.set(t.tx, t.ty, t.tz);
-        q.set(t.qx, t.qy, t.qz, t.qw);
-        d.body.type = CANNON.Body.DYNAMIC;
-        d.body.allowSleep = false;
-        d.value = t.val;
-        d.settled = true;
-        d._forceSettle = null;
-        checkSettled(ctx);
-      }
-    }
-
     d.root.position.set(d.body.position.x, d.body.position.y, d.body.position.z);
     d.root.rotationQuaternion.set(d.body.quaternion.x, d.body.quaternion.y, d.body.quaternion.z, d.body.quaternion.w);
-
-    if (!d.settled) {
-      const spd = d.body.velocity.length() + d.body.angularVelocity.length();
-      const st = ctx.tune.settle;
-      if (spd > st.speedLo && spd < st.speedHi) {
-        const { x: qx, y: qy, z: qz, w: qw } = d.body.quaternion;
-        const align = Math.max(
-          Math.abs(2 * (qx * qy + qw * qz)),
-          Math.abs(1 - 2 * (qx * qx + qz * qz)),
-          Math.abs(2 * (qy * qz - qw * qx))
-        );
-        if (align < st.alignThreshold) {
-          d.body.angularVelocity.x += (Math.random() - 0.5) * st.angKick;
-          d.body.angularVelocity.z += (Math.random() - 0.5) * st.angKick;
-        }
-      }
-    }
   }
 
-  for (const d of ctx.dice) {
-    if (d.settled) continue;
-    const spd2 = d.body.velocity.lengthSquared() + d.body.angularVelocity.lengthSquared();
-    if (spd2 >= 0.0004) continue;
-    const v = readFaceValue(d.body);
-    if (v !== null) {
-      d.body.allowSleep = false;
-      d.value = v;
-      d.settled = true;
-      checkSettled(ctx);
+  if (ctx.dice.length && !ctx._allSettledFired) {
+    let allStopped = true;
+    let anyUnsettled = false;
+    for (const d of ctx.dice) {
+      if (d.settled) continue;
+      if (d.body.type !== CANNON.Body.DYNAMIC) continue;
+      anyUnsettled = true;
+      const spd2 = d.body.velocity.lengthSquared() + d.body.angularVelocity.lengthSquared();
+      if (spd2 >= STOP_SPEED_SQ) { allStopped = false; break; }
+    }
+
+    if (anyUnsettled && allStopped) {
+      ctx._settleFrames = (ctx._settleFrames || 0) + 1;
+      if (ctx._settleFrames >= SETTLE_CONFIRM_FRAMES) {
+        evaluateSettlement(ctx);
+      }
+    } else {
+      ctx._settleFrames = 0;
     }
   }
 
@@ -410,13 +393,50 @@ function renderTick(ctx) {
   ctx.scene.render();
 }
 
-function checkSettled(ctx) {
-  if (!ctx.dice.length) return;
-  if (!ctx.dice.every(d => d.settled)) return;
-  if (ctx._allSettledFired) return;
+/**
+ * All dice stopped → check each: on table (Y) + face readable.
+ * All pass → settled. Any fail → reroll needed.
+ */
+function evaluateSettlement(ctx) {
+  const de = getDieEdge(ctx);
+  const tableY = ctx.td.floorY + de * 0.5;
+  const yTolerance = de * 0.3;
+
+  let allGood = true;
+  for (const d of ctx.dice) {
+    if (d.settled) continue;
+    const onTable = Math.abs(d.body.position.y - tableY) < yTolerance;
+    const faceVal = readFaceValue(d.body);
+    if (onTable && faceVal !== null) {
+      d.value = faceVal;
+      d.settled = true;
+      d.body.allowSleep = false;
+    } else {
+      allGood = false;
+    }
+  }
+
+  if (allGood) {
+    const minSep = de * 0.95;
+    for (let i = 0; i < ctx.dice.length && allGood; i++) {
+      for (let j = i + 1; j < ctx.dice.length; j++) {
+        const a = ctx.dice[i].body.position, b = ctx.dice[j].body.position;
+        const dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+        if (dx * dx + dy * dy + dz * dz < minSep * minSep) {
+          allGood = false; break;
+        }
+      }
+    }
+  }
+
   ctx._allSettledFired = true;
-  if (ctx.onAllSettled) ctx.onAllSettled(ctx.dice);
+  if (allGood) {
+    if (ctx.onAllSettled) ctx.onAllSettled(ctx.dice);
+  } else {
+    if (ctx.onEdgeReroll) ctx.onEdgeReroll(ctx.dice);
+  }
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  DICE MANAGEMENT
@@ -426,14 +446,7 @@ export function syncActiveDice(ctx, n, dieConfigs) {
   while (ctx.dice.length < n) {
     const idx = ctx.dice.length;
     const cfg = (dieConfigs && dieConfigs[idx]) || {};
-    const die = buildDie(ctx, Object.assign({
-      onSleep: (d) => {
-        d.body.allowSleep = false;
-        const v = readFaceValue(d.body);
-        if (v !== null) { d.value = v; d.settled = true; checkSettled(ctx); }
-        else { d.body.allowSleep = true; }
-      },
-    }, cfg));
+    const die = buildDie(ctx, Object.assign({}, cfg));
     ctx.dice.push(die);
   }
   while (ctx.dice.length > n) teardownDie(ctx.dice.pop(), ctx);
@@ -561,8 +574,9 @@ function throwDiceDirectional(ctx, who, opts = {}) {
 
 function resetDiceForThrow(ctx) {
   ctx._allSettledFired = false;
+  ctx._settleFrames = 0;
   for (const d of ctx.dice) {
-    d.value = null; d.settled = false; d._forceSettle = null; d._rerollCount = 0;
+    d.value = null; d.settled = false;
     ctx.hl.removeMesh(d.outer);
   }
 }
@@ -570,6 +584,7 @@ function resetDiceForThrow(ctx) {
 function showDie(d) {
   d.outer.setEnabled(true);
   d.pips.setEnabled(true);
+  if (d._extraPipMeshes) for (const m of d._extraPipMeshes) m.setEnabled(true);
   d.backing.setEnabled(true);
   if (d.markMeshes) for (const m of d.markMeshes) m.setEnabled(true);
 }
@@ -617,9 +632,12 @@ export function slingCluster(ctx, anchorX, anchorZ, pickX, pickZ) {
     d.body.type = CANNON.Body.KINEMATIC;
     d.body.velocity.setZero();
     d.body.angularVelocity.setZero();
+    d.settled = false;
+    d.value = null;
     const show = (i === 0);
     d.outer.setEnabled(show);
     d.pips.setEnabled(show);
+    if (d._extraPipMeshes) for (const m of d._extraPipMeshes) m.setEnabled(show);
     d.backing.setEnabled(show);
     if (d.markMeshes) for (const m of d.markMeshes) m.setEnabled(show);
     d.body.position.set(cx, spawnY, cz);
@@ -635,26 +653,31 @@ export function slingCluster(ctx, anchorX, anchorZ, pickX, pickZ) {
 /** Release sling: apply impulse in aim direction with given strength [0,1]. */
 export function slingRelease(ctx, aimX, aimZ, strength) {
   resetDiceForThrow(ctx);
-  const b  = ctx.tune.body;
+  const sl = ctx.tune.sling;
   const rp = ctx.tune.rollPlayer;
   const perpX = -aimZ, perpZ = aimX;
   const leverR = getDieEdge(ctx) * 0.10;
-  const fBase = b.throwMin + (b.throwMax - b.throwMin) * strength;
+  const impulseH = sl.impulseHMin + (sl.impulseHMax - sl.impulseHMin) * strength;
+  const impulseY = sl.impulseYMin + (sl.impulseYMax - sl.impulseYMin) * strength;
 
-  slingDisableDiceDice(ctx, 150);
-
+  const scatterR = getDieEdge(ctx) * 1.1;
   for (let i = 0; i < ctx.dice.length; i++) {
     const d = ctx.dice[i];
     showDie(d);
     d.body.type = CANNON.Body.DYNAMIC;
     d.body.velocity.setZero();
     d.body.angularVelocity.setZero();
-    const cross = (Math.random() - 0.5) * fBase * rp.impulseCrossMul;
+    if (ctx.dice.length > 1) {
+      const sa = (2 * Math.PI * i / ctx.dice.length) + (Math.random() - 0.5) * 0.4;
+      d.body.position.x += Math.cos(sa) * scatterR;
+      d.body.position.z += Math.sin(sa) * scatterR;
+    }
+    const cross = (Math.random() - 0.5) * impulseH * rp.impulseCrossMul;
     d.body.applyImpulse(
       new CANNON.Vec3(
-        aimX * fBase * rp.mainImpulse + perpX * cross,
-        fBase * rp.impulseYMul,
-        aimZ * fBase * rp.mainImpulse + perpZ * cross
+        aimX * impulseH + perpX * cross,
+        impulseY,
+        aimZ * impulseH + perpZ * cross
       ),
       new CANNON.Vec3((Math.random() - .5) * leverR, (Math.random() - .5) * leverR, (Math.random() - .5) * leverR)
     );
@@ -674,34 +697,9 @@ export function slingStrength(ctx, pullLen) {
 
 export { getSlingClickEpsWorld };
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  COLLISION MASK TOGGLE (for sling dice-dice disable)
-// ═══════════════════════════════════════════════════════════════════════════
-
-const DICE_ENV_ONLY_MASK = STATIC_ENV_GROUP;
-
-function setDiceMask(ctx, mask) {
-  for (const d of ctx.dice) {
-    d.body.collisionFilterMask = mask;
-    for (let i = 0; i < d.body.shapes.length; i++) {
-      d.body.shapes[i].collisionFilterMask = mask;
-      const hull = d.body.shapes[i].convexPolyhedronRepresentation;
-      if (hull) hull.collisionFilterMask = mask;
-    }
-  }
-}
-
-function slingDisableDiceDice(ctx, ms) {
-  if (ctx._slingCollisionTimer) clearTimeout(ctx._slingCollisionTimer);
-  setDiceMask(ctx, DICE_ENV_ONLY_MASK);
-  ctx._slingCollisionTimer = setTimeout(() => {
-    setDiceMask(ctx, DICE_COLLISION_MASK);
-    ctx._slingCollisionTimer = null;
-  }, ms);
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  FORCE SETTLE
+//  FORCE SETTLE — or reroll if any die is not on a face
 // ═══════════════════════════════════════════════════════════════════════════
 
 const SETTLE_TIMEOUT_MS = 4000;
@@ -717,50 +715,20 @@ export function clearSettleTimer(ctx) {
 
 export function forceSettleDice(ctx) {
   ctx._settleTimer = 0;
+  if (ctx._allSettledFired) return;
   const unsettled = ctx.dice.filter(d => !d.settled);
   if (!unsettled.length) return;
-
-  const de = getDieEdge(ctx);
-  const stackY = ctx.td.floorY + de * 1.1;
-  const floorY = ctx.td.floorY + de * 0.5;
-
-  for (const d of unsettled) {
-    let px = d.body.position.x;
-    let pz = d.body.position.z;
-    if (d.body.position.y > stackY) {
-      const angle = Math.random() * Math.PI * 2;
-      px += Math.cos(angle) * de * 1.2;
-      pz += Math.sin(angle) * de * 1.2;
-    }
-    const hw = ctx.tbl.rollFloorW / 2 - de;
-    px = Math.max(-hw, Math.min(hw, px));
-    pz = Math.max(ctx.tbl.dividerZ + de * 0.6, Math.min(ctx.tbl.botDividerZ - de * 0.6, pz));
-
-    const val = readFaceValueForced(d.body);
-    const cq = d.body.quaternion;
-    d.body.type = CANNON.Body.KINEMATIC;
-    d.body.velocity.set(0, 0, 0);
-    d.body.angularVelocity.set(0, 0, 0);
-    d._forceSettle = {
-      tx: px, ty: floorY, tz: pz,
-      qx: cq.x, qy: cq.y, qz: cq.z, qw: cq.w,
-      val,
-    };
-  }
+  ctx._allSettledFired = true;
+  if (ctx.onEdgeReroll) ctx.onEdgeReroll(ctx.dice);
 }
 
-/** Returns dice that settled on top of another (Y > threshold). */
-export function getStackedDice(ctx) {
-  const stackY = ctx.td.floorY + getDieEdge(ctx) * 1.1;
-  return ctx.dice.filter(d => d.settled && d.body && d.body.position.y > stackY);
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  SELECTION
 // ═══════════════════════════════════════════════════════════════════════════
 
-export function highlightDie(ctx, die, on) {
-  if (on) ctx.hl.addMesh(die.outer, new BABYLON.Color3(0.1, 0.9, 0.15));
+export function highlightDie(ctx, die, on, color) {
+  if (on) ctx.hl.addMesh(die.outer, color || new BABYLON.Color3(0.1, 0.9, 0.15));
   else    ctx.hl.removeMesh(die.outer);
 }
 
@@ -837,7 +805,6 @@ export function findDieAtPick(ctx, pickInfo) {
 
 export function dispose(ctx) {
   clearSettleTimer(ctx);
-  if (ctx._slingCollisionTimer) clearTimeout(ctx._slingCollisionTimer);
   while (ctx.dice.length) teardownDie(ctx.dice.pop(), ctx);
   while (ctx.heldDice.length) {
     const d = ctx.heldDice.pop();

@@ -40,7 +40,7 @@
         _el.closeBtn   = document.getElementById('closeLoadoutBtn')
         _el.saveBtn    = document.getElementById('saveLoadoutBtn')
         _el.slots      = document.getElementById('loadoutSlots')
-        _el.inv        = document.getElementById('loadoutInventory')
+        _el.inv        = document.getElementById('loadoutRules')
         _el.detail     = document.getElementById('loadoutDetail')
 
         _el.btn.onclick       = open
@@ -82,7 +82,7 @@
     function render() {
         dispose3D()
         renderSlots()
-        renderInventory()
+        renderGameRules()
         renderDetail()
     }
 
@@ -129,8 +129,39 @@
         }
     }
 
-    function renderInventory() {
-        _el.inv.innerHTML = '<div class="lo-empty-msg">No special dice available yet</div>'
+    function miniDice(values) {
+        var h = '<span class="combo-dice">'
+        for (var i = 0; i < values.length; i++) h += pipFaceHTML(values[i])
+        h += '</span>'
+        return h
+    }
+
+    function renderGameRules() {
+        var S = window.STRINGS
+        var h = ''
+        h += '<h3>Goal</h3><p>' + S.RULES_GOAL + '</p>'
+        h += '<h3>How to Play</h3><p>' + S.RULES_HOW + '</p>'
+
+        h += '<h3>Scoring Combos</h3>'
+        h += '<table>'
+        h += '<tr><th>Combo</th><th>Points</th></tr>'
+        h += '<tr><td>' + miniDice([1]) + ' Single 1</td><td>100</td></tr>'
+        h += '<tr><td>' + miniDice([5]) + ' Single 5</td><td>50</td></tr>'
+        h += '<tr><td>' + miniDice([1,1,1]) + ' Three 1s</td><td>1 000</td></tr>'
+        h += '<tr><td>' + miniDice([2,2,2]) + ' Three 2s</td><td>200</td></tr>'
+        h += '<tr><td>' + miniDice([3,3,3]) + ' Three 3s</td><td>300</td></tr>'
+        h += '<tr><td>' + miniDice([4,4,4]) + ' Three 4s</td><td>400</td></tr>'
+        h += '<tr><td>' + miniDice([5,5,5]) + ' Three 5s</td><td>500</td></tr>'
+        h += '<tr><td>' + miniDice([6,6,6]) + ' Three 6s</td><td>600</td></tr>'
+        h += '<tr><td>' + miniDice([2,2,2,2]) + ' Four of a Kind</td><td>Three \u00d72</td></tr>'
+        h += '<tr><td>' + miniDice([2,2,2,2,2]) + ' Five of a Kind</td><td>Three \u00d74</td></tr>'
+        h += '<tr><td>' + miniDice([2,2,2,2,2,2]) + ' Six of a Kind</td><td>Three \u00d78</td></tr>'
+        h += '<tr><td>' + miniDice([1,2,3,4,5]) + ' Short 1-5</td><td>500</td></tr>'
+        h += '<tr><td>' + miniDice([2,3,4,5,6]) + ' Short 2-6</td><td>750</td></tr>'
+        h += '<tr><td>' + miniDice([1,2,3,4,5,6]) + ' Full Straight</td><td>1 500</td></tr>'
+        h += '</table>'
+
+        _el.inv.innerHTML = h
     }
 
     function renderDetail() {
@@ -170,6 +201,13 @@
         rarity.className = 'lo-detail-rarity lo-rarity-' + def.rarity
         rarity.textContent = def.rarity.toUpperCase()
         card.appendChild(rarity)
+
+        if (def.desc) {
+            var desc = document.createElement('div')
+            desc.className = 'lo-detail-desc'
+            desc.textContent = def.desc
+            card.appendChild(desc)
+        }
 
         _el.detail.appendChild(card)
 

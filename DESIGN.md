@@ -209,7 +209,7 @@ Dice names should be playful, weird, memorable, or slightly absurd. The requirem
 - **Role:** single-face scoring bias toward `1`
 - **Mechanic:** weighted distribution — `1 = 30%`, `2/3/4/5/6 = 14%` each. Physics bias: center-of-mass offset `0.41` toward face 1.
 - **No evolution line.** Standalone.
-- **Visual:** hot pink body (`#fc46aa`), white pips, red heart mark on face 1 (procedural DynamicTexture with bg shield). Custom geometry: `edgeR: 0.2` (more rounded), `pipR: 0.08` (smaller pips), `specular: 0.3`. Mark plane uses `DOUBLESIDE` orientation for correct lighting on all faces.
+- **Visual:** pink body (`#ff5ccd`), white pips, red heart-shaped pip on face 1 (via `PIP_SHAPES.heart`). Per-face config: `pipShape: { default: 'circle', 1: 'heart' }`, `pipR: { default: 0.09, 1: 0.28 }`, `pipColors: { default: '#ffffff', 1: '#ff0000' }`. Custom geometry: `edgeR: 0.2` (more rounded), `specular: 0.1`.
 
 #### Comrade
 
@@ -625,13 +625,13 @@ Joker belongs to the Exotic layer by nature. It must not be forced into Common o
 - **Unlock Status** — shows win/loss, unlocked dice, next die requirement
 - **Reset** — profile reset
 
-### 10.3 Loadout Editor
+### 10.3 Rules & Dices Panel (was Loadout Editor)
 
-- Left: owned dice pool (clean cards)
-- Right top: 6 active slots for the next battle
-- Right bottom: selected-die detail card (name, effect, evolution, action button)
-- Equipped dice leave the left pool; return when removed from loadout
+- **Left column: Game Rules** — Goal, How to Play, Scoring Combos table with inline mini pip-face dice (singles, three-of-a-kind, multipliers "Three ×2/×4/×8", straights)
+- **Right top:** 6 active dice slots for the next battle
+- **Right bottom:** selected-die detail card (name, rarity, **description text**, interactive 3D die preview)
 - Empty slots read as base dice
+- Each die has a `desc` field in `dice.js` shown in the detail panel (e.g. "Higher chance of rolling 1 (30%)")
 - Joker is a normal special die in this flow
 
 ### 10.4 Battle Entry Contract
@@ -651,7 +651,10 @@ botDifficulty: novice | advanced | master
 - **Player roll affordance:** primary is **drag on the 3D table** (pull-back sling into the roll zone); **ROLL** button remains a clear fallback
 - Bot turns play back on the live board: animated roll, sequential packet selection, held-dice collect, round-score update, bank or bust
 - Secondary action buttons (JUMP, TUNE, FLIP, etc.) in a reserved row under main actions
-- Round History in the right rail under bot block
+- Round History in the right rail under bot block — **imperative logging** via `battleUI.logHistory(text, color)`, called at event sites in `diceBridge.js`, `inputHandler.js`, `botSystem.js`
+- **Damage visualization** — on bank/hot-hand: fly-up "-N" number near HP widget (CSS `dmgFly` 1.5s), HP bar flash + widget shake
+- **Invalid selection highlights** — when 2+ dice selected and `selectionValid === false`, all selected 3D dice glow red instead of green
+- **Round Score display** — valid selection color green (`#2ecc71`), invalid red (`#e74c3c`)
 - **Developer tooling:** optional **camera debug** on the battle screen to copy ArcRotateCamera view JSON for locking a default shot
 
 ### 10.6 Battle UI Baseline (current `battle.html`)
@@ -673,7 +676,10 @@ Established layout after the first UI polish pass:
 | **Settle timeout** | If dice remain unsettled 4s after throw, `forceSettleUnsettled()` smoothly animates them to rest position (body → kinematic, lerp/slerp at `FORCE_SETTLE_LERP = 0.08`, ~12–15 frames). Stacked dice offset ~1.2 dieEdge sideways. Safety net for all edge cases. |
 | **Zero-friction walls** | `ContactMaterial(wallMat, diceMat, { friction: 0 })` — dice slide off walls naturally instead of balancing on an edge. Floor keeps normal friction. |
 | **Bot turn guard** | `scheduleBotTurn(ms)` with `clearTimeout` prevents duplicate `runBotTurn` calls (race condition fix). |
-| **Round History** | Right rail under bot block, outside table area. |
+| **Damage fly-up** | On bank/hot-hand: `battleUI.showDamage(target, amount)` creates a `.damage-fly` div near the HP widget (CSS `@keyframes dmgFly` 1.5s, font-size 1.95rem). HP bar flashes (`hp-flash`) and widget shakes (`hp-shake`). |
+| **Invalid selection glow** | When 2+ dice selected and `state.turn.selectionValid === false`, `syncHighlights()` passes red color (`BABYLON.Color3(0.9, 0.1, 0.1)`) to `highlightDie()`. Valid uses default green. |
+| **Round History (imperative)** | Right rail under bot block. `battleUI.logHistory(text, color)` and `clearHistory()` API. Called imperatively from `diceBridge.js` (rolled values after DICE_SETTLED), `inputHandler.js` (player events), `botSystem.js` (bot events). Replaces earlier diff-based approach. |
+| **Valid/Invalid selection colors** | Valid selection score shown in green (`#2ecc71`), invalid in red. `.round-label` 1.25rem, `.round-value` 1.55rem. |
 | **Ortho camera** | `updateBattleOrthoFrustum()` with `uiPadH=12`, `uiPadV=5` clears side panels from the table viewport. |
 
 ---
@@ -827,7 +833,7 @@ Generates a 1×1×1 rounded box with pip notch depressions:
 - Rendered via `StandardMaterial` with `zOffset = -2` — always visible on top of the outer surface.
 - Pip color is independent of body color — per-die `pipMat` created when `opts.pipColor` specified.
 - Default pip radius: 0.1 units (20% of face width). Per-die override via `opts.pipR` (number or `{ default, faceVal }` object for per-face sizes).
-- **Custom pip shapes** via `PIP_SHAPES` map in `dieFactory.js`. Each shape is an `(angle, outerR) => radius` outline function. Built-in shapes: `circle` (16 segments, default), `star5` (10-vertex 5-pointed star, `inner = 0.42 × outer`). New shapes added by registering a function in the map.
+- **Custom pip shapes** via `PIP_SHAPES` map in `dieFactory.js`. Each shape is an `(angle, outerR) => radius` outline function. Built-in shapes: `circle` (16 segments, default), `star5` (10-vertex 5-pointed star, `inner = 0.42 × outer`), `heart` (24 segments, precomputed polar lookup from parametric heart curve). New shapes added by registering a function in the map.
 - **Per-face pip shapes** via `opts.pipShape`: string applies to all faces, object `{ default: 'circle', 5: 'star5' }` applies per face. Each face in the `pf` array carries its `val` (1-6) for lookup.
 
 #### 14.5.3 Backing Box
@@ -836,9 +842,9 @@ Generates a 1×1×1 rounded box with pip notch depressions:
 
 #### 14.5.4 Die Assembly
 
-Each die consists of 4 components parented to a `TransformNode`:
+Each die consists of 3+ components parented to a `TransformNode`:
 1. **Outer mesh** — rounded box with notches (body color material)
-2. **Pips mesh** — 21 flat discs (pip color material, z-offset)
+2. **Pips mesh(es)** — default pip mesh (21 flat discs, pip color material, z-offset). When `pipColors` is set, additional pip meshes are created per color group using `facesFilter`.
 3. **Backing mesh** — dark interior box
 4. **Physics body** — `CANNON.Box(0.48 * scale)` with sleep events
 
@@ -860,18 +866,21 @@ Each die reads visual parameters from `DICE.roster[id].visual`:
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `body` | hex string | `'#f4f2ef'` | Body material diffuse color |
-| `pips` | hex string | `'#141414'` | Pip material color |
-| `specular` | number | `0.15` | Specular intensity for body + mark materials |
+| `pips` | hex string | `'#141414'` | Default pip material color |
+| `specular` | number | `0.15` | Specular intensity for body material |
 | `edgeR` | number | `0.13` | Edge rounding radius (generates custom geometry) |
 | `pipR` | number or `{default, N}` | `0.1` | Pip radius; object for per-face sizes |
 | `pipShape` | string or `{default, N}` | `'circle'` | Pip outline shape; object for per-face shapes |
-| `marks` | array of `{face, shape, color, bg}` | none | Face mark overlays (heart, star) |
+| `pipColors` | `{default, N}` | none | Per-face pip colors; each unique color gets its own pip mesh + material |
+| `marks` | array of `{face, shape, color, bg}` | none | Face mark overlays (legacy, still supported for non-pip marks) |
 
-`buildDie` generates custom geometry per die when `edgeR`, `pipR`, or `pipShape` differ from defaults (otherwise uses shared cached geometry). Backing box size auto-scales with `edgeR`. Mark planes use `DOUBLESIDE` orientation, `useAlphaFromDiffuseTexture`, and `isPickable = false`.
+`buildDie` generates custom geometry per die when `edgeR`, `pipR`, or `pipShape` differ from defaults (otherwise uses shared cached geometry). Backing box size auto-scales with `edgeR`.
 
-**Face mark textures** are procedural `DynamicTexture` (128×128 canvas). Supported shapes: `heart` (`drawHeart`), `star` (`drawStar`). Each draws a circular background disc (masks pip underneath) + the shape. Mark material specular matches body material.
+**Per-face pip colors** (`pipColors`): when set, faces are grouped by color and each group gets its own pip mesh with a dedicated `StandardMaterial`. The `facesFilter` parameter in `createPipsVertexData` selectively generates pips for specified face values only. All extra pip meshes are tracked and disposed with the die. Example: `pipColors: { default: '#ffffff', 1: '#ff0000' }` creates white pips on faces 2-6 and a red pip on face 1.
 
-**Dice Constructor** (`tools/dice-constructor.html`): interactive preview tool with sliders for all visual params + Pip Shape dropdown + Face Mark dropdown (None/Heart/Star). Copy Config exports JSON for `dice.js`.
+**Face mark textures** (legacy, still in code for future use): procedural `DynamicTexture` (128×128 canvas). Supported shapes: `heart` (`drawHeart`), `star` (`drawStar`). Mark planes use `DOUBLESIDE` orientation, `useAlphaFromDiffuseTexture`, and `isPickable = false`. One Love no longer uses marks — its heart is a pip shape instead.
+
+**Dice Constructor** (`tools/dice-constructor.html`): interactive 3D preview tool for designing die visuals. Sections: Colors & Material (body color, default pip color, specular), Geometry (roundness, default pip size, notch depth, default pip shape), Per-Face Overrides (6 face tabs with individual shape/size/color toggles). Copy Config exports ready-to-use JSON for `dice.js` with per-face `pipShape`, `pipR`, and `pipColors` objects when overrides are active.
 
 ### 14.6 Audio Baseline
 

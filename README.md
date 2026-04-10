@@ -1,6 +1,6 @@
 # Dice-a-Lot — 3D Dice Battle Game
 
-**v1.0.5 — Special dice: One Love + Comrade, custom pip shapes, physics bias, dice constructor**
+**v1.0.6 — Battle UI polish: damage fly-up + HP flash, Rules & Dices panel, red invalid highlights, die descriptions, imperative Round History**
 
 A browser-first dice RPG prototype inspired by Farkle. Special dice with unique abilities, loadout building, PvE bot battles, HP-based combat, and a full progression ladder — all rendered with 3D physics dice.
 
@@ -13,11 +13,15 @@ A browser-first dice RPG prototype inspired by Farkle. Special dice with unique 
 - Glass morphism UI overlay: side HP widgets, top info bar, bottom action buttons
 - Bust, Hot Hand, turn switching, victory/defeat banners
 - Loadout editor with interactive 3D detail panel (physics die drop, orbit-after-settle, CSS pip slot icons)
-- Invalid selection feedback (selected values shown in red)
-- **One Love die** — hot pink, white pips, red heart on face 1, ~30% bias toward 1 (physics center-of-mass offset)
-- **Comrade die** — bright red, gold star pips on face 5, ~30% bias toward 5 (physics center-of-mass offset)
-- **Per-die visual system** — custom body/pip colors, specular, edge rounding, pip size/shape per face, procedural face marks
-- **Dice Constructor** (`tools/dice-constructor.html`) — interactive 3D tool for designing die visuals with config export
+- **Damage visualization** — fly-up numbers + HP bar flash/shake on bank
+- **Rules & Dices panel** — scoring combos with inline mini dice, Goal, How to Play (was Loadout/Inventory)
+- **Invalid selection red highlights** — 3D dice glow red when combo is invalid
+- **Round History** — imperative event log (rolled values, scores, damage, bust, hot hand, result)
+- **Die descriptions** — each die shows its ability text in the detail panel
+- **One Love die** — pink (#ff5ccd), white pips, red heart-shaped pip on face 1 (via PIP_SHAPES.heart), ~30% bias toward 1 (physics center-of-mass offset)
+- **Comrade die** — bright red (#cc0000), gold star pips on face 5, circle pips on other faces, ~30% bias toward 5 (physics center-of-mass offset)
+- **Per-die visual system** — custom body/pip colors, specular, edge rounding, pip size/shape per face, per-face pip colors (multiple pip meshes per die)
+- **Dice Constructor** (`tools/dice-constructor.html`) — interactive 3D tool for designing die visuals with per-face overrides (shape/size/color per face), config export
 
 ## 3D Engine
 
@@ -73,7 +77,7 @@ Pushes to **`main`** deploy the repo root to **Cloudflare Pages** via `.github/w
 
 The coding agent checks every change against the architecture and design rules. If your request would violate a rule, it warns you and proposes alternatives before writing any code.
 
-**Battle prototype (`battle.html`)** today: fullscreen 3D Farkle vs bot, **vendored** Babylon.js + cannon-es, **pull-back sling** (single-point cluster, 1 die visible during aim) + **ROLL**. **UI baseline (2026-04-07):** compact HP widgets, side turn indicators, compact top-docked info bar, centered banners (incl. REROLL!), 9×9 held zones with correct face-up display, auto-hiding action buttons, dev tools hidden. **Physics baseline:** unified ROLL/sling impulse, gravity −200, mass 3.0, dieScale 3.06, face reading thresholds 0.90/0.12. **Stacked dice reroll** mechanic (player taps, bot auto). **`throw-lab.html`** — throw-only sandbox with the same `battle_tune_json_v1` tuning. Details: `ARCHITECTURE.md` (Battle Prototype, Throw lab), `DESIGN.md` section 10.6 + 14.
+**Production game (`src/index.html`)** today: fullscreen 3D Farkle vs bot, **vendored** Babylon.js + cannon-es, **pull-back sling** (single-point cluster, 1 die visible during aim) + **ROLL**. **UI (v1.0.6):** compact HP widgets, damage fly-up + HP flash/shake, side turn indicators, compact top-docked info bar, green valid / red invalid selection colors, centered banners (incl. REROLL!), 9×9 held zones with correct face-up display, auto-hiding action buttons, imperative Round History log. **Rules & Dices panel** with scoring combos and die descriptions. **Physics baseline:** unified ROLL/sling impulse, gravity −300, mass 3.0, dieScale 3.06. **Stacked dice reroll** mechanic (player taps, bot auto). **`throw-lab.html`** — throw-only sandbox with the same `battle_tune_json_v1` tuning. Details: `ARCHITECTURE.md` (Battle Prototype, Throw lab), `DESIGN.md` section 10.6 + 14.
 
 For subsequent changes (new features, balance tweaks, mechanic removals), use `NEXT_ITERATION_PROMPT.md` — it ensures the agent updates `DESIGN.md` first, then plans and implements, rather than jumping straight to code.
 

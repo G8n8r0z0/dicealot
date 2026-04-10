@@ -39,6 +39,7 @@
     .banner.bank{background:linear-gradient(135deg,#d4a017,#f0c040);color:#1a1a1a}
     .banner.hot-hand{background:linear-gradient(135deg,#e67e22,#f1c40f);color:#1a1a1a}
     .banner.result{background:#27ae60;color:#fff}
+    .banner.reroll{background:linear-gradient(135deg,#8e44ad,#9b59b6);color:#fff}
 
     /* ── UI overlay: fullscreen, pointer-events passthrough ─── */
     .battle-scene{
@@ -66,8 +67,21 @@
       max-height:calc(100vh - var(--battle-ui-top) - max(14px,env(safe-area-inset-bottom)));
     }
 
+    /* ── Damage fly-up + HP flash/shake ─────────────────────── */
+    @keyframes dmgFly{0%{opacity:1;transform:translateY(0)}70%{opacity:.85;transform:translateY(-32px)}100%{opacity:0;transform:translateY(-52px)}}
+    @keyframes hpFlash{0%{filter:brightness(1)}30%{filter:brightness(2.2)}100%{filter:brightness(1)}}
+    @keyframes hpShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-3px)}40%{transform:translateX(3px)}60%{transform:translateX(-2px)}80%{transform:translateX(2px)}}
+    .damage-fly{
+      position:absolute;left:50%;top:-6px;transform:translateX(-50%);
+      font-size:1.95rem;font-weight:900;color:#ff4444;white-space:nowrap;pointer-events:none;
+      text-shadow:0 1px 6px rgba(0,0,0,.7),0 0 12px rgba(255,0,0,.35);
+      animation:dmgFly 1.5s ease-out forwards;z-index:10;
+    }
+    .hp-flash .hp-fill{animation:hpFlash .35s ease}
+    .hp-shake{animation:hpShake .25s ease}
+
     /* ── HP Widget ───────────────────────────────────────────── */
-    .hp-widget{display:flex;align-items:center;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4))}
+    .hp-widget{display:flex;align-items:center;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4));position:relative}
     .hp-avatar{
       width:80px;height:80px;border-radius:50%;flex-shrink:0;z-index:1;
       background:var(--ui-glass-strong);backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur));
@@ -129,8 +143,8 @@
       box-shadow:var(--ui-shadow);text-shadow:var(--ui-text-shadow);
     }
     .round-score-wrap{display:flex;align-items:baseline;gap:6px}
-    .round-label{font-size:1.1rem;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.05em}
-    .round-value{font-size:1.3rem;font-weight:800;color:#ffc91c;font-variant-numeric:tabular-nums}
+    .round-label{font-size:1.25rem;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.05em}
+    .round-value{font-size:1.55rem;font-weight:800;color:#ffc91c;font-variant-numeric:tabular-nums}
     .selection-info{font-size:.75rem;color:#bbb;line-height:1.2;min-height:1em}
     .status-text{font-size:.72rem;color:#666;min-height:16px}
 
@@ -206,6 +220,19 @@
     }
     .lo-empty-msg{grid-column:1/-1;text-align:center;color:#555;font-size:.85rem;padding:32px 0}
 
+    .lo-rules{display:block!important;font-size:.84rem;line-height:1.4;color:rgba(255,255,255,.72);padding:12px 16px}
+    .lo-rules h3{font-size:.9rem;font-weight:700;color:rgba(255,255,255,.92);margin:10px 0 3px;text-transform:uppercase;letter-spacing:.04em}
+    .lo-rules h3:first-child{margin-top:0}
+    .lo-rules p{margin:0 0 5px}
+    .lo-rules table{width:100%;border-collapse:collapse;margin:4px 0 8px}
+    .lo-rules th,.lo-rules td{text-align:left;padding:3px 6px;border-bottom:1px solid rgba(255,255,255,.06)}
+    .lo-rules th{font-size:.72rem;color:rgba(255,255,255,.45);font-weight:600;text-transform:uppercase}
+    .lo-rules td{font-size:.82rem;color:rgba(255,255,255,.68)}
+    .lo-rules td:last-child{text-align:right;font-weight:700;color:#efc14a}
+    .lo-rules .combo-dice{display:inline-flex;gap:3px;vertical-align:middle}
+    .lo-rules .combo-dice .lo-die-face{width:25px;height:25px;padding:2px;border-radius:4px}
+    .lo-rules .combo-dice .lo-die-face .lo-pip{width:4px;height:4px}
+
     .lo-slot-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
     .lo-slot{
       display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;
@@ -262,6 +289,7 @@
     .lo-detail-icon{width:72px;height:72px;border-radius:18px}
     .lo-detail-name{font-size:1.3rem;font-weight:800;color:#f4f7ff}
     .lo-detail-rarity{font-size:.72rem;font-weight:700;letter-spacing:.1em}
+    .lo-detail-desc{font-size:.82rem;color:rgba(255,255,255,.55);text-align:center;line-height:1.4;max-width:260px}
     .lo-rarity-common{color:#8bc34a}
     .lo-rarity-rare{color:#ab47bc}
     .lo-rarity-exotic{color:#ff7043}
@@ -328,7 +356,7 @@
         <div class="badge-slot"></div>
         <div class="badge-slot"></div>
       </div>
-      <button id="loadoutBtn" class="btn btn-loadout">LOADOUT</button>
+      <button id="loadoutBtn" class="btn btn-loadout">RULES &amp; DICES</button>
     </aside>
 
     <!-- Center: info + buttons -->
@@ -386,8 +414,8 @@
     </div>
     <div class="lo-workbench">
       <div class="lo-column lo-col-inv">
-        <div class="lo-col-label">INVENTORY</div>
-        <div class="lo-pool" id="loadoutInventory"></div>
+        <div class="lo-col-label">GAME RULES</div>
+        <div class="lo-pool lo-rules" id="loadoutRules"></div>
       </div>
       <div class="lo-column lo-col-right">
         <div class="lo-col-label">YOUR DICE</div>

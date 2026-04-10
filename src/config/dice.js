@@ -22,6 +22,7 @@
 
         base: {
             id: 'base', name: 'Base Die', rarity: 'base', utility: false, maxLevel: 1,
+            desc: 'Just a simple die without any abilities.',
             ability: null, weights: null,
             visual: { body: 'white', pips: 'black' }
         },
@@ -30,6 +31,7 @@
 
         frog: {
             id: 'frog', name: 'Frog', rarity: 'common', utility: false, maxLevel: 1,
+            desc: 'Reroll this die once per turn.',
             ability: { type: 'reroll', button: 'JUMP', passive: false },
             weights: null,
             visual: { body: '#5a8a32', pips: '#fffde0', marks: 'frog-eye on face 1' }
@@ -37,6 +39,7 @@
 
         oneLove: {
             id: 'oneLove', name: 'One Love', rarity: 'common', utility: false, maxLevel: 1,
+            desc: 'Higher chance of rolling 1 (30%).',
             ability: { type: 'bias', passive: true },
             weights: [
                 { 1: 0.30, 2: 0.14, 3: 0.14, 4: 0.14, 5: 0.14, 6: 0.14 }
@@ -44,14 +47,17 @@
             biasOffset: 0.41,
             biasFace: 1,
             visual: {
-                body: '#fc46aa', pips: '#ffffff',
-                specular: 0.3, edgeR: 0.2, pipR: 0.08,
-                marks: [{ face: 1, shape: 'heart', color: '#dc143c', bg: '#fc46aa' }]
+                body: '#ff5ccd', pips: '#ffffff',
+                specular: 0.1, edgeR: 0.2,
+                pipR: { default: 0.09, 1: 0.28 },
+                pipShape: { default: 'circle', 1: 'heart' },
+                pipColors: { default: '#ffffff', 1: '#ff0000' }
             }
         },
 
         comrade: {
             id: 'comrade', name: 'Comrade', rarity: 'common', utility: false, maxLevel: 1,
+            desc: 'Higher chance of rolling 5 (30%).',
             ability: { type: 'bias', passive: true },
             weights: [
                 { 1: 0.14, 2: 0.14, 3: 0.14, 4: 0.14, 5: 0.30, 6: 0.14 }
@@ -67,6 +73,7 @@
 
         flipper: {
             id: 'flipper', name: 'Flipper', rarity: 'common', utility: false, maxLevel: 3,
+            desc: 'Flip this die to the opposite face.',
             ability: { type: 'flip', button: 'FLIP', passive: false },
             weights: null,
             visual: { body: 'ivory', pips: 'dolphin-marks' }
@@ -74,6 +81,7 @@
 
         evenDie: {
             id: 'evenDie', name: 'Even Die', rarity: 'common', utility: false, maxLevel: 3,
+            desc: 'Higher chance of rolling even numbers (2, 4, 6).',
             ability: { type: 'bias', passive: true },
             weights: [
                 { 1: 0.083, 2: 0.25,  3: 0.083, 4: 0.25,  5: 0.083, 6: 0.25  },
@@ -85,6 +93,7 @@
 
         oddDie: {
             id: 'oddDie', name: 'Odd Die', rarity: 'common', utility: false, maxLevel: 3,
+            desc: 'Higher chance of rolling odd numbers (1, 3, 5).',
             ability: { type: 'bias', passive: true },
             weights: [
                 { 1: 0.25,  2: 0.083, 3: 0.25,  4: 0.083, 5: 0.25,  6: 0.083 },
@@ -96,6 +105,7 @@
 
         mathematician: {
             id: 'mathematician', name: 'Mathematician Die', rarity: 'common', utility: false, maxLevel: 1,
+            desc: 'Favours 1 and 3 — great for straights.',
             ability: { type: 'bias', passive: true },
             weights: [
                 { 1: 0.22, 2: 0.10, 3: 0.28, 4: 0.20, 5: 0.10, 6: 0.10 }
@@ -105,6 +115,7 @@
 
         cluster: {
             id: 'cluster', name: 'Cluster Die', rarity: 'common', utility: false, maxLevel: 3,
+            desc: 'Biased towards 2, 3, 4, 6 — builds sets fast.',
             ability: { type: 'bias', passive: true, synergy: ['oneLove', 'comrade'] },
             weights: [
                 { 1: 0.10, 2: 0.20, 3: 0.20, 4: 0.20, 5: 0.10, 6: 0.20 },
@@ -116,6 +127,7 @@
 
         bounce: {
             id: 'bounce', name: 'Bounce Die', rarity: 'common', utility: false, maxLevel: 3,
+            desc: 'On bust, one random die re-rolls itself.',
             ability: { type: 'bounce', passive: true },
             weights: null,
             visual: { body: 'white', pips: 'black' }
@@ -123,6 +135,7 @@
 
         slime: {
             id: 'slime', name: 'Slime Die', rarity: 'common', utility: false, maxLevel: 3,
+            desc: 'Rolling 6 spawns an extra temporary die.',
             ability: { type: 'spawn', passive: true, trigger: 6 },
             weights: null,
             visual: { body: '#4caf50', pips: 'white' }
@@ -130,6 +143,7 @@
 
         bridge: {
             id: 'bridge', name: 'Bridge Die', rarity: 'common', utility: false, maxLevel: 3,
+            desc: 'Fills a gap of 1 in a straight sequence.',
             ability: { type: 'bridge', passive: true },
             weights: null,
             visual: { body: 'white', pips: 'black' }
@@ -137,6 +151,7 @@
 
         match: {
             id: 'match', name: 'Match Die', rarity: 'common', utility: false, maxLevel: 3,
+            desc: 'Copies the value of an adjacent die (2, 3, 4, 6).',
             ability: { type: 'match', passive: true, validFaces: [2, 3, 4, 6] },
             weights: null,
             visual: { body: 'white', pips: 'black' }
@@ -144,6 +159,7 @@
 
         chain: {
             id: 'chain', name: 'Chain Die', rarity: 'common', utility: false, maxLevel: 3,
+            desc: 'Links with identical neighbours for bonus points.',
             ability: { type: 'chain', passive: true },
             weights: null,
             visual: { body: '#8d6e63', pips: 'chain-marks', marks: 'CH badge' }
@@ -151,6 +167,7 @@
 
         shrinking: {
             id: 'shrinking', name: 'Shrinking Die', rarity: 'common', utility: false, maxLevel: 1,
+            desc: 'Each roll decreases its value by 1.',
             ability: { type: 'directional', passive: true, step: -1 },
             weights: null,
             visual: { body: 'white', pips: 'number' }
@@ -158,6 +175,7 @@
 
         growing: {
             id: 'growing', name: 'Growing Die', rarity: 'common', utility: false, maxLevel: 1,
+            desc: 'Each roll increases its value by 1.',
             ability: { type: 'directional', passive: true, step: 1 },
             weights: null,
             visual: { body: 'white', pips: 'number' }
@@ -167,6 +185,7 @@
 
         bandie: {
             id: 'bandie', name: 'Bandie', rarity: 'common', utility: U, maxLevel: 3,
+            desc: 'Heals you for a flat amount each turn.',
             ability: { type: 'heal_self', passive: true },
             healPerLevel: [100, 200, 300],
             weights: null,
@@ -175,6 +194,7 @@
 
         pulse: {
             id: 'pulse', name: 'Pulse Die', rarity: 'common', utility: U, maxLevel: 3,
+            desc: 'Heals per die scored this turn.',
             ability: { type: 'heal_packet', passive: true },
             healPerDiePerLevel: [100, 200, 300],
             weights: null,
@@ -185,6 +205,7 @@
 
         tuner: {
             id: 'tuner', name: 'Tuner', rarity: 'rare', utility: false, maxLevel: 3,
+            desc: 'Manually set this die to any face value.',
             ability: { type: 'tune', button: 'TUNE', passive: false },
             weights: null,
             visual: { body: 'white', pips: 'black' }
@@ -192,6 +213,7 @@
 
         royalI: {
             id: 'royalI', name: 'Royal I', rarity: 'rare', utility: false, maxLevel: 1,
+            desc: '+150 bonus when scoring a straight.',
             ability: { type: 'straight_bonus', passive: true, bonus: 150 },
             weights: null,
             visual: { body: 'white', pips: 'black' }
@@ -199,6 +221,7 @@
 
         forgeI: {
             id: 'forgeI', name: 'Forge I', rarity: 'rare', utility: false, maxLevel: 1,
+            desc: '+100 bonus when scoring a set (3+ of a kind).',
             ability: { type: 'set_bonus', passive: true, bonus: 100 },
             weights: null,
             visual: { body: 'white', pips: 'black' }
@@ -206,6 +229,7 @@
 
         pin: {
             id: 'pin', name: 'Pin Die', rarity: 'rare', utility: false, maxLevel: 1,
+            desc: 'Keeps its value between rolls.',
             ability: { type: 'pin', passive: true },
             weights: null,
             visual: { body: 'white', pips: 'black' }
@@ -213,6 +237,7 @@
 
         devil: {
             id: 'devil', name: 'Devil Die', rarity: 'rare', utility: false, maxLevel: 1,
+            desc: 'Acts as a joker — counts as any value.',
             ability: { type: 'devil', passive: true },
             weights: null,
             visual: { body: '#d32f2f', pips: 'white' }
@@ -220,6 +245,7 @@
 
         mimic: {
             id: 'mimic', name: 'Mimic Die', rarity: 'rare', utility: false, maxLevel: 1,
+            desc: 'Copy another die\'s value.',
             ability: { type: 'mimic', button: 'MIMIC', passive: false },
             weights: null,
             visual: { body: 'gray', pips: 'black', marks: 'copy sign' }
@@ -227,6 +253,7 @@
 
         clone: {
             id: 'clone', name: 'Clone Die', rarity: 'rare', utility: false, maxLevel: 1,
+            desc: 'Duplicate a scored die for double value.',
             ability: { type: 'clone', button: 'CLONE', passive: false },
             weights: null,
             visual: { body: 'white', pips: 'black' }
@@ -234,6 +261,7 @@
 
         blight: {
             id: 'blight', name: 'Blight Die', rarity: 'rare', utility: false, maxLevel: 1,
+            desc: 'Infect an enemy die, locking its value.',
             ability: { type: 'infect', button: 'INFECT', passive: false },
             weights: null,
             visual: { body: '#76ff03', pips: 'red', marks: 'biohazard on face 1' }
@@ -241,6 +269,7 @@
 
         sacriDice: {
             id: 'sacriDice', name: 'SacriDice', rarity: 'rare', utility: false, maxLevel: 1,
+            desc: 'Sacrifice this die for a large score boost.',
             ability: { type: 'sacrifice', button: 'SACRIFICE', passive: false },
             weights: null,
             visual: { body: 'white', pips: 'black' }
@@ -248,6 +277,7 @@
 
         gravity: {
             id: 'gravity', name: 'Gravity Die', rarity: 'rare', utility: false, maxLevel: 1,
+            desc: 'Pulls nearby dice towards matching values.',
             ability: { type: 'gravity', passive: true },
             weights: null,
             visual: { body: '#4a148c', pips: 'moon', marks: 'G on face 1' }
@@ -255,6 +285,7 @@
 
         mirror: {
             id: 'mirror', name: 'Mirror Die', rarity: 'rare', utility: false, maxLevel: 3,
+            desc: 'Rotate to a side face — weighted towards 1 and 5.',
             ability: { type: 'mirror', button: 'MIRROR', passive: false },
             sideFaces: {
                 1: [2, 3, 5, 4],
@@ -275,6 +306,7 @@
 
         yin: {
             id: 'yin', name: 'Yin', rarity: 'rare', utility: false, maxLevel: 1,
+            desc: 'Paired with Yang — Yang mirrors Yin\'s opposite face.',
             ability: { type: 'yinyang', passive: true, role: 'leader', partner: 'yang' },
             complement: { 1: 6, 2: 5, 3: 4, 4: 3, 5: 2, 6: 1 },
             weights: null,
@@ -283,6 +315,7 @@
 
         yang: {
             id: 'yang', name: 'Yang', rarity: 'rare', utility: false, maxLevel: 1,
+            desc: 'Paired with Yin — automatically shows the opposite face.',
             ability: { type: 'yinyang', passive: true, role: 'follower', partner: 'yin' },
             complement: { 1: 6, 2: 5, 3: 4, 4: 3, 5: 2, 6: 1 },
             weights: null,
@@ -293,6 +326,7 @@
 
         leech: {
             id: 'leech', name: 'Leech Die', rarity: 'rare', utility: U, maxLevel: 3,
+            desc: 'Heal for a % of damage dealt.',
             ability: { type: 'leech', passive: true },
             healPctPerLevel: [0.20, 0.30, 0.40],
             weights: null,
@@ -301,6 +335,7 @@
 
         transfusion: {
             id: 'transfusion', name: 'Transfusion Die', rarity: 'rare', utility: U, maxLevel: 1,
+            desc: 'Converts excess damage into healing.',
             ability: { type: 'transfusion', passive: true },
             weights: null,
             visual: { body: 'white', pips: 'black' }
@@ -308,6 +343,7 @@
 
         secondWind: {
             id: 'secondWind', name: 'Second Wind Die', rarity: 'rare', utility: U, maxLevel: 3,
+            desc: 'Saves you from a lethal hit once per battle.',
             ability: { type: 'second_wind', passive: true },
             thresholds: [
                 { triggerBelow: 0.50, lethalSave: true, healDelay: 300 },
@@ -320,6 +356,7 @@
 
         siphon: {
             id: 'siphon', name: 'Siphon Die', rarity: 'rare', utility: U, maxLevel: 3,
+            desc: 'Restores HP equal to a % of your round score.',
             ability: { type: 'siphon', passive: true },
             restorePctPerLevel: [0.10, 0.20, 0.30],
             weights: null,
@@ -330,6 +367,7 @@
 
         joker: {
             id: 'joker', name: 'Joker', rarity: 'exotic', utility: false, maxLevel: 1,
+            desc: 'Wild card — adds 1 to any combination.',
             ability: { type: 'joker', passive: true, activeFace: 1 },
             weights: null,
             visual: { body: 'white', pips: 'black', marks: 'joker' }

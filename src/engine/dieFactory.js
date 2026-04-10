@@ -60,8 +60,8 @@ export function readFaceValue(body) {
       secondDot = dot;
     }
   }
-  if (bestDot < 0.82) return null;
-  if (bestDot - secondDot < 0.10) return null;
+  if (bestDot < 0.96) return null;
+  if (bestDot - secondDot < 0.20) return null;
   return bestVal;
 }
 
@@ -135,6 +135,49 @@ export function createDiceVertexData(edgeR = EDGE_R, notchR = NOTCH_R, notchD = 
 
 // ── Pip shape outlines ──────────────────────────────────────────────────────
 // Each function: (angle, outerR) => radius at that angle.
+
+// Precompute heart polar lookup from parametric curve
+const _heartLUT = (function() {
+  const N = 360;
+  const pts = [];
+  for (let i = 0; i < N; i++) {
+    const t = 2 * Math.PI * i / N;
+    const x = Math.pow(Math.sin(t), 3);
+    const y = (13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t)) / 16;
+    pts.push({ x, y });
+  }
+  let cx = 0, cy = 0;
+  for (const p of pts) { cx += p.x; cy += p.y; }
+  cx /= N; cy /= N;
+  const polar = new Array(N);
+  let maxR = 0;
+  for (let i = 0; i < N; i++) {
+    const dx = pts[i].x - cx, dy = pts[i].y - cy;
+    const r = Math.sqrt(dx*dx + dy*dy);
+    polar[i] = { a: Math.atan2(dy, dx), r };
+    if (r > maxR) maxR = r;
+  }
+  polar.sort((a, b) => a.a - b.a);
+  for (let i = 0; i < N; i++) polar[i].r /= maxR;
+  return polar;
+})();
+
+function _heartRadius(angle) {
+  let a = ((angle % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
+  if (a > Math.PI) a -= 2*Math.PI;
+  let lo = 0, hi = _heartLUT.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (_heartLUT[mid].a < a) lo = mid + 1; else hi = mid;
+  }
+  const i0 = lo === 0 ? 0 : lo - 1;
+  const i1 = lo;
+  const p0 = _heartLUT[i0], p1 = _heartLUT[i1];
+  const span = p1.a - p0.a || 1e-9;
+  const t = Math.max(0, Math.min(1, (a - p0.a) / span));
+  return p0.r + (p1.r - p0.r) * t;
+}
+
 export const PIP_SHAPES = {
   circle: (_a, r) => r,
   star5: (a, r) => {
@@ -143,18 +186,20 @@ export const PIP_SHAPES = {
     const idx = Math.floor(norm / (Math.PI / 5));
     return idx % 2 === 0 ? r : inner;
   },
+  heart: (a, r) => _heartRadius(a) * r,
 };
 
 /** 21 flat pips across 6 faces. Returns BABYLON.VertexData.
- *  pipShape: 'circle' | 'star5' (all faces) OR { default:'circle', 5:'star5' } (per-face) */
-export function createPipsVertexData(pipR = 0.1, pipOffset = PIP_OFFSET, pipShape = 'circle') {
+ *  pipShape: 'circle' | 'star5' | 'heart' (all faces) OR { default:'circle', 1:'heart' } (per-face)
+ *  facesFilter: optional array of face values to include (e.g. [1] or [2,3,4,5,6]) */
+export function createPipsVertexData(pipR = 0.1, pipOffset = PIP_OFFSET, pipShape = 'circle', facesFilter = null) {
   const positions = [], indices = [], normals = [], o = pipOffset;
   const defaultPR = typeof pipR === 'number' ? pipR : (pipR.default || 0.1);
   function prForFace(faceVal) {
     if (typeof pipR === 'number') return pipR;
     return pipR[faceVal] != null ? pipR[faceVal] : defaultPR;
   }
-  const pf = [
+  let pf = [
     { val:1, fA:1, fV:+.5, uA:0, vA:2, pips:[[0,0]] },
     { val:6, fA:1, fV:-.5, uA:0, vA:2, pips:[[-o,-o],[-o,0],[-o,+o],[+o,-o],[+o,0],[+o,+o]] },
     { val:2, fA:0, fV:+.5, uA:2, vA:1, pips:[[-o,-o],[+o,+o]] },
@@ -162,6 +207,7 @@ export function createPipsVertexData(pipR = 0.1, pipOffset = PIP_OFFSET, pipShap
     { val:3, fA:2, fV:+.5, uA:1, vA:0, pips:[[+o,-o],[0,0],[-o,+o]] },
     { val:4, fA:2, fV:-.5, uA:1, vA:0, pips:[[-o,-o],[-o,+o],[+o,-o],[+o,+o]] },
   ];
+  if (facesFilter) pf = pf.filter(f => facesFilter.indexOf(f.val) !== -1);
   function outlineForFace(faceVal) {
     if (typeof pipShape === 'string') return PIP_SHAPES[pipShape] || PIP_SHAPES.circle;
     const key = pipShape[faceVal] || pipShape.default || 'circle';
@@ -172,7 +218,8 @@ export function createPipsVertexData(pipR = 0.1, pipOffset = PIP_OFFSET, pipShap
     const outline = outlineForFace(val);
     const PR = prForFace(val);
     const isCircle = outline === PIP_SHAPES.circle;
-    const SEG = isCircle ? 16 : 10;
+    const isHeart  = outline === PIP_SHAPES.heart;
+    const SEG = isCircle ? 16 : isHeart ? 24 : 10;
     for (const [cu, cv] of pips) {
       const base = positions.length / 3, nn = [0,0,0]; nn[fA] = sign;
       const cc = [0,0,0]; cc[fA] = fV; cc[uA] = cu; cc[vA] = cv;
@@ -279,6 +326,7 @@ let _idCounter = 0;
  * @param {function} [opts.onSleep]   — called when physics body sleeps
  * @param {string}   [opts.bodyColor] — hex, overrides ctx.bodyColor
  * @param {string}   [opts.pipColor]  — hex, creates per-die pip material
+ * @param {object}   [opts.pipColors] — { default:'#fff', 1:'#dc143c' } per-face pip color
  * @param {number}   [opts.specular]  — specular intensity (default 0.15)
  * @param {number}   [opts.edgeR]     — roundness override (generates custom geometry)
  * @param {number}   [opts.pipR]      — pip radius override (generates custom geometry)
@@ -304,9 +352,6 @@ export function buildDie(ctx, opts = {}) {
   const outerVD = hasCustomGeom
     ? createDiceVertexData(opts.edgeR ?? EDGE_R, NOTCH_R, NOTCH_D, PIP_OFFSET)
     : ctx.cachedOuterVD;
-  const pipsVD = hasCustomGeom
-    ? createPipsVertexData(opts.pipR ?? 0.1, PIP_OFFSET, opts.pipShape || 'circle')
-    : ctx.cachedPipsVD;
 
   const outer = new BABYLON.Mesh(`outer${id}`, ctx.scene);
   outerVD.applyToMesh(outer);
@@ -315,20 +360,63 @@ export function buildDie(ctx, opts = {}) {
   outer.receiveShadows = true;
   ctx.shadowGen.addShadowCaster(outer);
 
-  let usePipMat = ctx.pipMat;
-  if (opts.pipColor) {
-    usePipMat = new BABYLON.StandardMaterial(`pip${id}`, ctx.scene);
-    usePipMat.disableLighting = true;
-    usePipMat.emissiveColor = BABYLON.Color3.FromHexString(opts.pipColor);
-    usePipMat.diffuseColor  = BABYLON.Color3.Black();
-    usePipMat.specularColor = BABYLON.Color3.Black();
-    usePipMat.zOffset = -2;
+  function _makePipMat(name, hex) {
+    const m = new BABYLON.StandardMaterial(name, ctx.scene);
+    m.disableLighting = true;
+    m.emissiveColor = BABYLON.Color3.FromHexString(hex);
+    m.diffuseColor  = BABYLON.Color3.Black();
+    m.specularColor = BABYLON.Color3.Black();
+    m.zOffset = -2;
+    return m;
   }
 
-  const pips = new BABYLON.Mesh(`pips${id}`, ctx.scene);
-  pipsVD.applyToMesh(pips);
-  pips.material = usePipMat;
-  pips.parent = root;
+  const extraPipMeshes = [];
+  const extraPipMats   = [];
+  let pips, usePipMat;
+
+  if (opts.pipColors && typeof opts.pipColors === 'object') {
+    const allFaces = [1,2,3,4,5,6];
+    const defaultHex = opts.pipColors.default || opts.pipColor || '#141414';
+    const groups = {};
+    for (const fv of allFaces) {
+      const hex = opts.pipColors[fv] || defaultHex;
+      (groups[hex] = groups[hex] || []).push(fv);
+    }
+    const colorKeys = Object.keys(groups);
+    let mainMesh = null;
+    for (let ci = 0; ci < colorKeys.length; ci++) {
+      const hex = colorKeys[ci];
+      const faces = groups[hex];
+      const vd = createPipsVertexData(opts.pipR ?? 0.1, PIP_OFFSET, opts.pipShape || 'circle', faces);
+      const mesh = new BABYLON.Mesh(`pips${id}_${ci}`, ctx.scene);
+      vd.applyToMesh(mesh);
+      const mat = _makePipMat(`pip${id}_${ci}`, hex);
+      mesh.material = mat;
+      mesh.parent = root;
+      if (!mainMesh) {
+        mainMesh = mesh;
+        usePipMat = mat;
+      } else {
+        extraPipMeshes.push(mesh);
+        extraPipMats.push(mat);
+      }
+    }
+    pips = mainMesh;
+  } else {
+    const pipsVD = hasCustomGeom
+      ? createPipsVertexData(opts.pipR ?? 0.1, PIP_OFFSET, opts.pipShape || 'circle')
+      : ctx.cachedPipsVD;
+
+    usePipMat = ctx.pipMat;
+    if (opts.pipColor) {
+      usePipMat = _makePipMat(`pip${id}`, opts.pipColor);
+    }
+
+    pips = new BABYLON.Mesh(`pips${id}`, ctx.scene);
+    pipsVD.applyToMesh(pips);
+    pips.material = usePipMat;
+    pips.parent = root;
+  }
 
   const useEdgeR = opts.edgeR != null ? opts.edgeR : EDGE_R;
   const cornerR  = (0.5 - useEdgeR) + useEdgeR / Math.sqrt(3);
@@ -405,10 +493,14 @@ export function buildDie(ctx, opts = {}) {
   root.rotationQuaternion = BABYLON.Quaternion.Identity();
   outer.setEnabled(false);
   pips.setEnabled(false);
+  for (const ep of extraPipMeshes) ep.setEnabled(false);
   backing.setEnabled(false);
   for (const m of markMeshes) m.setEnabled(false);
 
-  const die = { id, root, outer, pips, backing, body, oMat, markMeshes, _pipMat: opts.pipColor ? usePipMat : null, value: null, settled: false };
+  const _ownsPipMat = !!(opts.pipColor || (opts.pipColors && typeof opts.pipColors === 'object'));
+  const die = { id, root, outer, pips, backing, body, oMat, markMeshes,
+    _pipMat: _ownsPipMat ? usePipMat : null, _extraPipMeshes: extraPipMeshes, _extraPipMats: extraPipMats,
+    value: null, settled: false };
 
   if (opts.onSleep) {
     body.addEventListener('sleep', () => opts.onSleep(die));
@@ -425,6 +517,12 @@ export function teardownDie(die, ctx) {
     for (const m of die.markMeshes) { if (m.material) m.material.dispose(); m.dispose(); }
   }
   if (die._pipMat) die._pipMat.dispose();
+  if (die._extraPipMeshes) {
+    for (const m of die._extraPipMeshes) m.dispose();
+  }
+  if (die._extraPipMats) {
+    for (const m of die._extraPipMats) m.dispose();
+  }
   die.pips.dispose();
   die.backing.dispose();
   die.outer.dispose();

@@ -54,7 +54,7 @@
                 vals.push(t.rolledDice[t.selectedIndices[i]])
             }
             _el.selScore.textContent = vals.join(', ') + ' = ' + t.selectionScore + ' pts'
-            _el.selScore.style.color = '#ffc91c'
+            _el.selScore.style.color = '#2ecc71'
         } else if (t.selectedIndices.length > 0) {
             var vals = []
             for (var i = 0; i < t.selectedIndices.length; i++) {
@@ -92,7 +92,9 @@
         }
         _el.newBattleBtn.style.display = 'none'
 
-        _el.btnRoll.style.display = (t.phase === 'idle' && isPlayer) ? '' : 'none'
+        var rerollPending = window.inputHandler && window.inputHandler.isRerollPending()
+        _el.btnRoll.style.display = ((t.phase === 'idle' && isPlayer) || rerollPending) ? '' : 'none'
+        _el.btnRoll.textContent = rerollPending ? 'REROLL' : S.BTN_ROLL
 
         var canAct = t.phase === 'selecting' && t.selectionValid && isPlayer
         _el.btnScore.style.display = canAct ? '' : 'none'
@@ -124,7 +126,10 @@
         var m = _store.state.match
         var hint = ''
 
-        if (m.phase === 'result') {
+        var rerollPending = window.inputHandler && window.inputHandler.isRerollPending()
+        if (rerollPending) {
+            hint = 'Dice not on table — press REROLL or drag to throw'
+        } else if (m.phase === 'result') {
             hint = m.winner === 'player' ? S.RESULT_WIN : S.RESULT_LOSE
         } else if (t.phase === 'idle') {
             hint = 'Drag on the table or press ROLL'
@@ -145,10 +150,61 @@
         renderPhaseHint()
     }
 
+    // ── Round History (imperative — callers push lines directly) ───────────
+    var _historyEl = null
+
+    function initHistory() {
+        _historyEl = document.getElementById('historyLog')
+        if (_historyEl) _historyEl.innerHTML = ''
+    }
+
+    function logHistory(text, color) {
+        if (!_historyEl) _historyEl = document.getElementById('historyLog')
+        if (!_historyEl) return
+        var line = document.createElement('div')
+        line.textContent = text
+        if (color) line.style.color = color
+        _historyEl.appendChild(line)
+        _historyEl.scrollTop = _historyEl.scrollHeight
+    }
+
+    function clearHistory() {
+        if (!_historyEl) _historyEl = document.getElementById('historyLog')
+        if (_historyEl) _historyEl.innerHTML = ''
+    }
+
+    function showDamage(target, amount) {
+        if (!amount || amount <= 0) return
+        var isEnemy = target === 'enemy'
+        var widget = document.querySelector(isEnemy ? '.hp-widget-enemy' : '.hp-widget-player')
+        var barBody = widget ? widget.querySelector('.hp-bar-body') : null
+        if (!widget) return
+
+        var fly = document.createElement('div')
+        fly.className = 'damage-fly'
+        fly.textContent = '-' + amount
+        widget.appendChild(fly)
+        fly.addEventListener('animationend', function() { fly.remove() })
+
+        if (barBody) {
+            barBody.classList.add('hp-flash')
+            barBody.addEventListener('animationend', function h() {
+                barBody.classList.remove('hp-flash')
+                barBody.removeEventListener('animationend', h)
+            })
+        }
+        widget.classList.add('hp-shake')
+        widget.addEventListener('animationend', function h2() {
+            widget.classList.remove('hp-shake')
+            widget.removeEventListener('animationend', h2)
+        })
+    }
+
     window.battleUI = {
         mount: function(store) {
             _store = store
             cacheElements()
+            initHistory()
             _el.battleUI.style.display = 'block'
             _unsub = store.subscribe(function() { renderAll() })
             renderAll()
@@ -162,7 +218,11 @@
 
         refresh: function() {
             if (_store) renderAll()
-        }
+        },
+
+        showDamage: showDamage,
+        logHistory: logHistory,
+        clearHistory: clearHistory
     }
 
 })()

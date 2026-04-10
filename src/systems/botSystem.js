@@ -95,15 +95,21 @@
     function showResultBanner() {
         var w = _store.state.match.winner
         var S = window.STRINGS
+        log(w === 'player' ? '--- VICTORY ---' : '--- DEFEAT ---', w === 'player' ? '#2ecc71' : '#e74c3c')
         banner(w === 'player' ? S.RESULT_WIN : S.RESULT_LOSE, 'result', 3000)
     }
 
     // ── Bot turn loop ────────────────────────────────────────────
 
+    function log(text, color) {
+        if (window.battleUI) window.battleUI.logHistory(text, color)
+    }
+
     function runBotTurn() {
         if (gameOver()) return
         _aborted = false
         if (window.inputHandler) window.inputHandler.lock()
+        log('Bot turn')
         _runLoop()
     }
 
@@ -121,6 +127,7 @@
             var t = _store.state.turn
 
             if (t.phase === 'bust') {
+                log('Bot BUST!', '#e74c3c')
                 banner('BOT BUST!', 'bust', 1050)
                 await delay(1350)
                 if (_aborted) return
@@ -134,6 +141,7 @@
 
             var choice = findBestBotChoice(t.rolledDice, difficulty)
             if (choice.score <= 0) {
+                log('Bot BUST!', '#e74c3c')
                 banner('BOT BUST!', 'bust', 1050)
                 await delay(1350)
                 if (_aborted) return
@@ -153,11 +161,15 @@
 
             _store.dispatch('SCORE_SELECTION')
             t = _store.state.turn
+            log('Bot scored +' + choice.score, '#2ecc71')
 
             if (t.hotHandTriggered) {
+                log('Bot HOT HAND!', '#ff9800')
                 var hotBanked = t.lastBankedScore
                 if (hotBanked > 0) {
                     _store.dispatch('DEAL_DAMAGE', { target: 'player', amount: hotBanked })
+                    if (window.battleUI) window.battleUI.showDamage('player', hotBanked)
+                    log('Bot deals ' + hotBanked + ' damage', '#e74c3c')
                 }
                 if (gameOver()) { showResultBanner(); return }
                 banner('BOT HOT HAND!', 'hot-hand', 900)
@@ -176,6 +188,8 @@
                 var banked = _store.state.turn.lastBankedScore
                 if (banked > 0) {
                     _store.dispatch('DEAL_DAMAGE', { target: 'player', amount: banked })
+                    if (window.battleUI) window.battleUI.showDamage('player', banked)
+                    log('Bot deals ' + banked + ' damage', '#e74c3c')
                 }
                 if (gameOver()) { showResultBanner(); return }
                 banner('BOT BANK!', 'bank', 850)

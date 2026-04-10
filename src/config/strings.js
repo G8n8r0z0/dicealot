@@ -28,7 +28,7 @@
 
         // ─── Hub ───────────────────────────────────────────────────────
         HUB_PLAY:         'Play',
-        HUB_LOADOUT:      'Loadout',
+        HUB_LOADOUT:      'Rules & Dices',
         HUB_TUTORIAL:     'Tutorial',
         HUB_RESET:        'Reset',
         HUB_UNLOCK:       'Unlock Status',
@@ -58,8 +58,12 @@
         TUT_CH4: 'Action Dice',
         TUT_CH5: 'Pattern Dice',
 
+        // ─── Game rules (loadout panel) ─────────────────────────────────
+        RULES_GOAL: 'Score points and deal damage to defeat your opponent before they defeat you.',
+        RULES_HOW:  'Roll \u2192 Select scoring dice \u2192 Score\'n\'Play (keep going) or Bank\'n\'Pass (deal damage). If no dice score \u2192 Bust (lose all round points). All 6 dice scored \u2192 Hot Hand (auto-bank).',
+
         // ─── Misc ──────────────────────────────────────────────────────
-        DICE_STACKED:     'Dice stacked! Re-throwing…',
+        DICE_STACKED:     'Dice not on table!',
         NO_SCORING_DICE:  'No scoring dice'
     }
 

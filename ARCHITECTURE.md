@@ -1,4 +1,4 @@
-﻿# Architecture: Mutable UDF + Deterministic Lockstep
+# Architecture: Mutable UDF + Deterministic Lockstep
 
 ## Core Idea
 
@@ -432,7 +432,7 @@ project/
 ├── throw-lab.html          # Throw-only sandbox: ROLL + sling, physics tuning (see below)
 ├── throw-lab.mjs           # ES module: same `battleTune` object + localStorage `battle_tune_json_v1`
 ├── tools/
-│   ├── dice-constructor.html  # Visual die designer: 3D preview + color/geometry/mark sliders + Copy Config
+│   ├── dice-constructor.html  # Visual die designer: 3D preview + per-face shape/size/color overrides + Copy Config
 │   └── calibrate-bias.mjs     # Headless cannon-es bias calibration script
 ├── index.html              # HTTP → battle; file:// → local-server instructions (RU)
 ├── src/
@@ -462,9 +462,9 @@ project/
 │   │   ├── babylon.js
 │   │   └── cannon-es.js
 │   └── ui/                 # View layer — dispatch and subscribeTo only (IIFE)
-│       ├── battleUI.js     #   DOM rendering: HP, dice, buttons, phase hints
-│       ├── inputHandler.js #   Player clicks → dispatch, banners, lock/unlock
-│       └── loadoutUI.js    #   Loadout editor modal (6 slots, inventory, detail panel)
+│       ├── battleUI.js     #   DOM rendering: HP, dice, buttons, phase hints, showDamage fly-up, logHistory/clearHistory (imperative Round History)
+│       ├── inputHandler.js #   Player clicks → dispatch, banners, lock/unlock, imperative history calls
+│       └── loadoutUI.js    #   Rules & Dices modal (6 slots, Game Rules panel with scoring combos, detail panel with die description)
 └── tests/
     ├── index.html          # Test runner — open in browser
     ├── helpers.js           # TestRunner: assert, assertEqual, printResults
@@ -581,18 +581,21 @@ world.allowSleep = true
 
 ### Die Composition
 
-Each die is a `TransformNode` parent with 3+ visual children + 1 physics body:
+Each die is a `TransformNode` parent with visual children + 1 physics body:
 
 ```
 TransformNode (root)
-├── Mesh: outer       — rounded box geometry (body color material, per-die specular)
-├── Mesh: pips        — 21 flat pip meshes (per-die pip color, shape, size; zOffset=-2)
-├── Mesh: backing     — dark interior box (size scales with edgeR)
-├── Mesh[]: marks     — face mark planes (DOUBLESIDE, DynamicTexture, isPickable=false)
-└── CANNON.Body       — Box(0.48 * scale), mass, sleep events, optional center-of-mass offset
+├── Mesh: outer          — rounded box geometry (body color material, per-die specular)
+├── Mesh: pips           — default pip meshes (default pip color, shape, size; zOffset=-2)
+├── Mesh[]: extraPips    — additional pip meshes for faces with non-default pip color (via pipColors)
+├── Mesh: backing        — dark interior box (size scales with edgeR)
+├── Mesh[]: marks        — face mark planes (legacy; DOUBLESIDE, DynamicTexture, isPickable=false)
+└── CANNON.Body          — Box(0.48 * scale), mass, sleep events, optional center-of-mass offset
 ```
 
-Per-die visual customization: `buildDie(ctx, opts)` accepts `bodyColor`, `pipColor`, `specular`, `edgeR`, `pipR` (number or per-face object), `pipShape` (string or per-face object), `faceMarks` (array of `{face, shape, color, bg}`), `bias` (`{face, magnitude}`). Custom geometry generated on the fly when params differ from defaults; otherwise shared cached `VertexData` is used.
+Per-die visual customization: `buildDie(ctx, opts)` accepts `bodyColor`, `pipColor`, `specular`, `edgeR`, `pipR` (number or per-face object), `pipShape` (string or per-face object), `pipColors` (object `{default, N}` for per-face pip colors), `faceMarks` (array of `{face, shape, color, bg}`), `bias` (`{face, magnitude}`). Custom geometry generated on the fly when params differ from defaults; otherwise shared cached `VertexData` is used.
+
+When `pipColors` is set, faces are grouped by color and each group gets its own pip mesh with a dedicated material. Extra pip meshes are stored in `_extraPipMeshes` / `_extraPipMats` and disposed with the die.
 
 ### Render Loop
 
@@ -645,9 +648,9 @@ const localUp = body.quaternion.conjugate().vmult(up)
 |-----------|-----------|---------|
 | State → Engine | `store.subscribeTo(slice, fn)` | `turn.rolledDice` changes → trigger roll animation |
 | Engine → State | `store.dispatch(type, payload)` | Click on die → `dispatch('SELECT_DIE', { dieIndex })` |
-| Config → Engine | Read `window.DICE.roster[id]` | Load die color, pip shape, marks, bias from config |
+| Config → Engine | Read `window.DICE.roster[id]` | Load die color, pip shape/size/color, bias from config |
 
-**Per-die config pipeline:** `diceBridge.buildDieConfigs(count)` reads `store.state.loadout.slots`, looks up each die in `DICE.roster`, and constructs per-die config objects with `bodyColor`, `pipColor`, `specular`, `edgeR`, `pipR`, `pipShape`, `faceMarks`, `bias`. These are passed to `engine.syncActiveDice(count, dieConfigs)` → `dieFactory.buildDie(ctx, opts)`.
+**Per-die config pipeline:** `diceBridge.buildDieConfigs(count)` reads `store.state.loadout.slots`, looks up each die in `DICE.roster`, and constructs per-die config objects with `bodyColor`, `pipColor`, `specular`, `edgeR`, `pipR`, `pipShape`, `pipColors`, `faceMarks`, `bias`. These are passed to `engine.syncActiveDice(count, dieConfigs)` → `dieFactory.buildDie(ctx, opts)`.
 
 **Physics bias:** center-of-mass offset implemented by shifting the collision shape relative to body origin: `body.addShape(boxShape, new CANNON.Vec3(fl.x * mag, fl.y * mag, fl.z * mag))` where `fl` is the `FACE_LOCALS` direction for the bias face and `mag` is the bias magnitude.
 

@@ -40,6 +40,7 @@ export function init(canvas, store, opts) {
         tune:  opts.tune,
         table: opts.table,
         onAllSettled: handleAllSettled,
+        onEdgeReroll: handleEdgeReroll,
     });
 
     _ctx.scene.onPointerObservable.add(handlePointer);
@@ -86,6 +87,7 @@ function buildDieConfigs(count) {
         if (v.edgeR != null)    cfg.edgeR = v.edgeR;
         if (v.pipR != null)     cfg.pipR = v.pipR;
         if (v.pipShape)         cfg.pipShape = v.pipShape;
+        if (v.pipColors)        cfg.pipColors = v.pipColors;
         if (def.biasOffset && def.biasFace) {
             cfg.bias = { face: def.biasFace, magnitude: def.biasOffset };
         }
@@ -132,6 +134,11 @@ function handleAllSettled(dice) {
     console.log('[DICE_SETTLED] engine values:', values.join(', '));
     _store.dispatch('DICE_SETTLED', { values: values });
 
+    var who = _store.state.match.activePlayer === 'enemy' ? 'Bot' : 'Player';
+    if (window.battleUI) {
+        window.battleUI.logHistory(who + ' rolled: [' + values.join(', ') + ']');
+    }
+
     var isBot = _store.state.match.activePlayer === 'enemy';
     if (isBot) {
         if (window.botSystem) window.botSystem.onSettled();
@@ -142,15 +149,30 @@ function handleAllSettled(dice) {
     }
 }
 
+function handleEdgeReroll() {
+    console.log('[EDGE_REROLL] dice not settled on table — reroll needed');
+    var isBot = _store.state.match.activePlayer === 'enemy';
+    if (isBot) {
+        setTimeout(function() { engine.throwBot(_ctx); }, 600);
+    } else {
+        if (window.inputHandler) window.inputHandler.showReroll();
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 //  SELECTION highlights
 // ═══════════════════════════════════════════════════════════════════════════
 
 function syncHighlights() {
     var dice = engine.getDice(_ctx);
-    var sel  = _store.state.turn.selectedIndices;
+    var t    = _store.state.turn;
+    var sel  = t.selectedIndices;
+    var invalid = sel.length >= 2 && !t.selectionValid;
+    var color = invalid
+        ? new BABYLON.Color3(0.9, 0.1, 0.1)
+        : new BABYLON.Color3(0.1, 0.9, 0.15);
     for (var i = 0; i < dice.length; i++) {
-        engine.highlightDie(_ctx, dice[i], sel.indexOf(i) !== -1);
+        engine.highlightDie(_ctx, dice[i], sel.indexOf(i) !== -1, color);
     }
 }
 
@@ -238,6 +260,12 @@ function disposeHeldDice() {
             }
         }
         if (d._pipMat) d._pipMat.dispose();
+        if (d._extraPipMeshes) {
+            for (var ep = 0; ep < d._extraPipMeshes.length; ep++) d._extraPipMeshes[ep].dispose();
+        }
+        if (d._extraPipMats) {
+            for (var em = 0; em < d._extraPipMats.length; em++) d._extraPipMats[em].dispose();
+        }
         d.pips.dispose(); d.backing.dispose(); d.outer.dispose();
         d.root.dispose(); d.oMat.dispose();
     }
@@ -356,10 +384,12 @@ function handlePointer(info) {
     if (!_store) return;
     var phase = _store.state.turn.phase;
 
-    // ── Sling drag-to-throw (idle phase, player only) ──────────────────
+    // ── Sling drag-to-throw (idle phase or reroll, player only) ────────
     var isPlayerTurn = _store.state.match.activePlayer === 'player';
-    if ((phase === 'idle' && isPlayerTurn) || _slingDrag) {
-        if (info.type === BABYLON.PointerEventTypes.POINTERDOWN && ev.button === 0 && phase === 'idle' && isPlayerTurn) {
+    var rerollReady = window.inputHandler && window.inputHandler.isRerollPending();
+    var canStartSling = (phase === 'idle' || rerollReady) && isPlayerTurn;
+    if (canStartSling || _slingDrag) {
+        if (info.type === BABYLON.PointerEventTypes.POINTERDOWN && ev.button === 0 && canStartSling) {
             var p = engine.pickRollXZ(_ctx, ev.clientX, ev.clientY);
             if (!p) return;
 
@@ -403,6 +433,9 @@ function handlePointer(info) {
             var aimZ     = -pullZ / pullLen;
             var strength = engine.slingStrength(_ctx, pullLen);
 
+            if (window.inputHandler && window.inputHandler.isRerollPending()) {
+                window.inputHandler.clearReroll();
+            }
             _slingThrew = true;
             _store.dispatch('ROLL_DICE');
             if (window.inputHandler) window.inputHandler.lock();
@@ -472,20 +505,19 @@ export function renderSlotPreview(canvasEl, faceValue, opts) {
 
     // ── Geometry ──────────────────────────────────────────────────────────
     var outerVD = createDiceVertexData(vis.edgeR != null ? vis.edgeR : undefined);
-    var pipsVD  = createPipsVertexData(vis.pipR != null ? vis.pipR : undefined, undefined, vis.pipShape || 'circle');
 
     var oMat = new BABYLON.StandardMaterial('po', scene);
     oMat.diffuseColor  = BABYLON.Color3.FromHexString(bodyHex);
     oMat.specularColor = new BABYLON.Color3(spec, spec, spec);
 
-    var pipMat = new BABYLON.StandardMaterial('ppip', scene);
-    if (vis.pips && vis.pips !== 'black') {
-        pipMat.disableLighting = true;
-        pipMat.emissiveColor = BABYLON.Color3.FromHexString(pipHex);
-        pipMat.diffuseColor  = BABYLON.Color3.Black();
-        pipMat.specularColor = BABYLON.Color3.Black();
-    } else {
-        pipMat.diffuseColor = BABYLON.Color3.FromHexString(pipHex);
+    function _prevPipMat(name, hex) {
+        var m = new BABYLON.StandardMaterial(name, scene);
+        m.disableLighting = true;
+        m.emissiveColor = BABYLON.Color3.FromHexString(hex);
+        m.diffuseColor  = BABYLON.Color3.Black();
+        m.specularColor = BABYLON.Color3.Black();
+        m.zOffset = -2;
+        return m;
     }
 
     var backMat = new BABYLON.StandardMaterial('pback', scene);
@@ -499,10 +531,42 @@ export function renderSlotPreview(canvasEl, faceValue, opts) {
     outer.material = oMat;
     outer.parent = root;
 
-    var pips = new BABYLON.Mesh('ppips', scene);
-    pipsVD.applyToMesh(pips);
-    pips.material = pipMat;
-    pips.parent = root;
+    if (vis.pipColors && typeof vis.pipColors === 'object') {
+        var allFaces = [1,2,3,4,5,6];
+        var defHex = vis.pipColors.default || pipHex;
+        var grp = {};
+        for (var fi2 = 0; fi2 < allFaces.length; fi2++) {
+            var fv2 = allFaces[fi2];
+            var h = vis.pipColors[fv2] || defHex;
+            if (!grp[h]) grp[h] = [];
+            grp[h].push(fv2);
+        }
+        var gKeys = Object.keys(grp);
+        for (var gi = 0; gi < gKeys.length; gi++) {
+            var gHex = gKeys[gi];
+            var gFaces = grp[gHex];
+            var gVD = createPipsVertexData(vis.pipR != null ? vis.pipR : undefined, undefined, vis.pipShape || 'circle', gFaces);
+            var gMesh = new BABYLON.Mesh('ppips_' + gi, scene);
+            gVD.applyToMesh(gMesh);
+            gMesh.material = _prevPipMat('ppip_' + gi, gHex);
+            gMesh.parent = root;
+        }
+    } else {
+        var pipsVD = createPipsVertexData(vis.pipR != null ? vis.pipR : undefined, undefined, vis.pipShape || 'circle');
+        var pipMat = new BABYLON.StandardMaterial('ppip', scene);
+        if (vis.pips && vis.pips !== 'black') {
+            pipMat.disableLighting = true;
+            pipMat.emissiveColor = BABYLON.Color3.FromHexString(pipHex);
+            pipMat.diffuseColor  = BABYLON.Color3.Black();
+            pipMat.specularColor = BABYLON.Color3.Black();
+        } else {
+            pipMat.diffuseColor = BABYLON.Color3.FromHexString(pipHex);
+        }
+        var pips = new BABYLON.Mesh('ppips', scene);
+        pipsVD.applyToMesh(pips);
+        pips.material = pipMat;
+        pips.parent = root;
+    }
 
     var prevEdgeR = vis.edgeR != null ? vis.edgeR : 0.13;
     var prevCornerR = (0.5 - prevEdgeR) + prevEdgeR / Math.sqrt(3);

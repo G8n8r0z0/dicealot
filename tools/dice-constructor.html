@@ -8,7 +8,7 @@
 body{background:#1a1a2e;color:#e0e0e0;font-family:'Segoe UI',system-ui,sans-serif;display:flex;height:100vh;overflow:hidden}
 #preview{flex:1;min-width:0;position:relative}
 #renderCanvas{width:100%;height:100%;display:block;outline:none}
-#sidebar{width:340px;background:#16213e;border-left:1px solid #0f3460;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+#sidebar{width:360px;background:#16213e;border-left:1px solid #0f3460;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
 h1{font-size:1.1rem;font-weight:700;color:#e94560;letter-spacing:.04em;margin-bottom:4px}
 .section{background:#1a1a2e;border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .section-title{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#e94560;margin-bottom:2px}
@@ -26,6 +26,21 @@ h1{font-size:1.1rem;font-weight:700;color:#e94560;letter-spacing:.04em;margin-bo
 .btn-reset{background:#233a5c;color:#9fb7cb}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#e94560;color:#fff;padding:8px 20px;border-radius:6px;font-size:.8rem;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
+.face-tabs{display:flex;gap:4px;margin-bottom:6px}
+.face-tab{flex:1;padding:6px 0;text-align:center;font-size:.75rem;font-weight:700;border:1px solid #233a5c;border-radius:6px;background:#0f3460;color:#7f8ca8;cursor:pointer;transition:all .15s}
+.face-tab.active{background:#e94560;color:#fff;border-color:#e94560}
+.face-tab:hover:not(.active){background:#1a2744;color:#c0c8d8}
+.face-panel{display:flex;flex-direction:column;gap:8px}
+.ovr-row{display:flex;align-items:center;gap:6px}
+.ovr-row label{flex:0 0 70px;font-size:.75rem;color:#9fb7cb}
+.ovr-row .ovr-check{width:16px;height:16px;accent-color:#e94560;cursor:pointer;flex:0 0 16px}
+.ovr-row input[type=color]{width:30px;height:24px;border:1px solid #0f3460;border-radius:4px;background:none;cursor:pointer;padding:0}
+.ovr-row input[type=text]{width:68px;background:#0f3460;border:1px solid #233a5c;border-radius:4px;color:#e0e0e0;font-size:.75rem;padding:2px 5px;font-family:monospace}
+.ovr-row input[type=range]{flex:1;accent-color:#e94560}
+.ovr-row select{flex:1;background:#0f3460;border:1px solid #233a5c;border-radius:4px;color:#e0e0e0;font-size:.75rem;padding:2px 5px}
+.ovr-row .val{width:36px;text-align:right;font-size:.72rem;font-family:monospace;color:#7f8ca8}
+.ovr-disabled input:not(.ovr-check),.ovr-disabled select{opacity:0.35;pointer-events:none}
+.hint{font-size:.65rem;color:#556;margin-top:2px;font-style:italic}
 </style>
 </head>
 <body>
@@ -38,14 +53,14 @@ h1{font-size:1.1rem;font-weight:700;color:#e94560;letter-spacing:.04em;margin-bo
   <h1>DICE CONSTRUCTOR</h1>
 
   <div class="section">
-    <div class="section-title">Colors</div>
+    <div class="section-title">Colors &amp; Material</div>
     <div class="row">
       <label>Body</label>
       <input type="color" id="bodyColor" value="#f4f2ef">
       <input type="text" id="bodyHex" value="#f4f2ef">
     </div>
     <div class="row">
-      <label>Pips</label>
+      <label>Default Pips</label>
       <input type="color" id="pipColor" value="#141414">
       <input type="text" id="pipHex" value="#141414">
     </div>
@@ -57,16 +72,16 @@ h1{font-size:1.1rem;font-weight:700;color:#e94560;letter-spacing:.04em;margin-bo
   </div>
 
   <div class="section">
-    <div class="section-title">Geometry</div>
+    <div class="section-title">Geometry (Global)</div>
     <div class="row">
       <label>Roundness</label>
       <input type="range" id="edgeR" min="0" max="0.24" step="0.01" value="0.13">
       <span class="val" id="edgeRVal">0.13</span>
     </div>
     <div class="row">
-      <label>Pip Size</label>
-      <input type="range" id="pipR" min="0.04" max="0.16" step="0.005" value="0.10">
-      <span class="val" id="pipRVal">0.10</span>
+      <label>Default Pip Size</label>
+      <input type="range" id="pipR" min="0.04" max="0.30" step="0.005" value="0.10">
+      <span class="val" id="pipRVal">0.100</span>
     </div>
     <div class="row">
       <label>Notch Depth</label>
@@ -74,44 +89,41 @@ h1{font-size:1.1rem;font-weight:700;color:#e94560;letter-spacing:.04em;margin-bo
       <span class="val" id="notchDVal">0.12</span>
     </div>
     <div class="row">
-      <label>Pip Shape</label>
+      <label>Default Shape</label>
       <select id="pipShape">
         <option value="circle">Circle</option>
         <option value="star5">Star (5pt)</option>
+        <option value="heart">Heart</option>
       </select>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">Face Mark</div>
-    <div class="row">
-      <label>Shape</label>
-      <select id="markShape">
-        <option value="none">None</option>
-        <option value="heart">Heart</option>
-        <option value="star">Star</option>
-      </select>
-    </div>
-    <div class="row" id="markFaceRow" style="display:none">
-      <label>Face</label>
-      <select id="markFace">
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-        <option value="6">6</option>
-      </select>
-    </div>
-    <div class="row" id="markColorRow" style="display:none">
-      <label>Mark Color</label>
-      <input type="color" id="markColor" value="#cc2244">
-      <input type="text" id="markColorHex" value="#cc2244">
-    </div>
-    <div class="row" id="markBgRow" style="display:none">
-      <label>Shield Color</label>
-      <input type="color" id="markBg" value="#e8a0b0">
-      <input type="text" id="markBgHex" value="#e8a0b0">
+    <div class="section-title">Per-Face Overrides</div>
+    <div class="hint">Enable overrides to customize individual faces. Disabled = uses global defaults.</div>
+    <div class="face-tabs" id="faceTabs"></div>
+    <div class="face-panel" id="facePanel">
+      <div class="ovr-row">
+        <label>Shape</label>
+        <input type="checkbox" class="ovr-check" id="ovrShapeOn">
+        <select id="ovrShape" style="flex:1">
+          <option value="circle">Circle</option>
+          <option value="star5">Star (5pt)</option>
+          <option value="heart">Heart</option>
+        </select>
+      </div>
+      <div class="ovr-row">
+        <label>Pip Size</label>
+        <input type="checkbox" class="ovr-check" id="ovrSizeOn">
+        <input type="range" id="ovrSize" min="0.04" max="0.30" step="0.005" value="0.10" style="flex:1">
+        <span class="val" id="ovrSizeVal">0.100</span>
+      </div>
+      <div class="ovr-row">
+        <label>Pip Color</label>
+        <input type="checkbox" class="ovr-check" id="ovrColorOn">
+        <input type="color" id="ovrColor" value="#dc143c">
+        <input type="text" id="ovrColorHex" value="#dc143c">
+      </div>
     </div>
   </div>
 
@@ -129,13 +141,13 @@ h1{font-size:1.1rem;font-weight:700;color:#e94560;letter-spacing:.04em;margin-bo
 </script>
 <script type="module">
 import {
-  createDiceVertexData, createPipsVertexData, createMarkTexture,
+  createDiceVertexData, createPipsVertexData,
   FACE_LOCALS, EDGE_R, NOTCH_R, NOTCH_D, PIP_OFFSET
 } from '../src/engine/dieFactory.js';
 
 const BABYLON = window.BABYLON;
+const $ = id => document.getElementById(id);
 
-// ── Defaults ─────────────────────────────────────────────────────────────────
 const DEFAULTS = {
   bodyColor: '#f4f2ef',
   pipColor:  '#141414',
@@ -144,15 +156,14 @@ const DEFAULTS = {
   pipR:      0.10,
   notchD:    NOTCH_D,
   pipShape:  'circle',
-  markShape: 'none',
-  markFace:  1,
-  markColor: '#cc2244',
-  markBg:    '#e8a0b0',
 };
 
-// ── DOM refs ─────────────────────────────────────────────────────────────────
-const $ = id => document.getElementById(id);
+// Per-face override state: { shape, size, color } — null means "use global"
+const faceOverrides = {};
+for (let f = 1; f <= 6; f++) faceOverrides[f] = { shape: null, size: null, color: null };
+let activeFace = 1;
 
+// ── DOM refs ─────────────────────────────────────────────────────────────────
 const els = {
   bodyColor: $('bodyColor'), bodyHex: $('bodyHex'),
   pipColor:  $('pipColor'),  pipHex:  $('pipHex'),
@@ -161,11 +172,67 @@ const els = {
   pipR:      $('pipR'),      pipRVal:  $('pipRVal'),
   notchD:    $('notchD'),    notchDVal: $('notchDVal'),
   pipShape:  $('pipShape'),
-  markShape: $('markShape'), markFace: $('markFace'), markColor: $('markColor'),
-  markColorHex: $('markColorHex'),
-  markBg: $('markBg'), markBgHex: $('markBgHex'),
-  markFaceRow: $('markFaceRow'), markColorRow: $('markColorRow'), markBgRow: $('markBgRow'),
+  ovrShapeOn: $('ovrShapeOn'), ovrShape: $('ovrShape'),
+  ovrSizeOn:  $('ovrSizeOn'),  ovrSize:  $('ovrSize'), ovrSizeVal: $('ovrSizeVal'),
+  ovrColorOn: $('ovrColorOn'), ovrColor: $('ovrColor'), ovrColorHex: $('ovrColorHex'),
 };
+
+// ── Face Tabs ────────────────────────────────────────────────────────────────
+const tabsEl = $('faceTabs');
+for (let f = 1; f <= 6; f++) {
+  const tab = document.createElement('div');
+  tab.className = 'face-tab' + (f === 1 ? ' active' : '');
+  tab.textContent = f;
+  tab.dataset.face = f;
+  tab.addEventListener('click', () => switchFace(f));
+  tabsEl.appendChild(tab);
+}
+
+function switchFace(f) {
+  saveFaceFromUI();
+  activeFace = f;
+  tabsEl.querySelectorAll('.face-tab').forEach(t => t.classList.toggle('active', +t.dataset.face === f));
+  loadFaceToUI();
+}
+
+function saveFaceFromUI() {
+  const ov = faceOverrides[activeFace];
+  ov.shape = els.ovrShapeOn.checked ? els.ovrShape.value : null;
+  ov.size  = els.ovrSizeOn.checked  ? parseFloat(els.ovrSize.value) : null;
+  ov.color = els.ovrColorOn.checked ? els.ovrColor.value : null;
+}
+
+function loadFaceToUI() {
+  const ov = faceOverrides[activeFace];
+  els.ovrShapeOn.checked = ov.shape !== null;
+  els.ovrShape.value = ov.shape || els.pipShape.value;
+
+  els.ovrSizeOn.checked = ov.size !== null;
+  els.ovrSize.value = ov.size != null ? ov.size : parseFloat(els.pipR.value);
+  els.ovrSizeVal.textContent = parseFloat(els.ovrSize.value).toFixed(3);
+
+  els.ovrColorOn.checked = ov.color !== null;
+  els.ovrColor.value = ov.color || els.pipColor.value;
+  els.ovrColorHex.value = els.ovrColor.value;
+
+  syncOvrDisabled();
+  updateTabDots();
+}
+
+function syncOvrDisabled() {
+  els.ovrShape.parentElement.classList.toggle('ovr-disabled', !els.ovrShapeOn.checked);
+  els.ovrSize.parentElement.classList.toggle('ovr-disabled', !els.ovrSizeOn.checked);
+  els.ovrColor.parentElement.classList.toggle('ovr-disabled', !els.ovrColorOn.checked);
+}
+
+function updateTabDots() {
+  tabsEl.querySelectorAll('.face-tab').forEach(t => {
+    const f = +t.dataset.face;
+    const ov = faceOverrides[f];
+    const hasOvr = ov.shape !== null || ov.size !== null || ov.color !== null;
+    t.textContent = hasOvr ? f + ' •' : '' + f;
+  });
+}
 
 // ── Scene setup ──────────────────────────────────────────────────────────────
 const canvas = $('renderCanvas');
@@ -189,112 +256,120 @@ const oMat = new BABYLON.StandardMaterial('oMat', scene);
 oMat.diffuseColor  = BABYLON.Color3.FromHexString(DEFAULTS.bodyColor);
 oMat.specularColor = new BABYLON.Color3(DEFAULTS.specular, DEFAULTS.specular, DEFAULTS.specular);
 
-const pipMat = new BABYLON.StandardMaterial('pipMat', scene);
-pipMat.diffuseColor = BABYLON.Color3.FromHexString(DEFAULTS.pipColor);
-pipMat.zOffset = -2;
-
 const backMat = new BABYLON.StandardMaterial('backMat', scene);
 backMat.diffuseColor = new BABYLON.Color3(0.06, 0.06, 0.06);
 
 // ── Meshes ───────────────────────────────────────────────────────────────────
-let outerMesh, pipsMesh, backMesh, markPlane;
+let outerMesh, backMesh;
+let pipMeshes = [];
+
+function isLightColor(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return (r*0.299 + g*0.587 + b*0.114) > 128;
+}
+
+function makePipMat(name, hex) {
+  const m = new BABYLON.StandardMaterial(name, scene);
+  if (isLightColor(hex)) {
+    m.disableLighting = true;
+    m.emissiveColor = BABYLON.Color3.FromHexString(hex);
+    m.diffuseColor  = BABYLON.Color3.Black();
+  } else {
+    m.diffuseColor  = BABYLON.Color3.FromHexString(hex);
+  }
+  m.specularColor = BABYLON.Color3.Black();
+  m.zOffset = -2;
+  return m;
+}
+
+function disposePipMeshes() {
+  for (const { mesh, mat } of pipMeshes) {
+    mesh.dispose();
+    mat.dispose();
+  }
+  pipMeshes = [];
+}
+
+function buildPipShapeObj() {
+  const globalShape = els.pipShape.value;
+  let hasOverride = false;
+  const obj = { default: globalShape };
+  for (let f = 1; f <= 6; f++) {
+    if (faceOverrides[f].shape !== null) { obj[f] = faceOverrides[f].shape; hasOverride = true; }
+  }
+  return hasOverride ? obj : globalShape;
+}
+
+function buildPipRObj() {
+  const globalR = parseFloat(els.pipR.value);
+  let hasOverride = false;
+  const obj = { default: globalR };
+  for (let f = 1; f <= 6; f++) {
+    if (faceOverrides[f].size !== null) { obj[f] = faceOverrides[f].size; hasOverride = true; }
+  }
+  return hasOverride ? obj : globalR;
+}
+
+function buildPipColorGroups() {
+  const globalHex = els.pipColor.value;
+  const groups = {};
+  for (let f = 1; f <= 6; f++) {
+    const hex = faceOverrides[f].color || globalHex;
+    (groups[hex] = groups[hex] || []).push(f);
+  }
+  return groups;
+}
 
 function rebuildGeometry() {
+  saveFaceFromUI();
+
   const edgeR  = parseFloat(els.edgeR.value);
-  const pipR   = parseFloat(els.pipR.value);
   const notchD = parseFloat(els.notchD.value);
 
   if (outerMesh) outerMesh.dispose();
-  if (pipsMesh)  pipsMesh.dispose();
   if (backMesh)  backMesh.dispose();
+  disposePipMeshes();
 
   const outerVD = createDiceVertexData(edgeR, NOTCH_R, notchD, PIP_OFFSET);
   outerMesh = new BABYLON.Mesh('outer', scene);
   outerVD.applyToMesh(outerMesh);
   outerMesh.material = oMat;
 
-  const pipsVD = createPipsVertexData(pipR, PIP_OFFSET, els.pipShape.value);
-  pipsMesh = new BABYLON.Mesh('pips', scene);
-  pipsVD.applyToMesh(pipsMesh);
-  pipsMesh.material = pipMat;
+  const pipShapeObj = buildPipShapeObj();
+  const pipRObj     = buildPipRObj();
+  const colorGroups = buildPipColorGroups();
 
-  // Backing box must shrink with roundness so it stays inside the rounded corners
+  const groupKeys = Object.keys(colorGroups);
+  for (let gi = 0; gi < groupKeys.length; gi++) {
+    const hex   = groupKeys[gi];
+    const faces = colorGroups[hex];
+    const vd = createPipsVertexData(pipRObj, PIP_OFFSET, pipShapeObj, faces);
+    const mesh = new BABYLON.Mesh('pips_' + gi, scene);
+    vd.applyToMesh(mesh);
+    const mat = makePipMat('pipMat_' + gi, hex);
+    mesh.material = mat;
+    pipMeshes.push({ mesh, mat });
+  }
+
   const cornerR = (0.5 - edgeR) + edgeR / Math.sqrt(3);
   const backSize = Math.max(0.3, 2 * cornerR - 0.03);
   backMesh = BABYLON.MeshBuilder.CreateBox('back', { size: backSize }, scene);
   backMesh.material = backMat;
 
-  rebuildMark();
+  updateTabDots();
 }
 
-function rebuildMark() {
-  if (markPlane) {
-    if (markPlane.material) markPlane.material.dispose();
-    markPlane.dispose();
-    markPlane = null;
-  }
-
-  const shape = els.markShape.value;
-  if (shape === 'none') return;
-
-  const faceVal  = parseInt(els.markFace.value);
-  const markCol  = els.markColor.value;
-  const bgCol    = els.markBg.value;
-  const fl = FACE_LOCALS.find(f => f.val === faceVal);
-  if (!fl) return;
-
-  const mark = { shape: shape, color: markCol, bg: bgCol, face: faceVal };
-  const tex = createMarkTexture(mark, 'ctorMarkTex', scene);
-  if (!tex) return;
-
-  markPlane = BABYLON.MeshBuilder.CreatePlane('markPlane',
-    { size: 0.65, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, scene);
-  const mMat = new BABYLON.StandardMaterial('ctorMarkMat', scene);
-  mMat.diffuseTexture  = tex;
-  mMat.diffuseTexture.hasAlpha = true;
-  mMat.useAlphaFromDiffuseTexture = true;
-  mMat.specularColor   = oMat.specularColor.clone();
-  mMat.zOffset = -4;
-  markPlane.material = mMat;
-
-  const off = 0.505;
-  markPlane.position.set(fl.x * off, fl.y * off, fl.z * off);
-  if (fl.y !== 0) {
-    markPlane.rotation.x = fl.y > 0 ? -Math.PI / 2 : Math.PI / 2;
-  } else if (fl.x !== 0) {
-    markPlane.rotation.y = fl.x > 0 ? Math.PI / 2 : -Math.PI / 2;
-  } else {
-    markPlane.rotation.y = fl.z > 0 ? 0 : Math.PI;
-  }
-}
-
-// ── Color sync helpers ───────────────────────────────────────────────────────
-function isLightColor(hex) {
-  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-  return (r*0.299 + g*0.587 + b*0.114) > 128;
-}
-
+// ── Color / material sync ────────────────────────────────────────────────────
 function updateBodyColor() {
   const hex = els.bodyColor.value;
   els.bodyHex.value = hex;
   oMat.diffuseColor = BABYLON.Color3.FromHexString(hex);
-  if (els.markShape.value !== 'none') rebuildMark();
 }
 
 function updatePipColor() {
   const hex = els.pipColor.value;
   els.pipHex.value = hex;
-  if (isLightColor(hex)) {
-    pipMat.disableLighting = true;
-    pipMat.emissiveColor = BABYLON.Color3.FromHexString(hex);
-    pipMat.diffuseColor  = BABYLON.Color3.Black();
-    pipMat.specularColor = BABYLON.Color3.Black();
-  } else {
-    pipMat.disableLighting = false;
-    pipMat.emissiveColor = BABYLON.Color3.Black();
-    pipMat.diffuseColor  = BABYLON.Color3.FromHexString(hex);
-    pipMat.specularColor = BABYLON.Color3.Black();
-  }
+  rebuildGeometry();
 }
 
 function updateSpecular() {
@@ -303,61 +378,79 @@ function updateSpecular() {
   oMat.specularColor = new BABYLON.Color3(v, v, v);
 }
 
-// ── Slider sync helpers ──────────────────────────────────────────────────────
 function onSliderChange(slider, valEl, decimals = 2) {
   valEl.textContent = parseFloat(slider.value).toFixed(decimals);
   rebuildGeometry();
 }
 
-// ── Mark visibility ──────────────────────────────────────────────────────────
-function updateMarkUI() {
-  const show = els.markShape.value !== 'none';
-  els.markFaceRow.style.display  = show ? 'flex' : 'none';
-  els.markColorRow.style.display = show ? 'flex' : 'none';
-  els.markBgRow.style.display    = show ? 'flex' : 'none';
-  rebuildMark();
-}
-
-// ── Event bindings ───────────────────────────────────────────────────────────
+// ── Event bindings: global ───────────────────────────────────────────────────
 els.bodyColor.addEventListener('input', updateBodyColor);
 els.bodyHex.addEventListener('change', () => { els.bodyColor.value = els.bodyHex.value; updateBodyColor(); });
-
 els.pipColor.addEventListener('input', updatePipColor);
 els.pipHex.addEventListener('change', () => { els.pipColor.value = els.pipHex.value; updatePipColor(); });
-
 els.specular.addEventListener('input', updateSpecular);
-
 els.edgeR.addEventListener('input', () => onSliderChange(els.edgeR, els.edgeRVal));
 els.pipR.addEventListener('input',  () => onSliderChange(els.pipR, els.pipRVal, 3));
 els.notchD.addEventListener('input', () => onSliderChange(els.notchD, els.notchDVal));
 els.pipShape.addEventListener('change', rebuildGeometry);
 
-els.markShape.addEventListener('change', updateMarkUI);
-els.markFace.addEventListener('change', rebuildMark);
-els.markColor.addEventListener('input', () => { els.markColorHex.value = els.markColor.value; rebuildMark(); });
-els.markColorHex.addEventListener('change', () => { els.markColor.value = els.markColorHex.value; rebuildMark(); });
-els.markBg.addEventListener('input', () => { els.markBgHex.value = els.markBg.value; rebuildMark(); });
-els.markBgHex.addEventListener('change', () => { els.markBg.value = els.markBgHex.value; rebuildMark(); });
+// ── Event bindings: per-face overrides ───────────────────────────────────────
+els.ovrShapeOn.addEventListener('change', () => { syncOvrDisabled(); rebuildGeometry(); });
+els.ovrShape.addEventListener('change', rebuildGeometry);
+els.ovrSizeOn.addEventListener('change', () => { syncOvrDisabled(); rebuildGeometry(); });
+els.ovrSize.addEventListener('input', () => {
+  els.ovrSizeVal.textContent = parseFloat(els.ovrSize.value).toFixed(3);
+  rebuildGeometry();
+});
+els.ovrColorOn.addEventListener('change', () => { syncOvrDisabled(); rebuildGeometry(); });
+els.ovrColor.addEventListener('input', () => { els.ovrColorHex.value = els.ovrColor.value; rebuildGeometry(); });
+els.ovrColorHex.addEventListener('change', () => { els.ovrColor.value = els.ovrColorHex.value; rebuildGeometry(); });
 
 // ── Copy Config ──────────────────────────────────────────────────────────────
 $('btnCopy').addEventListener('click', () => {
+  saveFaceFromUI();
+  const globalShape = els.pipShape.value;
+  const globalR     = parseFloat(els.pipR.value);
+  const globalPip   = els.pipColor.value;
+
   const cfg = {
     body:     els.bodyColor.value,
-    pips:     els.pipColor.value,
+    pips:     globalPip,
     specular: parseFloat(els.specular.value),
     edgeR:    parseFloat(els.edgeR.value),
-    pipR:     parseFloat(els.pipR.value),
-    notchD:   parseFloat(els.notchD.value),
   };
-  if (els.pipShape.value !== 'circle') cfg.pipShape = els.pipShape.value;
-  if (els.markShape.value !== 'none') {
-    cfg.marks = [{
-      face:  parseInt(els.markFace.value),
-      shape: els.markShape.value,
-      color: els.markColor.value,
-      bg:    els.markBg.value,
-    }];
+
+  // pipR
+  let hasROverride = false;
+  const pipRObj = { default: globalR };
+  for (let f = 1; f <= 6; f++) {
+    if (faceOverrides[f].size !== null) { pipRObj[f] = faceOverrides[f].size; hasROverride = true; }
   }
+  cfg.pipR = hasROverride ? pipRObj : globalR;
+
+  // pipShape
+  let hasShapeOvr = false;
+  const pipShapeObj = { default: globalShape };
+  for (let f = 1; f <= 6; f++) {
+    if (faceOverrides[f].shape !== null) { pipShapeObj[f] = faceOverrides[f].shape; hasShapeOvr = true; }
+  }
+  if (hasShapeOvr) {
+    cfg.pipShape = pipShapeObj;
+  } else if (globalShape !== 'circle') {
+    cfg.pipShape = globalShape;
+  }
+
+  // pipColors
+  let hasColorOvr = false;
+  const pipColorsObj = { default: globalPip };
+  for (let f = 1; f <= 6; f++) {
+    if (faceOverrides[f].color !== null) { pipColorsObj[f] = faceOverrides[f].color; hasColorOvr = true; }
+  }
+  if (hasColorOvr) cfg.pipColors = pipColorsObj;
+
+  const notchD = parseFloat(els.notchD.value);
+  if (Math.abs(notchD - NOTCH_D) > 0.001) cfg.notchD = notchD;
+
   const text = JSON.stringify(cfg, null, 2);
   navigator.clipboard.writeText(text).then(() => {
     const t = $('toast');
@@ -375,19 +468,15 @@ $('btnReset').addEventListener('click', () => {
   els.pipR.value      = DEFAULTS.pipR;      els.pipRVal.textContent  = DEFAULTS.pipR.toFixed(3);
   els.notchD.value    = DEFAULTS.notchD;    els.notchDVal.textContent = DEFAULTS.notchD.toFixed(2);
   els.pipShape.value  = DEFAULTS.pipShape;
-  els.markShape.value = DEFAULTS.markShape;
-  els.markFace.value  = DEFAULTS.markFace;
-  els.markColor.value = DEFAULTS.markColor; els.markColorHex.value = DEFAULTS.markColor;
-  els.markBg.value    = DEFAULTS.markBg;    els.markBgHex.value    = DEFAULTS.markBg;
-
+  for (let f = 1; f <= 6; f++) faceOverrides[f] = { shape: null, size: null, color: null };
+  loadFaceToUI();
   updateBodyColor();
-  updatePipColor();
   updateSpecular();
-  updateMarkUI();
   rebuildGeometry();
 });
 
 // ── Init ─────────────────────────────────────────────────────────────────────
+loadFaceToUI();
 rebuildGeometry();
 
 engine.runRenderLoop(() => scene.render());

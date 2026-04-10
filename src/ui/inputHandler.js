@@ -10,6 +10,7 @@
     var _store = null
     var _bannerTimer = null
     var _locked = false
+    var _rerollPending = false
 
     function $(id) { return document.getElementById(id) }
 
@@ -48,6 +49,14 @@
         var m = _store.state.match
         if (m.phase === 'result') return
         if (m.activePlayer !== 'player') return
+
+        if (_rerollPending) {
+            _rerollPending = false
+            _store.dispatch('ROLL_DICE')
+            if (window.bridge3D) { lock(); return }
+            return
+        }
+
         if (t.phase !== 'idle') return
 
         _store.dispatch('ROLL_DICE')
@@ -59,6 +68,10 @@
 
         if (_store.state.turn.phase === 'bust') {
             lock()
+            if (window.battleUI) {
+                window.battleUI.logHistory('Player rolled: [' + _store.state.turn.rolledDice.join(', ') + ']')
+                window.battleUI.logHistory('Player BUST!', '#e74c3c')
+            }
             showBanner(S.BANNER_BUST, 'bust', 1500, function() {
                 _store.dispatch('BUST')
                 _store.dispatch('END_TURN')
@@ -85,9 +98,14 @@
 
     // ── Hot Hand helper ─────────────────────────────────────────
     function handleHotHand() {
+        if (window.battleUI) window.battleUI.logHistory('HOT HAND!', '#ff9800')
         var banked = _store.state.turn.lastBankedScore
         if (banked > 0) {
             _store.dispatch('DEAL_DAMAGE', { target: 'enemy', amount: banked })
+            if (window.battleUI) {
+                window.battleUI.showDamage('enemy', banked)
+                window.battleUI.logHistory('Player deals ' + banked + ' damage', '#efc14a')
+            }
         }
         if (_store.state.match.phase === 'result') {
             showResult()
@@ -107,7 +125,10 @@
         if (_store.state.match.activePlayer !== 'player') return
         if (t.phase !== 'selecting' || !t.selectionValid) return
 
+        var scored = t.selectionScore
         _store.dispatch('SCORE_SELECTION')
+
+        if (window.battleUI) window.battleUI.logHistory('Player scored +' + scored, '#2ecc71')
 
         if (_store.state.turn.hotHandTriggered) {
             handleHotHand()
@@ -121,7 +142,10 @@
         if (_store.state.match.activePlayer !== 'player') return
         if (t.phase !== 'selecting' || !t.selectionValid) return
 
+        var scored = t.selectionScore
         _store.dispatch('SCORE_SELECTION')
+
+        if (window.battleUI) window.battleUI.logHistory('Player scored +' + scored, '#2ecc71')
 
         if (_store.state.turn.hotHandTriggered) {
             handleHotHand()
@@ -132,6 +156,10 @@
         var banked = _store.state.turn.lastBankedScore
         if (banked > 0) {
             _store.dispatch('DEAL_DAMAGE', { target: 'enemy', amount: banked })
+            if (window.battleUI) {
+                window.battleUI.showDamage('enemy', banked)
+                window.battleUI.logHistory('Player deals ' + banked + ' damage', '#efc14a')
+            }
         }
         if (_store.state.match.phase === 'result') {
             showResult()
@@ -149,12 +177,17 @@
     function showResult() {
         var m = _store.state.match
         var text = m.winner === 'player' ? S.RESULT_WIN : S.RESULT_LOSE
+        if (window.battleUI) {
+            var c = m.winner === 'player' ? '#2ecc71' : '#e74c3c'
+            window.battleUI.logHistory(m.winner === 'player' ? '--- VICTORY ---' : '--- DEFEAT ---', c)
+        }
         showBanner(text, 'result', 3000)
     }
 
     // ── New Battle ─────────────────────────────────────────────
     function onNewBattle() {
         if (window.botSystem) window.botSystem.abort()
+        if (window.battleUI) window.battleUI.clearHistory()
         _store.dispatch('START_BATTLE', { enemyHp: 3000, enemyName: 'Duelist', difficulty: 'advanced' })
         _store.dispatch('START_TURN')
         $('banner').classList.remove('show')
@@ -163,6 +196,7 @@
 
     // ── Bust handler (called by diceBridge after 3D settle) ────
     function handleBust() {
+        if (window.battleUI) window.battleUI.logHistory('Player BUST!', '#e74c3c')
         showBanner(S.BANNER_BUST, 'bust', 1500, function() {
             _store.dispatch('BUST')
             _store.dispatch('END_TURN')
@@ -170,6 +204,20 @@
             triggerBotIfNeeded()
         })
     }
+
+    // ── Reroll (dice didn't settle on table) ─────────────────
+    function showReroll() {
+        lock()
+        showBanner(S.BANNER_REROLL, 'reroll', 1200, function() {
+            _rerollPending = true
+            unlock()
+            if (window.battleUI) window.battleUI.refresh()
+        })
+    }
+
+    function isRerollPending() { return _rerollPending }
+
+    function clearReroll() { _rerollPending = false }
 
     // ── Public API ─────────────────────────────────────────────
     window.inputHandler = {
@@ -184,7 +232,10 @@
         lock: lock,
         unlock: unlock,
         handleBust: handleBust,
-        showBanner: showBanner
+        showBanner: showBanner,
+        showReroll: showReroll,
+        isRerollPending: isRerollPending,
+        clearReroll: clearReroll
     }
 
 })()
