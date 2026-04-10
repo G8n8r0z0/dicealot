@@ -6,7 +6,7 @@
 
     function defaultSlots() {
         var s = ['oneLove', 'comrade']
-        for (var i = 1; i < DICE.LOADOUT.SLOTS; i++) s.push(null)
+        while (s.length < DICE.LOADOUT.SLOTS) s.push(null)
         return s
     }
 

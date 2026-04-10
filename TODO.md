@@ -472,6 +472,20 @@ Same roll/select/score/bank structure as player. Automated decision-making.
 - [x] **Die descriptions** — `desc` field added to all 34 dice in `dice.js`. Shown in loadout detail panel under name + rarity. e.g. "Higher chance of rolling 1 (30%)."
 - [x] **Round History (imperative)** — `battleUI.logHistory(text, color)` and `battleUI.clearHistory()` exposed as public API. Imperative calls placed at event sites: `diceBridge.js` (rolled values after DICE_SETTLED), `inputHandler.js` (player bust/score/bank/hot hand/result, clear on new battle), `botSystem.js` (bot turn/bust/score/bank/hot hand/result). Replaces earlier diff-based approach.
 - [x] **Strings** — added `RULES_GOAL`, `RULES_HOW`, `HUB_LOADOUT` updated to "Rules & Dices".
+- [x] **Viewport-scaled modal** — `.lo-modal` uses `font-size: clamp(1rem, 1.5vmin, 1.25rem)` as scaling anchor. All inner sizes converted from `rem`/`px` to `em`. On laptop (vmin ≤ ~1067) = 1rem (no change). On big screens (vmin > 1067) grows up to 1.25rem (25% bigger text, dice, slots). Mobile ≤700px uses `clamp(13px, 2.5vw, 1rem)`.
+
+---
+
+## ── MILESTONE: Loadout & Rules Split — v1.0.7 (COMPLETE 2026-04-10) ──
+
+> Two-mode modal: RULES & DICES (read-only rules + scoring combos) and LOADOUT (editable inventory + dice assignment).
+
+- [x] **Split Rules & Loadout** — "RULES & DICES" button opens rules mode (left: Game Rules, right: current loadout, no Save). "LOADOUT" button opens editable mode (left: inventory grid of all dice sorted by rarity, right: 6 slots, Save + Clear). Both share one modal with mode flag (`_mode`).
+- [x] **Promoted section headers** — removed modal title bar. GAME RULES / YOUR DICE / INVENTORY labels styled as section titles (1.1em, 800 weight, light color). Close button (×) in top-right.
+- [x] **Bigger dice slots** — 6 slots in one row, full-width `aspect-ratio: 1:1` wells, die face fills 80% with `border-radius: 20%`, percentage-based pips (55% cell). Body color applied to `.lo-die-face` (not the well background).
+- [x] **Clear Loadout button** — gray button next to Save. Resets all 6 slots to `null` (base dice) without closing the modal.
+- [x] **Fixed 7-slot bug** — `defaultSlots()` in `loadoutSystem.js` started loop at `i=1` with 2 initial items, producing 7 slots. Fixed with `while (s.length < DICE.LOADOUT.SLOTS)`.
+- [x] **Inventory grid** — `renderInventory()` shows all dice from `DICE.roster`, sorted by `RARITY_ORDER`. Click tile + selected slot → assign die. Body color on face element.
 
 ---
 
@@ -840,7 +854,8 @@ Visual and audio juice.
 | **v1.0.3 — Loadout + Polish** | 0 + A–G + K3 | Loadout scaffold, lighter dice, Invalid Selection UI, held dice fix | **DONE** (2026-04-08) |
 | **v1.0.4 — Loadout Physics** | 0 + A–G + K3 | Physics die drop in detail panel, CSS pip slots, orbit-after-settle | **DONE** (2026-04-09) |
 | **v1.0.5 — Special Dice Visuals** | 0 + A–G + K3 | One Love + Comrade dies (visuals, physics bias), custom pip shapes (circle/star5/heart), per-face pip colors, dice constructor with per-face overrides, per-die config pipeline | **DONE** (2026-04-09) |
-| **v1.0.6 — Battle UI Polish** | 0 + A–G + K3 | Damage fly-up + HP flash, Rules panel (was Loadout), red invalid highlights, round score green, die descriptions, imperative Round History | **DONE** (2026-04-10) |
+| **v1.0.6 — Battle UI Polish** | 0 + A–G + K3 | Damage fly-up + HP flash, Rules panel (was Loadout), red invalid highlights, round score green, die descriptions, imperative Round History, viewport-scaled modal (clamp+em) | **DONE** (2026-04-10) |
+| **v1.0.7 — Loadout & Rules Split** | 0 + A–G + K3 | Two-mode modal (Rules & Dices / Loadout), inventory grid, bigger dice slots, Clear Loadout, 7-slot bug fix | **DONE** (2026-04-10) |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |
 | **Full Dice Roster** | 0 + A–O | All dice types, full progression ladder | Pending |
 | **Feature Complete** | 0 + A–S | Tutorial, themes, polish, tests passing | Pending |

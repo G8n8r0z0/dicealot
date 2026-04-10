@@ -625,14 +625,30 @@ Joker belongs to the Exotic layer by nature. It must not be forced into Common o
 - **Unlock Status** — shows win/loss, unlocked dice, next die requirement
 - **Reset** — profile reset
 
-### 10.3 Rules & Dices Panel (was Loadout Editor)
+### 10.3 Rules & Dices / Loadout (Two-Mode Modal)
 
-- **Left column: Game Rules** — Goal, How to Play, Scoring Combos table with inline mini pip-face dice (singles, three-of-a-kind, multipliers "Three ×2/×4/×8", straights)
-- **Right top:** 6 active dice slots for the next battle
-- **Right bottom:** selected-die detail card (name, rarity, **description text**, interactive 3D die preview)
-- Empty slots read as base dice
+Two buttons on the player side panel open the same modal in different modes:
+
+**RULES & DICES button** — read-only mode:
+- **Left column: GAME RULES** — Goal, How to Play, Scoring Combos table with inline mini pip-face dice (singles, three-of-a-kind, multipliers "Three ×2/×4/×8", straights)
+- **Right column: YOUR DICE** — 6 slots showing current loadout (read-only), selected-die detail card (name, rarity, description, interactive 3D preview)
+- Save / Clear buttons hidden
+
+**LOADOUT button** — editable mode:
+- **Left column: INVENTORY** — grid of all dice from `DICE.roster`, sorted by rarity. Click a tile after selecting a slot to assign that die
+- **Right column: YOUR DICE** — 6 editable slots. Click to select, then click an inventory tile to place
+- **Save Loadout** (gold) — applies changes to `store.state.loadout`
+- **Clear Loadout** (gray) — resets all 6 slots to base dice (null)
+
+**Shared UI:**
+- No modal title bar — GAME RULES / YOUR DICE / INVENTORY are section headers (1.1em, 800 weight, light color)
+- Close button (×) in top-right corner
+- 6 dice in one row, full-width aspect-ratio 1:1 slots with large die faces (80% fill, 20% border-radius, percentage-based pips). Die body color applied to the `.lo-die-face` element.
 - Each die has a `desc` field in `dice.js` shown in the detail panel (e.g. "Higher chance of rolling 1 (30%)")
 - Joker is a normal special die in this flow
+- Empty slots read as base dice
+
+**Viewport scaling:** `.lo-modal` uses `font-size: clamp(1rem, 1.5vmin, 1.25rem)` as the scaling anchor. All sizes inside (fonts, dice, slots, detail card) use `em` instead of `rem`/`px`, so the entire panel scales proportionally with the viewport. On small screens (laptop ~768px vmin) the floor is `1rem` (16px) — same as before. On large screens (1440px+ vmin) everything grows up to `1.25rem` (20px), filling the space. Mobile breakpoint (≤700px) uses `clamp(13px, 2.5vw, 1rem)`.
 
 ### 10.4 Battle Entry Contract
 

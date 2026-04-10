@@ -469,10 +469,21 @@ export function buildDie(ctx, opts = {}) {
   });
 
   if (opts.bias) {
-    const fl = FACE_LOCALS.find(f => f.val === opts.bias.face);
-    if (fl) {
-      const mag = opts.bias.magnitude * hs;
-      body.addShape(boxShape, new CANNON.Vec3(fl.x * mag, fl.y * mag, fl.z * mag));
+    let ox = 0, oy = 0, oz = 0;
+    if (opts.bias.faces) {
+      for (const fv of opts.bias.faces) {
+        const fl = FACE_LOCALS.find(f => f.val === fv);
+        if (fl) { ox += fl.x; oy += fl.y; oz += fl.z; }
+      }
+      const len = Math.sqrt(ox * ox + oy * oy + oz * oz);
+      if (len > 0) { ox /= len; oy /= len; oz /= len; }
+    } else {
+      const fl = FACE_LOCALS.find(f => f.val === opts.bias.face);
+      if (fl) { ox = fl.x; oy = fl.y; oz = fl.z; }
+    }
+    const mag = opts.bias.magnitude * hs;
+    if (mag > 0 && (ox || oy || oz)) {
+      body.addShape(boxShape, new CANNON.Vec3(ox * mag, oy * mag, oz * mag));
     } else {
       body.addShape(boxShape);
     }

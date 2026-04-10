@@ -464,7 +464,7 @@ project/
 │   └── ui/                 # View layer — dispatch and subscribeTo only (IIFE)
 │       ├── battleUI.js     #   DOM rendering: HP, dice, buttons, phase hints, showDamage fly-up, logHistory/clearHistory (imperative Round History)
 │       ├── inputHandler.js #   Player clicks → dispatch, banners, lock/unlock, imperative history calls
-│       └── loadoutUI.js    #   Rules & Dices modal (6 slots, Game Rules panel with scoring combos, detail panel with die description)
+│       └── loadoutUI.js    #   Two-mode modal: RULES & DICES (Game Rules + scoring combos) or LOADOUT (inventory grid + editable slots + Clear/Save). Viewport-scaled via clamp+em
 └── tests/
     ├── index.html          # Test runner — open in browser
     ├── helpers.js           # TestRunner: assert, assertEqual, printResults

@@ -1,5 +1,5 @@
-// Loadout editor modal — click-to-place, detail panel with interactive 3D die.
-// mount(store) caches DOM, binds button. open/close/save.
+// Loadout editor modal — two modes: 'rules' (read-only) and 'loadout' (editable).
+// mount(store) caches DOM, binds both buttons. open/close/save.
 // Slots: CSS pip faces. Detail: interactive 3D BabylonJS preview via bridge3D.
 
 ;(function() {
@@ -10,8 +10,8 @@
     var _editing = []
     var _selectedSlot = null
     var _3dPreview = null
+    var _mode = 'rules'
 
-    // ── pip layout: 9-cell grid (0-8), which cells get a dot per face value ──
     var PIP_MAP = {
         1: [4],
         2: [2, 6],
@@ -34,24 +34,31 @@
 
     function mount(store) {
         _store = store
-        _el.btn        = document.getElementById('loadoutBtn')
+        _el.rulesBtn   = document.getElementById('rulesBtn')
+        _el.loadoutBtn = document.getElementById('loadoutBtn')
         _el.modal      = document.getElementById('loadoutModal')
         _el.backdrop   = document.getElementById('loadoutBackdrop')
         _el.closeBtn   = document.getElementById('closeLoadoutBtn')
         _el.saveBtn    = document.getElementById('saveLoadoutBtn')
+        _el.clearBtn   = document.getElementById('clearLoadoutBtn')
+        _el.footer     = _el.modal.querySelector('.lo-footer')
         _el.slots      = document.getElementById('loadoutSlots')
-        _el.inv        = document.getElementById('loadoutRules')
+        _el.left       = document.getElementById('loadoutLeft')
+        _el.leftLabel  = document.getElementById('loadoutLeftLabel')
         _el.detail     = document.getElementById('loadoutDetail')
 
-        _el.btn.onclick       = open
-        _el.closeBtn.onclick  = close
-        _el.backdrop.onclick  = close
-        _el.saveBtn.onclick   = save
+        _el.rulesBtn.onclick   = function() { openAs('rules') }
+        _el.loadoutBtn.onclick = function() { openAs('loadout') }
+        _el.closeBtn.onclick   = close
+        _el.backdrop.onclick   = close
+        _el.saveBtn.onclick    = save
+        _el.clearBtn.onclick   = clearLoadout
     }
 
     // ── open / close / save ──────────────────────────────────────────────
 
-    function open() {
+    function openAs(mode) {
+        _mode = mode
         _editing = _store.state.loadout.slots.slice()
         _selectedSlot = null
         render()
@@ -70,6 +77,12 @@
         close()
     }
 
+    function clearLoadout() {
+        for (var i = 0; i < _editing.length; i++) _editing[i] = null
+        _selectedSlot = null
+        render()
+    }
+
     function dispose3D() {
         if (_3dPreview) {
             _3dPreview.dispose()
@@ -81,8 +94,20 @@
 
     function render() {
         dispose3D()
+
+        if (_mode === 'rules') {
+            _el.footer.style.display = 'none'
+            _el.leftLabel.textContent = 'GAME RULES'
+            _el.left.classList.add('lo-rules')
+            renderGameRules()
+        } else {
+            _el.footer.style.display = 'flex'
+            _el.leftLabel.textContent = 'INVENTORY'
+            _el.left.classList.remove('lo-rules')
+            renderInventory()
+        }
+
         renderSlots()
-        renderGameRules()
         renderDetail()
     }
 
@@ -105,8 +130,9 @@
             var well = document.createElement('div')
             well.className = 'lo-slot-well'
             if (sel) well.style.borderColor = 'rgba(239,193,74,.7)'
-            if (vis.body && vis.body !== 'white') well.style.backgroundColor = vis.body
             well.innerHTML = pipFaceHTML(1)
+            var face = well.querySelector('.lo-die-face')
+            if (face && vis.body && vis.body !== 'white') face.style.backgroundColor = vis.body
             if (vis.pips && vis.pips !== 'black') {
                 var dots = well.querySelectorAll('.lo-pip:not(.lo-pip-hide)')
                 for (var d = 0; d < dots.length; d++) dots[d].style.backgroundColor = vis.pips
@@ -128,6 +154,57 @@
             })(i)
         }
     }
+
+    // ── inventory (loadout mode) ─────────────────────────────────────────
+
+    function renderInventory() {
+        var roster = window.DICE && window.DICE.roster
+        if (!roster) { _el.left.innerHTML = '<div class="lo-empty-msg">No dice available</div>'; return }
+
+        var order = window.DICE.RARITY_ORDER || {}
+        var keys = Object.keys(roster).sort(function(a, b) {
+            var ra = order[roster[a].rarity] || 0, rb = order[roster[b].rarity] || 0
+            return ra - rb || a.localeCompare(b)
+        })
+
+        _el.left.innerHTML = ''
+        for (var k = 0; k < keys.length; k++) {
+            var def = roster[keys[k]]
+            var vis = def.visual || {}
+            var tile = document.createElement('div')
+            tile.className = 'lo-tile'
+            tile.dataset.dieId = def.id
+
+            var well = document.createElement('div')
+            well.className = 'lo-slot-well'
+            well.innerHTML = pipFaceHTML(1)
+            var face = well.querySelector('.lo-die-face')
+            if (face && vis.body && vis.body !== 'white') face.style.backgroundColor = vis.body
+            if (vis.pips && vis.pips !== 'black') {
+                var dots = well.querySelectorAll('.lo-pip:not(.lo-pip-hide)')
+                for (var d = 0; d < dots.length; d++) dots[d].style.backgroundColor = vis.pips
+            }
+
+            var label = document.createElement('div')
+            label.className = 'lo-tile-label'
+            label.textContent = def.name
+
+            tile.appendChild(well)
+            tile.appendChild(label)
+            _el.left.appendChild(tile)
+
+            tile.onclick = (function(id) {
+                return function() {
+                    if (_selectedSlot !== null) {
+                        _editing[_selectedSlot] = id
+                        render()
+                    }
+                }
+            })(def.id)
+        }
+    }
+
+    // ── rules (rules mode) ──────────────────────────────────────────────
 
     function miniDice(values) {
         var h = '<span class="combo-dice">'
@@ -161,8 +238,10 @@
         h += '<tr><td>' + miniDice([1,2,3,4,5,6]) + ' Full Straight</td><td>1 500</td></tr>'
         h += '</table>'
 
-        _el.inv.innerHTML = h
+        _el.left.innerHTML = h
     }
+
+    // ── detail panel ─────────────────────────────────────────────────────
 
     function renderDetail() {
         if (_selectedSlot === null) {

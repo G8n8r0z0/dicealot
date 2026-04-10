@@ -88,8 +88,12 @@ function buildDieConfigs(count) {
         if (v.pipR != null)     cfg.pipR = v.pipR;
         if (v.pipShape)         cfg.pipShape = v.pipShape;
         if (v.pipColors)        cfg.pipColors = v.pipColors;
-        if (def.biasOffset && def.biasFace) {
-            cfg.bias = { face: def.biasFace, magnitude: def.biasOffset };
+        if (def.biasOffset) {
+            if (def.biasFaces) {
+                cfg.bias = { faces: def.biasFaces, magnitude: def.biasOffset };
+            } else if (def.biasFace) {
+                cfg.bias = { face: def.biasFace, magnitude: def.biasOffset };
+            }
         }
         configs.push(cfg);
     }

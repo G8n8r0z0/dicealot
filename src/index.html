@@ -189,115 +189,124 @@
       cursor:pointer;transition:background .15s,border-color .15s;pointer-events:auto;
     }
     .btn-loadout:hover{background:linear-gradient(135deg,#4a4a6a,#5a5a7a);border-color:rgba(255,255,255,.22)}
+    .btn-loadout-second{margin-top:4px}
 
-    /* ── Loadout modal ───────────────────────────────────────── */
+    /* ── Loadout modal (viewport-scaled via clamp + em) ─────── */
     .lo-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1200;display:none}
     .lo-modal{
       position:fixed;left:24px;top:24px;right:24px;bottom:24px;z-index:1201;
       display:none;grid-template-rows:auto 1fr auto;gap:12px;
       background:#111318;border:1px solid rgba(255,255,255,.14);border-radius:18px;
       padding:18px 22px;overflow:hidden;
+      font-size:clamp(1rem, 1.5vmin, 1.25rem);
     }
-    .lo-head{display:flex;justify-content:space-between;align-items:center}
-    .lo-title{font-size:1.1rem;font-weight:800;letter-spacing:.1em;color:#ddd;text-transform:uppercase}
-    .lo-close-btn{background:#333;color:#ccc;padding:8px 18px;font-size:.8rem}
-    .lo-footer{display:flex;justify-content:center}
+    .lo-head{display:flex;justify-content:flex-end;align-items:center}
+    .lo-close-btn{background:#333;color:#ccc;padding:.3em .7em;font-size:1.1em;line-height:1;border-radius:8px}
+    .lo-footer{display:flex;justify-content:center;gap:.75em}
     .lo-save-btn{
-      padding:12px 36px;border-radius:12px;border:1px solid rgba(239,193,74,.35);
+      padding:.75em 2.25em;border-radius:12px;border:1px solid rgba(239,193,74,.35);
       background:linear-gradient(180deg,#f3c95c,#d7a93c);color:#241a08;
-      font-size:.95rem;font-weight:800;cursor:pointer;
+      font-size:.95em;font-weight:800;cursor:pointer;
     }
     .lo-save-btn:hover{filter:brightness(1.08)}
+    .lo-clear-btn{
+      padding:.75em 2.25em;border-radius:12px;border:1px solid rgba(255,255,255,.15);
+      background:linear-gradient(180deg,#555,#444);color:#ddd;
+      font-size:.95em;font-weight:800;cursor:pointer;
+    }
+    .lo-clear-btn:hover{filter:brightness(1.15)}
 
-    .lo-workbench{display:grid;grid-template-columns:1fr 1fr;gap:16px;min-height:0;overflow:hidden}
-    .lo-column{display:flex;flex-direction:column;gap:8px;min-height:0;overflow:hidden}
-    .lo-col-label{font-size:.72rem;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.1em}
+    .lo-workbench{display:grid;grid-template-columns:1fr 1fr;gap:1em;min-height:0;overflow:hidden}
+    .lo-column{display:flex;flex-direction:column;gap:.5em;min-height:0;overflow:hidden}
+    .lo-col-label{font-size:1.1em;font-weight:800;color:#ddd;text-transform:uppercase;letter-spacing:.1em}
 
     .lo-pool{
       flex:1;overflow-y:auto;
-      display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;align-content:start;
-      background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px;
+      display:grid;grid-template-columns:repeat(auto-fill,minmax(5.6em,1fr));gap:.5em;align-content:start;
+      background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:.75em;
     }
-    .lo-empty-msg{grid-column:1/-1;text-align:center;color:#555;font-size:.85rem;padding:32px 0}
+    .lo-empty-msg{grid-column:1/-1;text-align:center;color:#555;font-size:.85em;padding:2em 0}
 
-    .lo-rules{display:block!important;font-size:.84rem;line-height:1.4;color:rgba(255,255,255,.72);padding:12px 16px}
-    .lo-rules h3{font-size:.9rem;font-weight:700;color:rgba(255,255,255,.92);margin:10px 0 3px;text-transform:uppercase;letter-spacing:.04em}
+    .lo-rules{display:block!important;font-size:.84em;line-height:1.4;color:rgba(255,255,255,.72);padding:.9em 1.2em}
+    .lo-rules h3{font-size:1.07em;font-weight:700;color:rgba(255,255,255,.92);margin:.75em 0 .2em;text-transform:uppercase;letter-spacing:.04em}
     .lo-rules h3:first-child{margin-top:0}
-    .lo-rules p{margin:0 0 5px}
-    .lo-rules table{width:100%;border-collapse:collapse;margin:4px 0 8px}
-    .lo-rules th,.lo-rules td{text-align:left;padding:3px 6px;border-bottom:1px solid rgba(255,255,255,.06)}
-    .lo-rules th{font-size:.72rem;color:rgba(255,255,255,.45);font-weight:600;text-transform:uppercase}
-    .lo-rules td{font-size:.82rem;color:rgba(255,255,255,.68)}
+    .lo-rules p{margin:0 0 .35em}
+    .lo-rules table{width:100%;border-collapse:collapse;margin:.3em 0 .6em}
+    .lo-rules th,.lo-rules td{text-align:left;padding:.22em .45em;border-bottom:1px solid rgba(255,255,255,.06)}
+    .lo-rules th{font-size:.86em;color:rgba(255,255,255,.45);font-weight:600;text-transform:uppercase}
+    .lo-rules td{font-size:.98em;color:rgba(255,255,255,.68)}
     .lo-rules td:last-child{text-align:right;font-weight:700;color:#efc14a}
-    .lo-rules .combo-dice{display:inline-flex;gap:3px;vertical-align:middle}
-    .lo-rules .combo-dice .lo-die-face{width:25px;height:25px;padding:2px;border-radius:4px}
-    .lo-rules .combo-dice .lo-die-face .lo-pip{width:4px;height:4px}
+    .lo-rules .combo-dice{display:inline-flex;gap:.22em;vertical-align:middle}
+    .lo-rules .combo-dice .lo-die-face{width:1.85em;height:1.85em;padding:.15em;border-radius:4px}
+    .lo-rules .combo-dice .lo-die-face .lo-pip{width:.3em;height:.3em}
 
-    .lo-slot-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+    .lo-slot-strip{
+      display:grid;grid-template-columns:repeat(6,1fr);gap:.6em;
+      padding:.5em 0;
+    }
     .lo-slot{
-      display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;
-      padding:6px 4px;border-radius:12px;border:2px solid transparent;transition:.15s;
+      display:flex;flex-direction:column;align-items:center;gap:.4em;cursor:pointer;
+      padding:.4em;border-radius:16px;border:2px solid transparent;transition:.15s;
     }
     .lo-slot:hover{border-color:rgba(255,255,255,.12)}
     .lo-slot.selected{border-color:rgba(239,193,74,.6);background:rgba(239,193,74,.06)}
     .lo-slot-well{
-      width:52px;height:52px;border-radius:14px;border:2px dashed rgba(255,255,255,.15);
+      width:100%;aspect-ratio:1/1;border-radius:22px;border:2px dashed rgba(255,255,255,.15);
       display:flex;align-items:center;justify-content:center;background:#0d1017;transition:.15s;
     }
-    .lo-slot.filled .lo-slot-well{border-style:solid;border-color:rgba(255,255,255,.12)}
-    .lo-slot-icon{width:36px;height:36px;border-radius:8px}
+    .lo-slot.filled .lo-slot-well{border-style:solid;border-color:rgba(255,255,255,.08);background:#181c24}
 
     .lo-die-face{
-      width:40px;height:40px;background:#f4f2ef;border-radius:6px;
-      display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:5px;
-      box-shadow:0 1px 4px rgba(0,0,0,.35);
+      width:80%;height:80%;background:#f4f2ef;border-radius:20%;
+      display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:12%;
+      box-shadow:0 2px 8px rgba(0,0,0,.4);
     }
     .lo-die-face .lo-pip{
-      width:6px;height:6px;border-radius:50%;background:#1a1a1a;
+      width:55%;height:55%;border-radius:50%;background:#1a1a1a;
       align-self:center;justify-self:center;
     }
     .lo-die-face .lo-pip-hide{visibility:hidden}
     .lo-detail-3d-wrap{display:flex;justify-content:center}
     .lo-detail-3d{
-      width:100%;max-width:280px;aspect-ratio:1/1;border-radius:12px;
+      width:100%;max-width:17em;aspect-ratio:1/1;border-radius:12px;
       background:rgba(255,255,255,.03);display:block;cursor:grab;touch-action:none;
     }
     .lo-detail-3d:active{cursor:grabbing}
     .lo-detail-hint{
-      font-size:.65rem;color:#555;text-align:center;margin-top:-4px;letter-spacing:.05em;
+      font-size:.65em;color:#555;text-align:center;margin-top:-.25em;letter-spacing:.05em;
       opacity:1;transition:opacity .45s ease;
     }
     .lo-hint-hidden{opacity:0}
-    .lo-slot-name{font-size:.65rem;font-weight:600;color:#7f8ca8;text-align:center;line-height:1.2}
+    .lo-slot-name{font-size:.7em;font-weight:700;color:#8f9cba;text-align:center;line-height:1.2}
 
     .lo-tile{
-      display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;
-      padding:8px 4px;border-radius:12px;border:2px solid transparent;transition:.15s;
+      display:flex;flex-direction:column;align-items:center;gap:.32em;cursor:pointer;
+      padding:.5em .25em;border-radius:12px;border:2px solid transparent;transition:.15s;
     }
     .lo-tile:hover{border-color:rgba(255,255,255,.14);background:rgba(255,255,255,.04)}
     .lo-tile.selected{border-color:rgba(120,182,255,.5);background:rgba(120,182,255,.08)}
-    .lo-tile-icon{width:48px;height:48px;border-radius:12px}
-    .lo-tile-label{font-size:.7rem;font-weight:600;color:#999;text-align:center;line-height:1.2}
+    .lo-tile-icon{width:3em;height:3em;border-radius:12px}
+    .lo-tile-label{font-size:.7em;font-weight:600;color:#999;text-align:center;line-height:1.2}
 
     .lo-detail-wrap{
       flex:1;overflow-y:auto;
-      background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px;
+      background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:1em;
     }
-    .lo-detail-placeholder{color:#555;font-size:.85rem;text-align:center;padding:28px 0}
-    .lo-detail-card{display:flex;flex-direction:column;align-items:center;gap:12px}
+    .lo-detail-placeholder{color:#555;font-size:.85em;text-align:center;padding:1.75em 0}
+    .lo-detail-card{display:flex;flex-direction:column;align-items:center;gap:.75em}
     .lo-detail-icon-wrap{display:flex;justify-content:center}
-    .lo-detail-icon{width:72px;height:72px;border-radius:18px}
-    .lo-detail-name{font-size:1.3rem;font-weight:800;color:#f4f7ff}
-    .lo-detail-rarity{font-size:.72rem;font-weight:700;letter-spacing:.1em}
-    .lo-detail-desc{font-size:.82rem;color:rgba(255,255,255,.55);text-align:center;line-height:1.4;max-width:260px}
+    .lo-detail-icon{width:4.5em;height:4.5em;border-radius:18px}
+    .lo-detail-name{font-size:1.3em;font-weight:800;color:#f4f7ff}
+    .lo-detail-rarity{font-size:.72em;font-weight:700;letter-spacing:.1em}
+    .lo-detail-desc{font-size:.82em;color:rgba(255,255,255,.55);text-align:center;line-height:1.4;max-width:16em}
     .lo-rarity-common{color:#8bc34a}
     .lo-rarity-rare{color:#ab47bc}
     .lo-rarity-exotic{color:#ff7043}
     .lo-rarity-base{color:#999}
-    .lo-detail-ability{font-size:.8rem;color:#9fb7cb}
+    .lo-detail-ability{font-size:.8em;color:#9fb7cb}
     .lo-action-btn{
-      margin-top:8px;padding:10px 24px;border:none;border-radius:10px;
-      font-size:.85rem;font-weight:700;cursor:pointer;transition:.12s;
+      margin-top:.5em;padding:.62em 1.5em;border:none;border-radius:10px;
+      font-size:.85em;font-weight:700;cursor:pointer;transition:.12s;
     }
     .lo-place-btn{background:#27ae60;color:#fff}
     .lo-place-btn:hover{background:#2ecc71}
@@ -305,7 +314,7 @@
     .lo-remove-btn:hover{background:#e74c3c}
 
     @media(max-width:700px){
-      .lo-modal{left:8px;top:8px;right:8px;bottom:8px;padding:14px}
+      .lo-modal{left:8px;top:8px;right:8px;bottom:8px;padding:14px;font-size:clamp(13px,2.5vw,1rem)}
       .lo-workbench{grid-template-columns:1fr;grid-template-rows:auto 1fr}
       .lo-slot-strip{grid-template-columns:repeat(3,1fr)}
     }
@@ -356,7 +365,8 @@
         <div class="badge-slot"></div>
         <div class="badge-slot"></div>
       </div>
-      <button id="loadoutBtn" class="btn btn-loadout">RULES &amp; DICES</button>
+      <button id="rulesBtn" class="btn btn-loadout">RULES &amp; DICES</button>
+      <button id="loadoutBtn" class="btn btn-loadout btn-loadout-second">LOADOUT</button>
     </aside>
 
     <!-- Center: info + buttons -->
@@ -409,13 +419,12 @@
   <div id="loadoutBackdrop" class="lo-backdrop"></div>
   <div id="loadoutModal" class="lo-modal">
     <div class="lo-head">
-      <span class="lo-title">LOADOUT</span>
-      <button id="closeLoadoutBtn" class="btn lo-close-btn">Close</button>
+      <button id="closeLoadoutBtn" class="btn lo-close-btn">&times;</button>
     </div>
     <div class="lo-workbench">
       <div class="lo-column lo-col-inv">
-        <div class="lo-col-label">GAME RULES</div>
-        <div class="lo-pool lo-rules" id="loadoutRules"></div>
+        <div class="lo-col-label" id="loadoutLeftLabel">GAME RULES</div>
+        <div class="lo-pool" id="loadoutLeft"></div>
       </div>
       <div class="lo-column lo-col-right">
         <div class="lo-col-label">YOUR DICE</div>
@@ -425,6 +434,7 @@
     </div>
     <div class="lo-footer">
       <button id="saveLoadoutBtn" class="btn lo-save-btn">Save Loadout</button>
+      <button id="clearLoadoutBtn" class="btn lo-clear-btn">Clear Loadout</button>
     </div>
   </div>
 

@@ -1,6 +1,6 @@
 # Dice-a-Lot — 3D Dice Battle Game
 
-**v1.0.6 — Battle UI polish: damage fly-up + HP flash, Rules & Dices panel, red invalid highlights, die descriptions, imperative Round History**
+**v1.0.7 — Loadout & Rules split: two-mode modal (Rules & Dices / Loadout), inventory grid, bigger dice, Clear Loadout, 7-slot fix**
 
 A browser-first dice RPG prototype inspired by Farkle. Special dice with unique abilities, loadout building, PvE bot battles, HP-based combat, and a full progression ladder — all rendered with 3D physics dice.
 
@@ -12,9 +12,10 @@ A browser-first dice RPG prototype inspired by Farkle. Special dice with unique 
 - HP combat: 3000 HP each, banked score = direct damage, win/lose detection
 - Glass morphism UI overlay: side HP widgets, top info bar, bottom action buttons
 - Bust, Hot Hand, turn switching, victory/defeat banners
-- Loadout editor with interactive 3D detail panel (physics die drop, orbit-after-settle, CSS pip slot icons)
+- **Two-mode modal** — RULES & DICES (read-only: Game Rules + scoring combos + current loadout) and LOADOUT (editable: inventory grid + 6 dice slots + Save/Clear)
+- **Loadout editor** — inventory grid of all dice sorted by rarity, click-to-assign, interactive 3D detail panel (physics die drop, orbit-after-settle), Clear Loadout resets to base dice
+- **Bigger dice slots** — 6 in one row, full-width aspect-ratio 1:1, 80% die face fill, body color on face element
 - **Damage visualization** — fly-up numbers + HP bar flash/shake on bank
-- **Rules & Dices panel** — scoring combos with inline mini dice, Goal, How to Play (was Loadout/Inventory)
 - **Invalid selection red highlights** — 3D dice glow red when combo is invalid
 - **Round History** — imperative event log (rolled values, scores, damage, bust, hot hand, result)
 - **Die descriptions** — each die shows its ability text in the detail panel
@@ -77,7 +78,7 @@ Pushes to **`main`** deploy the repo root to **Cloudflare Pages** via `.github/w
 
 The coding agent checks every change against the architecture and design rules. If your request would violate a rule, it warns you and proposes alternatives before writing any code.
 
-**Production game (`src/index.html`)** today: fullscreen 3D Farkle vs bot, **vendored** Babylon.js + cannon-es, **pull-back sling** (single-point cluster, 1 die visible during aim) + **ROLL**. **UI (v1.0.6):** compact HP widgets, damage fly-up + HP flash/shake, side turn indicators, compact top-docked info bar, green valid / red invalid selection colors, centered banners (incl. REROLL!), 9×9 held zones with correct face-up display, auto-hiding action buttons, imperative Round History log. **Rules & Dices panel** with scoring combos and die descriptions. **Physics baseline:** unified ROLL/sling impulse, gravity −300, mass 3.0, dieScale 3.06. **Stacked dice reroll** mechanic (player taps, bot auto). **`throw-lab.html`** — throw-only sandbox with the same `battle_tune_json_v1` tuning. Details: `ARCHITECTURE.md` (Battle Prototype, Throw lab), `DESIGN.md` section 10.6 + 14.
+**Production game (`src/index.html`)** today: fullscreen 3D Farkle vs bot, **vendored** Babylon.js + cannon-es, **pull-back sling** (single-point cluster, 1 die visible during aim) + **ROLL**. **UI (v1.0.7):** compact HP widgets, damage fly-up + HP flash/shake, side turn indicators, compact top-docked info bar, green valid / red invalid selection colors, centered banners (incl. REROLL!), 9×9 held zones with correct face-up display, auto-hiding action buttons, imperative Round History log. **Two-mode modal:** RULES & DICES (read-only rules + scoring combos) and LOADOUT (inventory grid, editable slots, Save/Clear). **Physics baseline:** unified ROLL/sling impulse, gravity −300, mass 3.0, dieScale 3.06. **Stacked dice reroll** mechanic (player taps, bot auto). **`throw-lab.html`** — throw-only sandbox with the same `battle_tune_json_v1` tuning. Details: `ARCHITECTURE.md` (Battle Prototype, Throw lab), `DESIGN.md` section 10.3 + 14.
 
 For subsequent changes (new features, balance tweaks, mechanic removals), use `NEXT_ITERATION_PROMPT.md` — it ensures the agent updates `DESIGN.md` first, then plans and implements, rather than jumping straight to code.
 
@@ -137,7 +138,7 @@ When the project lives inside a parent folder (e.g. **3D Dicing**), Cursor may l
 │   └── ui/                  # View layer — dispatch and subscribeTo only (IIFE)
 │       ├── battleUI.js      #   DOM rendering: HP, dice, buttons, phase hints
 │       ├── inputHandler.js  #   Player clicks → dispatch, banners, lock/unlock
-│       └── loadoutUI.js     #   Loadout editor modal (6 slots, inventory, detail panel)
+│       └── loadoutUI.js     #   Two-mode modal: Rules & Dices / Loadout (inventory, slots, Clear/Save)
 └── tests/
     ├── index.html           # Test runner — open in browser
     ├── helpers.js            # Minimal test framework (assert, assertEqual)
