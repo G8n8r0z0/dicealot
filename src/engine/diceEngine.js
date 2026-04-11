@@ -455,6 +455,37 @@ export function syncActiveDice(ctx, n, dieConfigs) {
 export function getDice(ctx) { return ctx.dice; }
 export function getHeldDice(ctx) { return ctx.heldDice; }
 
+/**
+ * Spawn a temporary die mid-turn at a given position.
+ * Used by Slime Die spawn mechanic.
+ * @returns {object} die — the new die object (added to ctx.dice)
+ */
+export function spawnTempDie(ctx, cfg, position, scale) {
+  const dieCfg = Object.assign({}, cfg, { dieScale: scale || ctx.tune.mesh.dieScale });
+  const die = buildDie(ctx, dieCfg);
+  die.isTemp = true;
+
+  die.outer.setEnabled(true);
+  die.pips.setEnabled(true);
+  if (die._extraPipMeshes) for (const m of die._extraPipMeshes) m.setEnabled(true);
+  die.backing.setEnabled(true);
+  if (die.markMeshes) for (const m of die.markMeshes) m.setEnabled(true);
+
+  die.body.type = CANNON.Body.DYNAMIC;
+  die.body.position.set(position.x, position.y, position.z);
+  die.body.quaternion.set(Math.random()-.5, Math.random()-.5, Math.random()-.5, Math.random()-.5);
+  die.body.quaternion.normalize();
+  die.body.velocity.setZero();
+  die.body.angularVelocity.setZero();
+  die.body.allowSleep = true;
+  die.body.wakeUp();
+  die.settled = false;
+  die.value = null;
+
+  ctx.dice.push(die);
+  return die;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 //  DIRECTIONAL THROW
 // ═══════════════════════════════════════════════════════════════════════════

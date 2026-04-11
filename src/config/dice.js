@@ -31,7 +31,7 @@
 
         frog: {
             id: 'frog', name: 'Frog', rarity: 'common', utility: false, maxLevel: 1,
-            desc: 'Reroll this die once per turn.',
+            desc: 'Jump once per turn.',
             ability: { type: 'reroll', button: 'JUMP', passive: false },
             weights: null,
             visual: {
@@ -166,10 +166,14 @@
 
         slime: {
             id: 'slime', name: 'Slime Die', rarity: 'common', utility: false, maxLevel: 3,
-            desc: 'Rolling 6 spawns an extra temporary die.',
+            desc: 'Rolling 6 spawns a surprise!',
             ability: { type: 'spawn', passive: true, trigger: 6 },
             weights: null,
-            visual: { body: '#4caf50', pips: 'white' }
+            visual: {
+                body: '#5fb51e', pips: '#f9f6ee',
+                specular: 0.35, edgeR: 0.22, pipR: 0.10,
+                pipColors: { default: '#f9f6ee', 6: '#38ff4f' }
+            }
         },
 
         bridge: {
@@ -216,11 +220,16 @@
 
         bandie: {
             id: 'bandie', name: 'Bandie', rarity: 'common', utility: U, maxLevel: 3,
-            desc: 'Heals you for a flat amount each turn.',
+            desc: 'Heals +100 HP when scored as 1 or 5. Works in any combo.',
             ability: { type: 'heal_self', passive: true },
             healPerLevel: [100, 200, 300],
             weights: null,
-            visual: { body: 'white', pips: 'red', marks: 'red cross' }
+            visual: {
+                body: '#ffffff', pips: '#cc2222',
+                specular: 0.08, edgeR: 0.14, pipR: 0.10,
+                pipShape: { default: 'circle', 1: 'hidden' },
+                marks: [{ face: 1, shape: 'cross', color: '#cc2222' }]
+            }
         },
 
         pulse: {
@@ -236,10 +245,14 @@
 
         tuner: {
             id: 'tuner', name: 'Tuner', rarity: 'rare', utility: false, maxLevel: 3,
-            desc: 'Manually set this die to any face value.',
+            desc: 'Shift this die +1 or -1. Wraps 6\u21921, 1\u21926.',
             ability: { type: 'tune', button: 'TUNE', passive: false },
             weights: null,
-            visual: { body: 'white', pips: 'black' }
+            visual: {
+                body: '#2c3e50', pips: '#1abc9c',
+                specular: 0.25, edgeR: 0.14, pipR: 0.10,
+                pipShape: 'diamond'
+            }
         },
 
         royalI: {
@@ -268,10 +281,16 @@
 
         devil: {
             id: 'devil', name: 'Devil Die', rarity: 'rare', utility: false, maxLevel: 1,
-            desc: 'Acts as a joker — counts as any value.',
+            desc: 'With two other 6s, counts as a 6. If settles 6 itself with two other 6s - well... witness the real Devil!',
             ability: { type: 'devil', passive: true },
             weights: null,
-            visual: { body: '#d32f2f', pips: 'white' }
+            visual: {
+                body: '#860111', pips: '#ffffff',
+                specular: 0.2, edgeR: 0.14, pipR: 0.10,
+                pipShape: { default: 'circle', 6: 'hidden' },
+                skipNotchFaces: [6],
+                marks: [{ face: 6, shape: 'pentagram', color: '#000000' }]
+            }
         },
 
         mimic: {
@@ -424,7 +443,8 @@
 
     var IMPLEMENTED = [
         'base', 'frog', 'oneLove', 'comrade',
-        'evenDie', 'oddDie', 'flipper'
+        'evenDie', 'oddDie', 'flipper', 'slime',
+        'devil', 'bandie', 'tuner'
     ]
 
     window.DICE = {

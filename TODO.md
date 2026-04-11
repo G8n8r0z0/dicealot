@@ -58,9 +58,9 @@ The previous 2D prototype (`C:\Users\lgene\Desktop\dicing\battle.html`, ~8900 li
 
 ### What battle.html does NOT have (must write from scratch)
 
-- Bounce, Slime, Bridge, Match, Shrinking, Growing (Common dice)
-- Mimic, Clone, Blight, SacriDice, Mirror, Pin, Devil, Gravity, Yin/Yang (Rare dice)
-- All Utility dice (Bandie, Pulse, Leech, Transfusion, Second Wind, Siphon)
+- Bounce, Bridge, Match, Shrinking, Growing (Common dice)
+- Mimic, Clone, Blight, SacriDice, Mirror, Pin, Gravity, Yin/Yang (Rare dice)
+- Remaining Utility dice (Pulse, Leech, Transfusion, Second Wind, Siphon)
 - Weighted distributions for Even, Odd, Mathematician, Cluster
 - Cluster synergy (One Love + Comrade interaction)
 - 3D BabylonJS + cannon-es integration (engine validated via spike-v2, production wiring pending)
@@ -572,9 +572,18 @@ Weighted rolls and passive triggers. No player activation button needed.
   - Ref: DESIGN §8.5 Bounce
   - File: `src/systems/turnSystem.js`
 
-- [ ] **H4.** Slime Die — on roll result `6`, spawn 1 temporary extra die with random/biased value. Slime itself may change to `5` at higher levels.
+- [x] **H4.** Slime Die — automatic spawn on roll `6`. All 3 levels implemented; Lv2/Lv3 locked until Progression module. **DONE** (2026-04-11)
   - Ref: DESIGN §8.5 Slime
-  - File: `src/systems/turnSystem.js`
+  - [x] **H4a.** `dice.js` — Slime visual config (body `#5fb51e`, pips `#f9f6ee`, specular 0.35, edgeR 0.22, pipR 0.10, face 6 pips colored `#38ff4f`). Added `'slime'` to IMPLEMENTED.
+  - [x] **H4b.** Face 6 visual — simplified from blob mark to colored pips (`pipColors: { default: '#f9f6ee', 6: '#38ff4f' }`). Blob PIP_SHAPE added to dieFactory but unused.
+  - [x] **H4c.** `turnSystem.js` — `DICE_SETTLED` → `detectSlimeSpawns` → phase `spawning`. `SLIME_SPAWNED`: adds temp dice to `rolledDice`, `dieSlotMap` (slot -1), `diceCount`. Lv2+: Slime→5. Once-per-turn via `slimeTriggered` flag. Hot Hand: `remaining.length === 0` (dynamic count).
+  - [x] **H4d.** `diceBridge.js` — `onSlimeSpawn()`: freezes settled dice, creates temp 3D die(s) at parent position, jump animation (upward impulse + spin). `handleSlimeSpawnSettled()`: reads face, dispatches `SLIME_SPAWNED`, unfreezes. Pointer intercept during `spawning`.
+  - [x] **H4e.** `diceEngine.js` — `spawnTempDie(ctx, cfg, position, scale)`: creates die with custom `dieScale`, marks `isTemp = true`, adds to `ctx.dice`.
+  - [x] **H4f.** Cleanup — BANK / BUST / Hot Hand / START_TURN: reset `tempDiceCount`, `slimeTriggered`, `slimeSpawns`, `dieSlotMap`. `diceBridge`: disposes temp 3D meshes via existing teardown.
+  - [x] **H4g.** `loadoutUI.js` — `SHOWCASE_FACE.slime = 6`. `index.html` — `.mini-die.slime` CSS (green gradient, pips `#38ff4f` matching face 6 color).
+  - [x] **H4h.** Bot AI — verified: `findBestBotChoice` operates on `rolledDice` which includes temp dice. No changes needed.
+  - [x] **H4i.** Cache busters → `?v=10` in `index.html`, `diceBridge.js`.
+  - [x] **H4j.** Tests — `tests/test-slime.js`: 61 assertions covering spawn trigger, once-per-turn, Lv1/2/3 mechanics, temp die slot mapping, cleanup on BANK/BUST/START_TURN, Hot Hand with 7 & 8 dice, phase guards, spawn→bust.
 
 - [ ] **H5.** Shrinking / Growing Die — track direction state per die. Each roll steps value by -1/+1 with loop (1↔6).
   - Ref: DESIGN §8.5 Shrinking, Growing
@@ -695,9 +704,9 @@ Win counter and staged unlock ladder.
 
 More complex abilities with targeting.
 
-- [ ] **M1.** Tuner — TUNE: shift selected die +1/-1. Level line: self → adjacent → any.
+- [x] **M1.** Tuner — TUNE: shift selected die +1/-1 (wrapping 6→1, 1→6). `USE_ABILITY` branch `'tune'`, `TUNE_TARGET`, `TUNE_SETTLED` actions. `tuning`/`tuneTargeting` phases. `[▲] TUNE [▼]` arrows UI in `abilityUI.js`. Slerp animation in `diceBridge.js`. Diamond pip shape. Lv2/3 locked. 22-assertion test suite. **DONE**
   - Ref: DESIGN §8.7 Tuner
-  - File: `src/systems/diceAbilitySystem.js`
+  - Files: `src/systems/turnSystem.js`, `src/ui/abilityUI.js`, `src/engine/diceBridge.js`, `src/engine/dieFactory.js`, `src/config/dice.js`
 
 - [ ] **M2.** Mimic — MIMIC: copy neighbor's numeric value. Player selects Mimic → button → selects neighbor.
   - Ref: DESIGN §8.7 Mimic
@@ -746,9 +755,9 @@ Scoring modifiers and board-reactive behaviors.
   - Ref: DESIGN §8.7 Pin
   - File: `src/systems/turnSystem.js`
 
-- [ ] **N4.** Devil Die — if two other `6` values visible, Devil counts as third `6`. Natural `6` on Devil = double score.
+- [x] **N4.** Devil Die — `applyDevilSubstitution()` in `revalidateSelection()`. Devil + 2 other 6s in selection = 3×6 (600). Natural 6 on Devil = doubled (1200). Pentagram mark on face 6 (`drawPentagram`), dark crimson body (`#860111`). 21-assertion test suite. **DONE**
   - Ref: DESIGN §8.7 Devil
-  - File: `src/systems/scoringSystem.js`
+  - Files: `src/systems/turnSystem.js`, `src/engine/dieFactory.js`, `src/config/dice.js`
 
 - [ ] **N5.** Gravity Die — bias toward strongest visible value on board (`1` > `5` > `2/3/4/6`). Tied = no bias.
   - Ref: DESIGN §8.7 Gravity
@@ -767,9 +776,9 @@ Scoring modifiers and board-reactive behaviors.
 
 Healing, recovery, and counterplay layer.
 
-- [ ] **O1.** Common Utility: Bandie — if Bandie scores by itself (solo packet), heal player HP per level.
+- [x] **O1.** Bandie — heals +100 HP when scored as 1 or 5 (works in any combo). `HEAL_PLAYER` action in `matchSystem.js`, `checkBandieHeal()` in `turnSystem.js`. Cross mark on face 1 (`drawCross`). Heal fly-up UI in `battleUI.js`. 13-assertion test suite. **DONE**
   - Ref: DESIGN §8.6 Bandie
-  - File: `src/systems/turnSystem.js`, `src/systems/playerSystem.js`
+  - Files: `src/systems/turnSystem.js`, `src/systems/matchSystem.js`, `src/ui/battleUI.js`, `src/engine/dieFactory.js`, `src/config/dice.js`
 
 - [ ] **O2.** Common Utility: Pulse — heal player based on packet size. Bigger packet = stronger heal.
   - Ref: DESIGN §8.6 Pulse
@@ -926,6 +935,8 @@ Visual and audio juice.
 | **v1.0.8 — Frog Die + Loadout Polish** | 0 + A–G + K3 + I1–I2,I4–I5 | Frog JUMP (physics reroll, blink animation), Ability Panel, Even/Odd physics bias, mini-die visuals, drag-and-drop, loadout persistence, IMPLEMENTED filter, version tag | **DONE** (2026-04-10) |
 | **v1.0.9 — Critical Bugfix + Calibration** | — | Fix ROLL_DICE/DICE_SETTLED accumulatedScore race, remove slime/joker from IMPLEMENTED, recalibrate Even/Odd bias 0.50→0.55, default loadout updated | **DONE** (2026-04-10) |
 | **v1.0.10 — Flipper Die + Held Dice Cleanup** | I3 | Flipper FLIP (3D animation, targeting, FLIP_SETTLED), Mathematician 7-segment LED visual, skipNotchFaces/notchD support, held dice ghost fix, mini-die Flipper visual | **DONE** (2026-04-10) |
+| **v1.0.11 — Slime Die** | H4 | Slime spawn on 6 (once per turn), temp dice (dieSlotMap -1), Lv1/2/3 mechanics, `spawning` phase, 3D spawn animation, dynamic Hot Hand, colored face 6 pips, 61-assertion test suite | **DONE** (2026-04-11) |
+| **v1.0.12 — Devil + Bandie + Tuner + Scoring Fixes** | N4, O1, M1 | Devil scoring modifier (pentagram, 600/1200), Bandie heal on 1/5 (cross mark, heal fly-up), Tuner +/-1 shift (diamond pips, arrows UI, slerp animation). Rules dice preview. 56 new test assertions (total 117). **Fixes:** order-independent scoring validation (`scoreSelection` replaces `scorePlayerSelection`), single-die red highlight for non-scoring, selected dice logged in Round History | **DONE** (2026-04-11) |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |
 | **Full Dice Roster** | 0 + A–O | All dice types, full progression ladder | Pending |
 | **Feature Complete** | 0 + A–S | Tutorial, themes, polish, tests passing | Pending |

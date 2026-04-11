@@ -52,7 +52,7 @@ Game logic (IIFE, window globals)
 Visual output (BabylonJS canvas)
 ```
 
-- `diceBridge.js` subscribes to the store via `store.subscribe(fn)` and reacts to action types: `ROLL_DICE`, `SELECT_DIE`, `DESELECT_DIE`, `SCORE_SELECTION`, `START_TURN`, `USE_ABILITY` (jump/flip phases), `FLIP_TARGET`.
+- `diceBridge.js` subscribes to the store via `store.subscribe(fn)` and reacts to action types: `ROLL_DICE`, `SELECT_DIE`, `DESELECT_DIE`, `SCORE_SELECTION`, `START_TURN`, `USE_ABILITY` (jump/flip/tune phases), `FLIP_TARGET`, `TUNE_TARGET`, `SLIME_SPAWNED`.
 - **Physics determines face values** — no PRNG face correction. After dice settle, the bridge reads each die's physics face value and dispatches `DICE_SETTLED` with the actual values. The store then re-evaluates bust/selecting.
 - User interaction on 3D dice dispatches `store.dispatch('SELECT_DIE', { index })` / `DESELECT_DIE`.
 - The engine never mutates `store.state` directly — all changes go through `dispatch`.
@@ -69,6 +69,12 @@ Button/Sling → ROLL_DICE → bridge throws dice → physics settle
 **ROLL_DICE / DICE_SETTLED contract (v1.0.9):** `ROLL_DICE` generates PRNG values for 2D fallback and detects bust via `hasPlayableDice()`, setting `phase = 'bust'`. However, it does **not** reset `accumulatedScore` — that is only done by the explicit `BUST` handler (dispatched by `inputHandler` or `botSystem` after bust is confirmed). In 3D mode, `DICE_SETTLED` overrides both `rolledDice` and `phase` with physics results, so a PRNG bust may be reversed by physics. If `ROLL_DICE` cleared `accumulatedScore`, the player's turn score would be silently lost when PRNG and physics disagree.
 
 **FLIP action flow (v1.0.10):** `USE_ABILITY` (flip) → `turnSystem` sets `flipUsed = true`, phase → `flipping` (Lv1: self) or `flipTargeting` (Lv2+: player picks target). In `flipTargeting`, bridge highlights candidates with blue glow; pointer click on candidate → `FLIP_TARGET` → phase → `flipping`. Bridge's `onFlip()` launches the die upward, at apex switches to kinematic slerp toward `FACE_UP_QUATS[oppositeValue]`, on landing dispatches `FLIP_SETTLED` which updates `rolledDice[idx]` and re-evaluates bust.
+
+**TUNE action flow (v1.0.12):** `USE_ABILITY` (tune, direction: +1/-1) → `turnSystem` sets `tuneUsed = true`, phase → `tuning` (Lv1: self) or `tuneTargeting` (Lv2+). Bridge's `onTune()` computes `wrapFace(value, direction)`, launches die with hop + slerp to `FACE_UP_QUATS[targetValue]`, dispatches `TUNE_SETTLED`. `abilityUI` shows `[▲] TUNE [▼]` arrows layout (dispatches direction). Pointer intercept for `tuneTargeting` highlights candidates, click → `TUNE_TARGET`.
+
+**DEVIL scoring (v1.0.12):** Passive. `applyDevilSubstitution()` called inside `revalidateSelection()`. Scans `selectedIndices` for Devil via `dieSlotMap` → `loadout.slots`. If Devil + 2 other 6s → substitute Devil value to 6, score via `scoreSelection`. If Devil was natural 6 → bonus `+600` (`devilBonus` field on turn state).
+
+**BANDIE heal (v1.0.12):** Passive. `checkBandieHeal()` called inside `SCORE_SELECTION` after score accumulation. Scans selected Bandie dice — if value is 1 or 5, dispatches `HEAL_PLAYER` (registered in `matchSystem.js`). `lastHealAmount` field on turn state for UI bridge. `battleUI.showHeal()` renders green fly-up.
 
 **Sling SVG visualization:** `#slingVizSvg` overlay shows wedge indicator (direction + strength %) during drag, ported from `battle.html`.
 
@@ -452,17 +458,17 @@ project/
 │   │   ├── balance.js      #   window.config.balance
 │   │   └── strings.js      #   window.config.strings
 │   ├── systems/            # One file = one state slice (IIFE)
-│   │   ├── turnSystem.js   #   FSM: idle → selecting → idle/bust, DICE_SETTLED
+│   │   ├── turnSystem.js   #   FSM: idle → selecting → idle/bust, DICE_SETTLED, abilities (jump/flip/tune), slime spawn, devil scoring, bandie heal
 │   │   ├── playerSystem.js #   state.player (HP)
 │   │   ├── enemySystem.js  #   state.enemy (HP, difficulty)
-│   │   ├── matchSystem.js  #   state.match (battle lifecycle, END_TURN)
+│   │   ├── matchSystem.js  #   state.match (battle lifecycle, END_TURN, HEAL_PLAYER)
 │   │   ├── loadoutSystem.js#   state.loadout (6 slots, SET_LOADOUT)
 │   │   ├── botSystem.js    #   async bot AI: 3 difficulties, findBestBotChoice, risk threshold
 │   │   └── scoringSystem.js#   pure scoring functions (bitmask DP, bust detection)
 │   ├── engine/             # 3D rendering layer (ES modules, BabylonJS + cannon-es)
 │   │   ├── diceEngine.js   #   scene setup, physics world, render loop, throwPlayer/throwBot
-│   │   ├── dieFactory.js   #   createDiceVertexData (skipNotchFaces, notchD), createPipsVertexData, buildDie, teardownDie, PIP_SHAPES, FACE_UP_QUATS, createMarkTexture (seg7, dolphin SVG)
-│   │   └── diceBridge.js   #   store subscriber → 3D commands, pointer → dispatch, sling SVG viz, DICE_SETTLED, FLIP animation, renderSlotPreview, buildDieConfigs
+│   │   ├── dieFactory.js   #   createDiceVertexData (skipNotchFaces, notchD), createPipsVertexData, buildDie, teardownDie, PIP_SHAPES (circle/star5/heart/blob/diamond), FACE_UP_QUATS, createMarkTexture (seg7, dolphin, cross, pentagram, tunerArrows)
+│   │   └── diceBridge.js   #   store subscriber → 3D commands, pointer → dispatch, sling SVG viz, DICE_SETTLED, FLIP/TUNE/SLIME animations, renderSlotPreview, buildDieConfigs
 │   ├── vendor/             # Vendored libs inside src/ for Cloudflare Pages deploy
 │   │   ├── babylon.js
 │   │   └── cannon-es.js
@@ -656,7 +662,7 @@ const localUp = body.quaternion.conjugate().vmult(up)
 | Engine → State | `store.dispatch(type, payload)` | Click on die → `dispatch('SELECT_DIE', { dieIndex })` |
 | Config → Engine | Read `window.DICE.roster[id]` | Load die color, pip shape/size/color, bias from config |
 
-**Per-die config pipeline:** `diceBridge.buildDieConfigs(count)` reads `store.state.loadout.slots`, looks up each die in `DICE.roster`, and constructs per-die config objects with `bodyColor`, `pipColor`, `specular`, `edgeR`, `pipR`, `pipShape`, `pipColors`, `faceMarks`, `bias`, `notchD`, `skipNotchFaces`. These are passed to `engine.syncActiveDice(count, dieConfigs)` → `dieFactory.buildDie(ctx, opts)`.
+**Per-die config pipeline:** `diceBridge.buildDieConfigs(count)` reads `store.state.loadout.slots`, looks up each die in `DICE.roster`, and constructs per-die config objects with `bodyColor`, `pipColor`, `specular`, `edgeR`, `pipR`, `pipShape` (circle/star5/heart/blob/diamond or per-face map), `pipColors`, `faceMarks`, `bias`, `notchD`, `skipNotchFaces`. These are passed to `engine.syncActiveDice(count, dieConfigs)` → `dieFactory.buildDie(ctx, opts)`. Dice with marks (Bandie cross, Devil pentagram, Tuner arrows) use `createMarkTexture()` which draws via Canvas2D `DynamicTexture`.
 
 **Physics bias:** center-of-mass offset implemented by shifting the collision shape relative to body origin: `body.addShape(boxShape, new CANNON.Vec3(fl.x * mag, fl.y * mag, fl.z * mag))` where `fl` is the `FACE_LOCALS` direction for the bias face and `mag` is the bias magnitude.
 

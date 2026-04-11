@@ -1,0 +1,10 @@
+v1.0.10 -- Flipper Die (FLIP ability, dolphin SVG, 3D flip animation), Mathematician 7-segment LED visual, held dice ghost cleanup fix
+
+- Flipper FLIP: opposite face mapping 1<->6/2<->5/3<->4, Lv1 self / Lv2+ targeting, 3D launch+slerp animation, FLIP_TARGET/FLIP_SETTLED actions
+- Mathematician: reworked to 7-segment display (dark body, green LED digits, notchD: 0 flat faces), removed from IMPLEMENTED
+- skipNotchFaces + notchD geometry overrides in dieFactory (Flipper face 1, Mathematician all faces)
+- FIX: held dice ghost accumulation after Hot Hand -- disposeHeldDice uses teardownDie for complete cleanup, clearSettleTimer in Hot Hand path
+- Mini-die Flipper visual (dolphin SVG mark), comrade star scaled 160%
+- Cache busting (?v=8) on ES module imports
+- Dolphin SVG tooling: trace-dolphin.mjs, dolphin-bounds.mjs, dolphin.svg source
+- Docs synced: TODO.md, README.md, ARCHITECTURE.md, DESIGN.md

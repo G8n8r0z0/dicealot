@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Blob Pip Shape Preview</title>
+<style>
+  body { background: #1a1a2e; display: flex; flex-direction: column; align-items: center; padding: 2rem; font-family: sans-serif; color: #ccc; }
+  h2 { margin-bottom: 0.5rem; }
+  .row { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  canvas { border: 1px solid #333; border-radius: 8px; }
+  .label { text-align: center; font-size: 14px; margin-top: 6px; color: #999; }
+</style>
+</head>
+<body>
+<h2>Blob pip shape — preview</h2>
+<p style="color:#777; margin-bottom:1.5rem;">Superellipse n=4 (squircle) + organic wobble</p>
+<div class="row">
+  <div>
+    <canvas id="c1" width="200" height="200"></canvas>
+    <div class="label">Single blob pip</div>
+  </div>
+  <div>
+    <canvas id="c2" width="200" height="200"></canvas>
+    <div class="label">Circle pip (reference)</div>
+  </div>
+  <div>
+    <canvas id="c3" width="300" height="300"></canvas>
+    <div class="label">Face 6 layout — blob pips</div>
+  </div>
+  <div>
+    <canvas id="c4" width="300" height="300"></canvas>
+    <div class="label">Face 6 layout — circle pips</div>
+  </div>
+</div>
+
+<script>
+function blobR(a, r) {
+  const ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
+  const base = r / Math.pow(Math.pow(ca, 4) + Math.pow(sa, 4), 0.25);
+  return base * (1 + 0.04 * Math.sin(5 * a) + 0.02 * Math.sin(7 * a));
+}
+
+function circleR(_a, r) { return r; }
+
+function drawShape(ctx, cx, cy, r, shapeFn, fill, stroke) {
+  const SEG = 60;
+  ctx.beginPath();
+  for (let i = 0; i <= SEG; i++) {
+    const a = 2 * Math.PI * i / SEG;
+    const rad = shapeFn(a, r);
+    const x = cx + Math.cos(a) * rad;
+    const y = cy + Math.sin(a) * rad;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); }
+}
+
+// Single blob
+const c1 = document.getElementById('c1').getContext('2d');
+c1.fillStyle = '#5fb51e'; c1.fillRect(0, 0, 200, 200);
+drawShape(c1, 100, 100, 60, blobR, '#f9f6ee', null);
+
+// Single circle
+const c2 = document.getElementById('c2').getContext('2d');
+c2.fillStyle = '#5fb51e'; c2.fillRect(0, 0, 200, 200);
+drawShape(c2, 100, 100, 60, circleR, '#f9f6ee', null);
+
+// Face 6 layout — blob
+const c3 = document.getElementById('c3').getContext('2d');
+c3.fillStyle = '#5fb51e'; c3.fillRect(0, 0, 300, 300);
+const pipR6 = 28;
+const positions6 = [
+  [-1, -1], [-1, 0], [-1, 1],
+  [1, -1],  [1, 0],  [1, 1]
+];
+const spacing = 60;
+for (const [px, py] of positions6) {
+  drawShape(c3, 150 + px * spacing, 150 + py * spacing, pipR6, blobR, '#f9f6ee', null);
+}
+
+// Face 6 layout — circle
+const c4 = document.getElementById('c4').getContext('2d');
+c4.fillStyle = '#5fb51e'; c4.fillRect(0, 0, 300, 300);
+for (const [px, py] of positions6) {
+  drawShape(c4, 150 + px * spacing, 150 + py * spacing, pipR6, circleR, '#f9f6ee', null);
+}
+</script>
+</body>
+</html>

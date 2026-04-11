@@ -14,8 +14,8 @@
  * ES module. Depends on: window.BABYLON, ./diceEngine.js, ./dieFactory.js
  */
 import * as CANNON from 'cannon-es';
-import * as engine from './diceEngine.js?v=8';
-import { createDiceVertexData, createPipsVertexData, createMarkTexture, readFaceValue, readFaceValueForced, teardownDie, FACE_UP_QUATS } from './dieFactory.js?v=8';
+import * as engine from './diceEngine.js?v=11';
+import { createDiceVertexData, createPipsVertexData, createMarkTexture, readFaceValue, readFaceValueForced, teardownDie, FACE_UP_QUATS } from './dieFactory.js?v=11';
 
 const BABYLON = window.BABYLON;
 
@@ -71,12 +71,40 @@ export function init(canvas, store, opts) {
                 if (state.turn.phase === 'flipTargeting') {
                     onFlipTargeting();
                 }
+                if (state.turn.phase === 'tuning') {
+                    onTune(state.turn.tuningDie, state.turn.tuneDirection);
+                }
+                if (state.turn.phase === 'tuneTargeting') {
+                    onTuneTargeting();
+                }
                 break;
             case 'FLIP_TARGET':
                 if (state.turn.phase === 'flipping') {
                     onFlip(state.turn.flippingDie);
                 }
                 break;
+            case 'TUNE_TARGET':
+                if (state.turn.phase === 'tuning') {
+                    onTune(state.turn.tuningDie, state.turn.tuneDirection);
+                }
+                break;
+        }
+
+        if (type === 'DICE_SETTLED' && state.turn.phase === 'spawning') {
+            onSlimeSpawn();
+        }
+        if (type === 'SLIME_SPAWNED') {
+            var isBot = state.match.activePlayer === 'enemy';
+            if (state.turn.phase === 'selecting') {
+                _settled = true;
+                if (isBot) {
+                    if (window.botSystem) window.botSystem.onSettled();
+                } else {
+                    if (window.inputHandler) window.inputHandler.unlock();
+                }
+            } else if (state.turn.phase === 'bust') {
+                if (window.inputHandler) window.inputHandler.handleBust();
+            }
         }
     });
 }
@@ -176,6 +204,9 @@ function handleAllSettled(dice) {
     if (window.battleUI) {
         window.battleUI.logHistory(who + ' rolled: [' + values.join(', ') + ']');
     }
+
+    // Slime spawn intercepts — don't unlock/bot yet, bridge subscribe handles it
+    if (_store.state.turn.phase === 'spawning') return;
 
     var isBot = _store.state.match.activePlayer === 'enemy';
     if (isBot) {
@@ -479,6 +510,317 @@ function handleFlipSettled(dieIndex, targetValue) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  TUNER — shift die value by +1 / -1 (wrapping)
+// ═══════════════════════════════════════════════════════════════════════════
+
+var TUNE = {
+    upSpeed:    45,
+    upRandom:   8,
+    hSpeed:     3,
+    spinSlow:   5,
+    slerpDur:   350,
+};
+
+var _tuneCandidates = [];
+
+function wrapFace(value, direction) {
+    var v = value + direction;
+    if (v > 6) return 1;
+    if (v < 1) return 6;
+    return v;
+}
+
+function onTune(dieIndex, direction) {
+    var dice = engine.getDice(_ctx);
+    if (dieIndex < 0 || dieIndex >= dice.length) return;
+    var d = dice[dieIndex];
+
+    var currentValue = readFaceValue(d.body);
+    if (currentValue === null) currentValue = readFaceValueForced(d.body);
+    var targetValue = wrapFace(currentValue, direction);
+
+    stopBlinkLoops();
+    clearHighlights();
+    _tuneCandidates = [];
+
+    startTuneAnimation(d, dieIndex, targetValue);
+}
+
+function startTuneAnimation(d, dieIndex, targetValue) {
+    d.settled = false;
+    d.value = null;
+
+    d.body.type = CANNON.Body.DYNAMIC;
+    d.body.sleepState = 0;
+    d.body.allowSleep = false;
+    d.body.wakeUp();
+
+    _ctx._allSettledFired = true;
+    _ctx._settleFrames = 0;
+
+    d.body.velocity.set(
+        (Math.random() - 0.5) * TUNE.hSpeed,
+        TUNE.upSpeed + Math.random() * TUNE.upRandom,
+        (Math.random() - 0.5) * TUNE.hSpeed
+    );
+    d.body.angularVelocity.set(
+        (Math.random() - 0.5) * TUNE.spinSlow,
+        (Math.random() - 0.5) * TUNE.spinSlow,
+        (Math.random() - 0.5) * TUNE.spinSlow
+    );
+
+    var targetQuat = FACE_UP_QUATS[targetValue] || BABYLON.Quaternion.Identity();
+    var tableY = _ctx.td.floorY + engine.getDieEdge(_ctx) * 0.5;
+
+    function monitorApex() {
+        if (d.body.velocity.y > 0) {
+            requestAnimationFrame(monitorApex);
+            return;
+        }
+
+        var posX = d.body.position.x;
+        var posZ = d.body.position.z;
+        var posY = d.body.position.y;
+
+        d.body.type = CANNON.Body.STATIC;
+        d.body.velocity.set(0, 0, 0);
+        d.body.angularVelocity.set(0, 0, 0);
+
+        var startQuat = d.root.rotationQuaternion.clone();
+        var startY = posY;
+        var startTime = performance.now();
+
+        function animateSlerp() {
+            var elapsed = performance.now() - startTime;
+            var progress = Math.min(1, elapsed / TUNE.slerpDur);
+            var ease = 1 - (1 - progress) * (1 - progress);
+
+            BABYLON.Quaternion.SlerpToRef(startQuat, targetQuat, ease, d.root.rotationQuaternion);
+            d.root.position.y = startY + (tableY - startY) * ease;
+
+            d.body.quaternion.set(
+                d.root.rotationQuaternion.x,
+                d.root.rotationQuaternion.y,
+                d.root.rotationQuaternion.z,
+                d.root.rotationQuaternion.w
+            );
+            d.body.position.set(posX, d.root.position.y, posZ);
+
+            if (progress < 1) {
+                requestAnimationFrame(animateSlerp);
+                return;
+            }
+
+            d.body.position.set(posX, tableY, posZ);
+            d.root.position.y = tableY;
+            d.body.type = CANNON.Body.DYNAMIC;
+            d.body.velocity.set(0, 0, 0);
+            d.body.angularVelocity.set(0, 0, 0);
+            d.body.allowSleep = false;
+
+            d.value = targetValue;
+            d.settled = true;
+
+            handleTuneSettled(dieIndex, targetValue);
+        }
+
+        requestAnimationFrame(animateSlerp);
+    }
+
+    requestAnimationFrame(monitorApex);
+}
+
+function handleTuneSettled(dieIndex, targetValue) {
+    var dice = engine.getDice(_ctx);
+    startBlinkLoops(dice);
+
+    _store.dispatch('TUNE_SETTLED', { dieIndex: dieIndex, value: targetValue });
+
+    if (_store.state.turn.phase === 'bust') {
+        if (window.inputHandler) window.inputHandler.handleBust();
+    } else {
+        if (window.inputHandler) window.inputHandler.unlock();
+    }
+}
+
+function onTuneTargeting() {
+    var t = _store.state.turn;
+    var tunerIdx = t.tunerIndex;
+    var dice = engine.getDice(_ctx);
+
+    _tuneCandidates = [];
+    var level = 1;
+
+    if (level >= 3) {
+        for (var i = 0; i < dice.length; i++) {
+            if (dice[i].settled) _tuneCandidates.push(i);
+        }
+    } else {
+        _tuneCandidates.push(tunerIdx);
+    }
+
+    for (var j = 0; j < _tuneCandidates.length; j++) {
+        var d = dice[_tuneCandidates[j]];
+        if (d && d.outer) {
+            engine.highlightDie(_ctx, d, { r: 0.3, g: 0.9, b: 0.3, a: 1 });
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SLIME SPAWN — passive spawn of temp die when Slime rolls 6
+// ═══════════════════════════════════════════════════════════════════════════
+
+var SLIME_SPAWN = {
+    upSpeed:    70,
+    upRandom:   15,
+    hSpeed:     18,
+    spin:       25,
+    sleepDelay: 400
+};
+
+function onSlimeSpawn() {
+    var t = _store.state.turn;
+    var spawns = t.slimeSpawns;
+    if (!spawns || spawns.length === 0) return;
+
+    stopBlinkLoops();
+    clearHighlights();
+
+    var dice = engine.getDice(_ctx);
+    var pendingSpawns = [];
+    var frozenParents = [];
+    var parentLevel = 1;
+    var parentIndex = null;
+
+    // Freeze ALL settled dice so spawn collision doesn't move them
+    for (var k = 0; k < dice.length; k++) {
+        if (dice[k].settled && dice[k].body) {
+            dice[k].body.type = CANNON.Body.STATIC;
+            dice[k].body.velocity.setZero();
+            dice[k].body.angularVelocity.setZero();
+            frozenParents.push(dice[k]);
+        }
+    }
+
+    for (var i = 0; i < spawns.length; i++) {
+        var sp = spawns[i];
+        var parentDie = dice[sp.parentIndex];
+        if (!parentDie) continue;
+
+        parentLevel = sp.level;
+        parentIndex = sp.parentIndex;
+
+        var parentPos = parentDie.body.position;
+        var de = engine.getDieEdge(_ctx);
+        var count = sp.spawnCount || 1;
+        var spawnScale = sp.level >= 3
+            ? _ctx.tune.mesh.dieScale
+            : _ctx.tune.mesh.dieScale * 0.6;
+
+        var slimeDef = window.DICE && window.DICE.roster['slime'];
+        var cfg = slimeDef ? buildSlimeTempConfig(slimeDef) : {};
+
+        for (var j = 0; j < count; j++) {
+            var xOff = count > 1 ? (j - 0.5) * de * 0.5 : 0;
+            var tempDie = engine.spawnTempDie(_ctx, cfg, {
+                x: parentPos.x + xOff,
+                y: parentPos.y + de * 0.6,
+                z: parentPos.z
+            }, spawnScale);
+
+            tempDie.body.velocity.set(
+                (Math.random() - 0.5) * SLIME_SPAWN.hSpeed,
+                SLIME_SPAWN.upSpeed + Math.random() * SLIME_SPAWN.upRandom,
+                (Math.random() - 0.5) * SLIME_SPAWN.hSpeed
+            );
+            tempDie.body.angularVelocity.set(
+                (Math.random() - 0.5) * SLIME_SPAWN.spin,
+                (Math.random() - 0.5) * SLIME_SPAWN.spin,
+                (Math.random() - 0.5) * SLIME_SPAWN.spin
+            );
+
+            tempDie.body.allowSleep = false;
+            (function(d) {
+                setTimeout(function() { d.body.allowSleep = true; }, SLIME_SPAWN.sleepDelay);
+            })(tempDie);
+
+            // Lv3: guaranteed value 1 — override after settle
+            var forceValue = sp.level >= 3 ? 1 : null;
+            pendingSpawns.push({ die: tempDie, forceValue: forceValue });
+        }
+    }
+
+    if (pendingSpawns.length === 0) return;
+
+    _ctx._allSettledFired = false;
+    _ctx._settleFrames = 0;
+    _ctx.onAllSettled = function(allDice) { handleSlimeSpawnSettled(allDice, pendingSpawns, frozenParents, parentLevel, parentIndex); };
+    _ctx.onEdgeReroll = function(allDice) { handleSlimeSpawnSettled(allDice, pendingSpawns, frozenParents, parentLevel, parentIndex); };
+    engine.startSettleTimer(_ctx);
+}
+
+function buildSlimeTempConfig(def) {
+    var v = def.visual || {};
+    var cfg = {};
+    if (v.body && v.body !== 'white') cfg.bodyColor = v.body;
+    if (v.pips && v.pips !== 'black') cfg.pipColor = v.pips;
+    if (v.specular != null)     cfg.specular = v.specular;
+    if (v.edgeR != null)        cfg.edgeR = v.edgeR;
+    if (v.pipR != null)         cfg.pipR = v.pipR;
+    if (v.pipShape)             cfg.pipShape = v.pipShape;
+    if (v.pipColors)            cfg.pipColors = v.pipColors;
+    if (v.skipNotchFaces)       cfg.skipNotchFaces = v.skipNotchFaces;
+    return cfg;
+}
+
+function handleSlimeSpawnSettled(allDice, pendingSpawns, frozenParents, parentLevel, parentIndex) {
+    _ctx.onAllSettled = handleAllSettled;
+    _ctx.onEdgeReroll = handleEdgeReroll;
+
+    // Unfreeze parent dice
+    for (var f = 0; f < frozenParents.length; f++) {
+        if (frozenParents[f].body) {
+            frozenParents[f].body.type = CANNON.Body.DYNAMIC;
+            frozenParents[f].body.velocity.setZero();
+            frozenParents[f].body.angularVelocity.setZero();
+            frozenParents[f].body.allowSleep = false;
+        }
+    }
+
+    var results = [];
+    for (var i = 0; i < pendingSpawns.length; i++) {
+        var ps = pendingSpawns[i];
+        var d = ps.die;
+        var val;
+        if (ps.forceValue != null) {
+            val = ps.forceValue;
+        } else {
+            val = d.value;
+            if (val === null) val = readFaceValue(d.body);
+            if (val === null) val = readFaceValueForced(d.body);
+        }
+        d.value = val;
+        d.settled = true;
+        results.push({ value: val });
+    }
+
+    startBlinkLoops(allDice);
+
+    var valStr = results.map(function(r) { return r.value; }).join(', ');
+    console.log('[SLIME_SPAWNED] temp dice values:', valStr);
+    if (window.battleUI) {
+        window.battleUI.logHistory('Slime spawned: [' + valStr + ']', '#5fb51e');
+    }
+
+    _store.dispatch('SLIME_SPAWNED', {
+        spawns: results,
+        parentLevel: parentLevel,
+        parentIndex: parentIndex
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  SELECTION highlights
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -486,7 +828,7 @@ function syncHighlights() {
     var dice = engine.getDice(_ctx);
     var t    = _store.state.turn;
     var sel  = t.selectedIndices;
-    var invalid = sel.length >= 2 && !t.selectionValid;
+    var invalid = sel.length >= 1 && !t.selectionValid;
     var color = invalid
         ? new BABYLON.Color3(0.9, 0.1, 0.1)
         : new BABYLON.Color3(0.1, 0.9, 0.15);
@@ -746,6 +1088,23 @@ function handlePointer(info) {
             engine.slingRelease(_ctx, aimX, aimZ, strength);
             return;
         }
+    }
+
+    // ── Block input during spawning/tuning phases ─────────────────────────
+    if (phase === 'spawning' || phase === 'tuning') return;
+
+    // ── Tune targeting click (tuneTargeting phase) ───────────────────────
+    if (phase === 'tuneTargeting' && isPlayerTurn) {
+        if (info.type === BABYLON.PointerEventTypes.POINTERUP && ev.button === 0) {
+            var tuneDie = engine.findDieAtPick(_ctx, info.pickInfo);
+            if (!tuneDie) return;
+            var tuneDiceArr = engine.getDice(_ctx);
+            var tuneIdx = tuneDiceArr.indexOf(tuneDie);
+            if (tuneIdx === -1) return;
+            if (_tuneCandidates.indexOf(tuneIdx) === -1) return;
+            _store.dispatch('TUNE_TARGET', { targetIndex: tuneIdx });
+        }
+        return;
     }
 
     // ── Flip targeting click (flipTargeting phase) ────────────────────────

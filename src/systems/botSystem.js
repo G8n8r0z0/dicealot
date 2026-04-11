@@ -150,7 +150,9 @@
                 return
             }
 
+            var selectedValues = []
             for (var i = 0; i < choice.indices.length; i++) {
+                selectedValues.push(t.rolledDice[choice.indices[i]])
                 await delay(500)
                 if (_aborted || gameOver()) return
                 _store.dispatch('SELECT_DIE', { index: choice.indices[i] })
@@ -159,6 +161,7 @@
             await delay(900)
             if (_aborted || gameOver()) return
 
+            log('Bot selected: [' + selectedValues.join(', ') + ']', '#8eaadb')
             _store.dispatch('SCORE_SELECTION')
             t = _store.state.turn
             log('Bot scored +' + choice.score, '#2ecc71')

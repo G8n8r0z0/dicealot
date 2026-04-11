@@ -133,6 +133,7 @@ Read documents in this order:
 3. `DESIGN_RULES.md`
 4. `DESIGN.md` (especially §14 for 3D / `battle.html` behavior)
 5. `TODO.md`
+6. `README.md`
 
 
 Do not reload the whole project if the brief and the task only require a narrow slice.

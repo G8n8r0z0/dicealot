@@ -48,12 +48,14 @@
         var t = _store.state.turn
         if (abilityType === 'reroll') return !!t.jumpUsed
         if (abilityType === 'flip')   return !!t.flipUsed
+        if (abilityType === 'tune')   return !!t.tuneUsed
         return false
     }
 
     function refresh() {
         var t = _store.state.turn
-        if (t.phase === 'flipTargeting' || t.phase === 'flipping') {
+        var hiddenPhases = ['flipTargeting', 'flipping', 'tuning', 'tuneTargeting']
+        if (hiddenPhases.indexOf(t.phase) !== -1) {
             hide()
             return
         }
@@ -67,14 +69,44 @@
         var style = ABILITY_STYLE[info.ability.type] || { cls: 'generic', label: info.ability.button }
         var used = isAbilityUsed(info.ability.type)
 
-        _el.mainBtn.className = 'ability-main-btn ' + style.cls
-        _el.mainBtn.textContent = used ? 'USED' : style.label
-        _el.mainBtn.disabled = used
-
         _el.subRow.innerHTML = ''
+
+        if (info.ability.type === 'tune') {
+            _el.mainBtn.className = 'ability-main-btn ' + style.cls
+            _el.mainBtn.textContent = used ? 'USED' : style.label
+            _el.mainBtn.disabled = true
+
+            if (!used) {
+                var btnUp = document.createElement('button')
+                btnUp.className = 'tune-arrow tune-up'
+                btnUp.textContent = '\u25B2'
+                btnUp.addEventListener('click', function() { dispatchTune(info, 1) })
+
+                var btnDown = document.createElement('button')
+                btnDown.className = 'tune-arrow tune-down'
+                btnDown.textContent = '\u25BC'
+                btnDown.addEventListener('click', function() { dispatchTune(info, -1) })
+
+                _el.subRow.appendChild(btnUp)
+                _el.subRow.appendChild(btnDown)
+            }
+        } else {
+            _el.mainBtn.className = 'ability-main-btn ' + style.cls
+            _el.mainBtn.textContent = used ? 'USED' : style.label
+            _el.mainBtn.disabled = used
+        }
 
         _currentAbility = info
         show()
+    }
+
+    function dispatchTune(info, direction) {
+        _store.dispatch('USE_ABILITY', {
+            dieIndex: info.index,
+            ability: 'tune',
+            dieId: info.dieId,
+            direction: direction
+        })
     }
 
     function show() {

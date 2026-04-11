@@ -291,12 +291,17 @@ Dice names should be playful, weird, memorable, or slightly absurd. The requirem
 #### Slime Die
 
 - **Role:** spawn / split die
-- **Trigger:** rolls `6`
+- **Trigger:** rolls `6` (automatic — no button press). **Once per turn** — after triggering, subsequent 6s on Slime are normal sixes until next turn.
 - **Level line:**
-  - Lv1: on `6`, spawn 1 temporary extra die (visually smaller) with a random value.
-  - Lv2: on `6`, spawn 1 temporary normal-sized die with random value. Slime Die itself becomes `5`.
-  - Lv3: on `6`, spawn 1 temporary normal-sized die with `1/5 = 50%/50%`. Slime Die itself becomes `5`.
-- **Spawned die:** temporary for the current turn only. Can be used like other dice.
+  - Lv1: on `6`, spawn 1 small temp die (`dieScale × 0.6`) with random value. Slime stays `6`. EV ≈ 33.
+  - Lv2: on `6`, spawn 2 small temp dice (`dieScale × 0.6`) with random values. Slime becomes `5`. EV ≈ 116.
+  - Lv3: on `6`, spawn 1 normal temp die (`dieScale × 1.0`) with guaranteed value `1`. Slime becomes `5`. EV ≈ 150.
+- **Spawned die:** temporary, lives until turn end (BANK / BUST / Hot Hand). Can be selected, scored, and held like any other die. Hot Hand condition: all dice currently on the table must be scored (not fixed 6), so temp dice extend the Hot Hand threshold.
+- **Spawn flow:** after DICE_SETTLED, turnSystem detects Slime rolled 6 (and `slimeTriggered === false`) → phase `spawning` → bridge creates temp 3D die(s) → temp dice settle → `SLIME_SPAWNED` → phase `selecting`. Spawn is automatic (passive ability, no player activation).
+- **Spawn animation:** temp die(s) physically jump out of the Slime parent die, settle on the table with physics-determined faces (or guaranteed value for Lv3).
+- **Visual:** bright green body (`#5fb51e`), ivory pips (`#f9f6ee`), specular `0.35` (glossy slime sheen), `edgeR: 0.22` (very rounded — gelatinous feel), `pipR: 0.10`. Face 6 pips colored bright green (`#38ff4f`) to distinguish the trigger face. Per-face config: `pipColors: { default: '#f9f6ee', 6: '#38ff4f' }`. Spawned die inherits parent visual with adjusted scale.
+- **Constraint:** all 3 levels implemented mechanically; Lv2/Lv3 locked for the player until Progression module is built.
+- **Implementation status:** Done (v1.0.11).
 
 #### Bridge Die
 
@@ -348,13 +353,17 @@ Dice names should be playful, weird, memorable, or slightly absurd. The requirem
 #### Bandie
 
 - **Category:** Common Utility — Sustain / Recovery
-- **Status:** Locked Baseline
-- **Mechanic:** if Bandie scores by itself, it heals the player. Healing triggers only when Bandie itself is the scored packet.
+- **Mechanic:** when Bandie is scored and its value is `1` or `5`, player heals HP. Works in any combo (single, triple, straight, etc.). Values `2/3/4/6` do not trigger heal even in combos.
 - **Level line:**
-  - Lv1: heal `100 HP`
-  - Lv2: heal `200 HP`
-  - Lv3: heal `300 HP`
-- **Visual:** white die body, red `✚` marks.
+  - Lv1: heal `100 HP` per qualifying Bandie
+  - Lv2: heal `200 HP` (locked until Progression)
+  - Lv3: heal `300 HP` (locked until Progression)
+- **Visual:** white body (`#ffffff`), red pips (`#cc2222`), specular `0.08`, `edgeR: 0.14`, `pipR: 0.10`. Face 1 uses a **red medical cross** (DynamicTexture `drawCross`) replacing the single pip. Other faces use standard circle pips.
+- **Loadout mini-die:** white with red pips, SVG cross on face 1.
+- **UI:** heal fly-up `+100 HP` (green `#4ade80`) on player HP widget after SCORE_SELECTION. History log entry in green.
+- **Implementation:** `HEAL_PLAYER` action in `matchSystem.js`. `checkBandieHeal()` in `turnSystem.js` inside `SCORE_SELECTION`. `lastHealAmount` field on turn state for UI bridge.
+- **Constraint:** all 3 levels implemented mechanically; Lv2/Lv3 locked until Progression module.
+- **Implementation status:** Done (v1.0.12).
 
 #### Pulse Die
 
@@ -374,12 +383,18 @@ Dice names should be playful, weird, memorable, or slightly absurd. The requirem
 #### Tuner
 
 - **Role:** precision support / control die
-- **Mechanic:** once per turn, shift a die by `+1` or `-1`.
+- **Mechanic:** once per turn, shift a die by `+1` or `-1`. Values wrap: `6+1=1`, `1-1=6`. Active ability with `[▲] TUNE [▼]` UI.
 - **Level line:**
   - Lv1: shift self by `+1/-1`
-  - Lv2: shift self or one adjacent die by `+1/-1`
-  - Lv3: shift any one die by `+1/-1`
+  - Lv2: shift self or one adjacent die by `+1/-1` (locked until Progression)
+  - Lv3: shift any one die by `+1/-1` (locked until Progression)
+- **UI flow:** select Tuner → ability panel shows `[▲] TUNE [▼]` → click arrow → Lv1: phase `tuning` (self, immediate); Lv2+: phase `tuneTargeting` → click target → `tuning` → slerp animation → `TUNE_SETTLED`.
+- **Visual:** dark blue-grey body (`#2c3e50`), teal pips (`#1abc9c`), specular `0.25`, `edgeR: 0.14`, `pipR: 0.10`. All pips use **diamond shape** (`PIP_SHAPES.diamond`) instead of circles — evokes directional control.
+- **Loadout mini-die:** dark teal, diamond-rotated pips via CSS `transform:rotate(45deg)`.
 - **Relationship to Flipper:** Tuner is the precise counterpart to the broader Flipper.
+- **Implementation:** `USE_ABILITY` branch `'tune'` + `TUNE_TARGET` + `TUNE_SETTLED` actions in `turnSystem.js`. State fields: `tuneUsed`, `tuningDie`, `tunerIndex`, `tuneDirection`. `onTune()` slerp animation in `diceBridge.js`. `isAbilityUsed('tune')` + arrows UI in `abilityUI.js`.
+- **Constraint:** all 3 levels implemented mechanically; Lv2/Lv3 locked until Progression module.
+- **Implementation status:** Done (v1.0.12).
 
 #### Royal I
 
@@ -400,10 +415,11 @@ Dice names should be playful, weird, memorable, or slightly absurd. The requirem
 #### Devil Die
 
 - **Role:** six-route payoff die
-- **Mechanic:** if there are two other visible `6` values on the table, Devil Die may count as the third `6`.
-  - If Devil Die is not naturally `6`: result is a normal `3×6 = 600`.
-  - If Devil Die is naturally `6`: that `3×6` result is scored twice = `1200`.
-- **Visual:** bright devil-red body, white pips.
+- **Mechanic:** passive scoring modifier. If Devil is in the selected scoring group along with 2 other dice showing `6`, Devil counts as a `6` (forming `3×6 = 600`). If Devil itself naturally rolled `6`, the triple is doubled (`1200`). Without two other `6`s in the selection, Devil scores normally.
+- **Visual:** dark crimson body (`#860111`), white pips (`#ffffff`), specular `0.2`, `edgeR: 0.14`, `pipR: 0.10`. Face 6 uses a **pentagram** (DynamicTexture `drawPentagram` — circle + inscribed five-pointed star, black `#000000`) replacing pips. Notches removed on face 6 (`skipNotchFaces: [6]`).
+- **Loadout mini-die:** dark crimson gradient, SVG pentagram on face 6.
+- **Implementation:** `applyDevilSubstitution()` inside `revalidateSelection()` in `turnSystem.js`. Scans selected indices for Devil via `dieSlotMap` → `loadout.slots`. `devilBonus` field on turn state for UI.
+- **Implementation status:** Done (v1.0.12).
 
 #### Mimic Die
 

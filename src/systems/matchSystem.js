@@ -60,6 +60,14 @@
                 }
             }, 'match')
 
+            // ── HEAL_PLAYER ──────────────────────────────────────────
+            store.register('HEAL_PLAYER', function(state, payload) {
+                if (state.match.phase !== 'battle') return
+                var amount = payload.amount || 0
+                if (amount <= 0) return
+                state.player.hp = Math.min(state.player.maxHp, state.player.hp + amount)
+            }, 'match')
+
             // ── END_TURN ───────────────────────────────────────────
             store.register('END_TURN', function(state) {
                 if (state.match.phase !== 'battle') return

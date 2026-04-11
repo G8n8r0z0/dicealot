@@ -84,6 +84,7 @@
       text-shadow:0 1px 6px rgba(0,0,0,.7),0 0 12px rgba(255,0,0,.35);
       animation:dmgFly 1.5s ease-out forwards;z-index:10;
     }
+    .heal-fly{color:#4ade80;text-shadow:0 1px 6px rgba(0,0,0,.7),0 0 12px rgba(74,222,128,.35)}
     .hp-flash .hp-fill{animation:hpFlash .35s ease}
     .hp-shake{animation:hpShake .25s ease}
 
@@ -210,6 +211,15 @@
       cursor:pointer;transition:background .12s;
     }
     .ability-sub-btn:hover{background:rgba(255,255,255,.2)}
+
+    .tune-arrow{
+      width:40px;height:40px;border-radius:10px;border:2px solid rgba(26,188,156,.4);
+      background:rgba(26,188,156,.15);color:#1abc9c;font-size:1.1rem;font-weight:900;
+      cursor:pointer;transition:background .12s,transform .1s;
+    }
+    .tune-arrow:hover{background:rgba(26,188,156,.35)}
+    .tune-arrow:active{transform:scale(.9)}
+
     .ability-used-label{
       font-size:.65rem;color:rgba(255,255,255,.45);font-weight:600;
       text-transform:uppercase;letter-spacing:.06em;
@@ -366,11 +376,30 @@
     .mini-die.evenDie .pip,.mini-die.oddDie .pip{background:#1d2431}
 
     .mini-die.slime{
-      border-color:rgba(100,200,100,.18);
-      background:radial-gradient(circle at 28% 18%,rgba(255,255,255,.20),transparent 34%),
-                  linear-gradient(145deg,#6bc96f 0%,#4caf50 58%,#357a38 100%);
+      border-color:rgba(95,181,30,.22);
+      background:radial-gradient(circle at 28% 18%,rgba(255,255,255,.22),transparent 34%),
+                  radial-gradient(circle at 72% 78%,rgba(20,60,10,.18),transparent 48%),
+                  linear-gradient(145deg,#6dca22 0%,#5fb51e 58%,#3d8a12 100%);
     }
-    .mini-die.slime .pip{background:linear-gradient(180deg,#fff 0%,#e8f5e9 100%)}
+    .mini-die.slime .pip{background:linear-gradient(180deg,#38ff4f 0%,#2edb42 100%)}
+
+    .mini-die.devil{
+      background:linear-gradient(145deg,#a01528 0%,#860111 58%,#5a010c 100%);
+      border-color:rgba(134,1,17,.22);
+    }
+    .mini-die.devil .pip{background:#fff}
+
+    .mini-die.bandie{
+      background:linear-gradient(145deg,#fff 0%,#f5f5f5 58%,#e8e8e8 100%);
+      border-color:rgba(204,34,34,.18);
+    }
+    .mini-die.bandie .pip{background:#cc2222}
+
+    .mini-die.tuner{
+      background:linear-gradient(145deg,#34495e 0%,#2c3e50 58%,#1a252f 100%);
+      border-color:rgba(26,188,156,.22);
+    }
+    .mini-die.tuner .pip{background:#1abc9c;transform:rotate(45deg);border-radius:1px}
 
     .mini-die.joker{
       background:linear-gradient(180deg,#ff5f5f,#d54141);
@@ -395,6 +424,30 @@
       filter:drop-shadow(0 1px 2px rgba(72,18,9,.18));
     }
     .mini-pip-comrade-star svg{display:block;width:100%;height:100%}
+
+    .mini-bandie-cross{
+      position:absolute;left:50%;top:50%;
+      width:64%;height:64%;
+      transform:translate(-50%,-50%);z-index:1;
+      filter:drop-shadow(0 1px 2px rgba(100,0,0,.2));
+    }
+    .mini-bandie-cross svg{display:block;width:100%;height:100%}
+
+    .mini-devil-penta{
+      position:absolute;left:50%;top:50%;
+      width:80%;height:80%;
+      transform:translate(-50%,-50%);z-index:1;
+      filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));
+    }
+    .mini-devil-penta svg{display:block;width:100%;height:100%}
+
+    .mini-tuner-arrows{
+      position:absolute;left:50%;top:50%;
+      width:64%;height:64%;
+      transform:translate(-50%,-50%);z-index:1;
+      filter:drop-shadow(0 1px 2px rgba(0,60,50,.2));
+    }
+    .mini-tuner-arrows svg{display:block;width:100%;height:100%}
 
     .mini-frogmark{
       position:absolute;left:50%;top:50%;width:32%;aspect-ratio:1;
@@ -655,11 +708,11 @@
   { "imports": { "cannon-es": "./vendor/cannon-es.js" } }
   </script>
   <script type="module">
-    import * as bridge from './engine/diceBridge.js?v=8';
+    import * as bridge from './engine/diceBridge.js?v=11';
     const canvas = document.getElementById('renderCanvas');
     bridge.init(canvas, window.store);
     window.bridge3D = bridge;
   </script>
-  <div class="version-tag" id="versionTag">v1.0.10</div>
+  <div class="version-tag" id="versionTag">v1.0.12</div>
 </body>
 </html>

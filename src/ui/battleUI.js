@@ -202,6 +202,18 @@
         })
     }
 
+    function showHeal(amount) {
+        if (!amount || amount <= 0) return
+        var widget = document.querySelector('.hp-widget-player')
+        if (!widget) return
+
+        var fly = document.createElement('div')
+        fly.className = 'damage-fly heal-fly'
+        fly.textContent = '+' + amount + ' HP'
+        widget.appendChild(fly)
+        fly.addEventListener('animationend', function() { fly.remove() })
+    }
+
     window.battleUI = {
         mount: function(store) {
             _store = store
@@ -223,6 +235,7 @@
         },
 
         showDamage: showDamage,
+        showHeal: showHeal,
         logHistory: logHistory,
         clearHistory: clearHistory
     }

@@ -9,15 +9,70 @@
         if (t.selectedIndices.length === 0) {
             t.selectionScore = 0
             t.selectionValid = false
+            t.devilBonus = 0
             return
         }
         var values = []
         for (var i = 0; i < t.selectedIndices.length; i++) {
             values.push(t.rolledDice[t.selectedIndices[i]])
         }
-        var result = window.scoringSystem.scorePlayerSelection(values)
-        t.selectionScore = result.score
+
+        var devilResult = applyDevilSubstitution(t, values)
+        var result = window.scoringSystem.scoreSelection(devilResult.values)
+        t.selectionScore = result.score + devilResult.bonus
         t.selectionValid = result.valid
+        t.devilBonus = devilResult.bonus
+    }
+
+    function applyDevilSubstitution(t, values) {
+        var slots = window.store && window.store.state.loadout
+            ? window.store.state.loadout.slots : []
+        var slotMap = t.dieSlotMap || []
+        var devilIdx = -1
+        var sixCount = 0
+
+        for (var i = 0; i < t.selectedIndices.length; i++) {
+            var ri = t.selectedIndices[i]
+            var slot = slotMap[ri]
+            if (slot >= 0 && slots[slot] === 'devil') {
+                devilIdx = i
+            } else if (values[i] === 6) {
+                sixCount++
+            }
+        }
+
+        if (devilIdx === -1 || sixCount < 2) return { values: values, bonus: 0 }
+
+        var modified = values.slice()
+        var natural6 = modified[devilIdx] === 6
+        modified[devilIdx] = 6
+
+        var bonus = 0
+        if (natural6) {
+            var tripleBase = window.SCORING ? window.SCORING.TRIPLE_BASE[6] : 600
+            bonus = tripleBase
+        }
+        return { values: modified, bonus: bonus }
+    }
+
+    function checkBandieHeal(state, t) {
+        t.lastHealAmount = 0
+        var slots = state.loadout ? state.loadout.slots : []
+        var slotMap = t.dieSlotMap || []
+        var roster = window.DICE ? window.DICE.roster : {}
+        for (var i = 0; i < t.selectedIndices.length; i++) {
+            var ri = t.selectedIndices[i]
+            var slot = slotMap[ri]
+            if (slot == null || slot < 0) continue
+            if (slots[slot] !== 'bandie') continue
+            var val = t.rolledDice[ri]
+            if (val !== 1 && val !== 5) continue
+            var def = roster['bandie']
+            var level = 1
+            var healAmount = def && def.healPerLevel ? def.healPerLevel[level - 1] : 100
+            t.lastHealAmount += healAmount
+            window.store.dispatch('HEAL_PLAYER', { amount: healAmount })
+        }
     }
 
     var turnSystem = {
@@ -41,7 +96,16 @@
                 jumpingDie:        -1,
                 flipUsed:          false,
                 flippingDie:       -1,
-                flipperIndex:      -1
+                flipperIndex:      -1,
+                slimeSpawns:       [],
+                slimeTriggered:    false,
+                tempDiceCount:     0,
+                devilBonus:        0,
+                lastHealAmount:    0,
+                tuneUsed:          false,
+                tuningDie:         -1,
+                tunerIndex:        -1,
+                tuneDirection:     0
             }
 
             // ── START_TURN ─────────────────────────────────────────
@@ -67,6 +131,13 @@
                 t.flipUsed          = false
                 t.flippingDie       = -1
                 t.flipperIndex      = -1
+                t.tuneUsed          = false
+                t.tuningDie         = -1
+                t.tunerIndex        = -1
+                t.tuneDirection     = 0
+                t.slimeSpawns       = []
+                t.slimeTriggered    = false
+                t.tempDiceCount     = 0
                 initSlotMap(t)
                 t.phase             = 'idle'
             }, 'turn')
@@ -96,6 +167,7 @@
 
             // ── DICE_SETTLED (3D only) ───────────────────────────────
             // After physics settle, override PRNG values with actual face reads.
+            // Also detects Slime spawn triggers (Slime rolled 6 → phase 'spawning').
             store.register('DICE_SETTLED', function(state, payload) {
                 var t = state.turn
                 t.rolledDice       = payload.values
@@ -103,8 +175,63 @@
                 t.selectionScore   = 0
                 t.selectionValid   = false
 
+                var spawns = detectSlimeSpawns(state)
+                if (spawns.length > 0) {
+                    t.slimeSpawns = spawns
+                    t.phase = 'spawning'
+                    return
+                }
+
                 if (!window.scoringSystem.hasPlayableDice(payload.values)) {
                     t.phase            = 'bust'
+                    t.accumulatedScore = 0
+                } else {
+                    t.phase = 'selecting'
+                }
+            }, 'turn')
+
+            function detectSlimeSpawns(state) {
+                var t = state.turn
+                if (t.slimeTriggered) return []
+                var slots = state.loadout ? state.loadout.slots : []
+                var spawns = []
+                for (var i = 0; i < t.rolledDice.length; i++) {
+                    if (t.rolledDice[i] !== 6) continue
+                    var slotIdx = t.dieSlotMap[i]
+                    if (slotIdx == null || slotIdx < 0) continue
+                    var dieId = slots[slotIdx]
+                    if (dieId !== 'slime') continue
+                    var level = 1
+                    var spawnCount = level >= 2 ? 2 : 1
+                    spawns.push({ parentIndex: i, level: level, spawnCount: spawnCount })
+                }
+                return spawns
+            }
+
+            // ── SLIME_SPAWNED — temp die(s) settled after spawn ─────────
+            store.register('SLIME_SPAWNED', function(state, payload) {
+                var t = state.turn
+                if (t.phase !== 'spawning') return
+
+                t.slimeTriggered = true
+
+                for (var i = 0; i < payload.spawns.length; i++) {
+                    var sp = payload.spawns[i]
+                    t.rolledDice.push(sp.value)
+                    t.dieSlotMap.push(-1)
+                    t.diceCount++
+                    t.tempDiceCount++
+                }
+
+                // Lv2+: Slime parent becomes 5
+                if (payload.parentLevel >= 2 && payload.parentIndex != null) {
+                    t.rolledDice[payload.parentIndex] = 5
+                }
+
+                t.slimeSpawns = []
+
+                if (!window.scoringSystem.hasPlayableDice(t.rolledDice)) {
+                    t.phase = 'bust'
                     t.accumulatedScore = 0
                 } else {
                     t.phase = 'selecting'
@@ -146,6 +273,8 @@
                 t.heldDice = t.heldDice.concat(selectedValues)
                 t.accumulatedScore += t.selectionScore
 
+                checkBandieHeal(state, t)
+
                 // Remove scored dice from rolled pool (preserve slot mapping)
                 var remaining = []
                 var remainingMap = []
@@ -162,13 +291,16 @@
                 t.selectionScore  = 0
                 t.selectionValid  = false
 
-                // Hot Hand: all 6 dice scored this turn → auto-bank
-                if (t.heldDice.length >= B.HOT_HAND_THRESHOLD) {
+                // Hot Hand: all dice on table scored (works with temp dice too)
+                if (remaining.length === 0) {
                     t.hotHandTriggered = true
                     t.lastBankedScore  = t.accumulatedScore
                     t.accumulatedScore = 0
                     t.heldDice         = []
                     t.diceCount        = B.DICE_PER_TURN
+                    t.tempDiceCount    = 0
+                    t.slimeSpawns      = []
+                    t.slimeTriggered   = false
                     initSlotMap(t)
                     t.phase            = 'idle'
                 } else {
@@ -194,6 +326,13 @@
                 t.flipUsed          = false
                 t.flippingDie       = -1
                 t.flipperIndex      = -1
+                t.tuneUsed          = false
+                t.tuningDie         = -1
+                t.tunerIndex        = -1
+                t.tuneDirection     = 0
+                t.slimeSpawns       = []
+                t.slimeTriggered    = false
+                t.tempDiceCount     = 0
                 initSlotMap(t)
                 t.phase             = 'idle'
             }, 'turn')
@@ -211,6 +350,13 @@
                 t.selectionScore    = 0
                 t.selectionValid    = false
                 t.hotHandTriggered  = false
+                t.tuneUsed          = false
+                t.tuningDie         = -1
+                t.tunerIndex        = -1
+                t.tuneDirection     = 0
+                t.slimeSpawns       = []
+                t.slimeTriggered    = false
+                t.tempDiceCount     = 0
                 initSlotMap(t)
                 t.phase             = 'idle'
             }, 'turn')
@@ -247,6 +393,25 @@
                     } else {
                         t.flipperIndex = idx
                         t.phase = 'flipTargeting'
+                    }
+                }
+
+                if (payload.ability === 'tune') {
+                    if (t.tuneUsed) return
+                    var dir = payload.direction
+                    if (dir !== 1 && dir !== -1) return
+                    t.tuneUsed = true
+                    t.tuneDirection = dir
+                    t.selectedIndices = []
+                    t.selectionScore = 0
+                    t.selectionValid = false
+                    var tuneLevel = 1
+                    if (tuneLevel === 1) {
+                        t.tuningDie = idx
+                        t.phase = 'tuning'
+                    } else {
+                        t.tunerIndex = idx
+                        t.phase = 'tuneTargeting'
                     }
                 }
             }, 'turn')
@@ -289,6 +454,36 @@
                 t.rolledDice[t.flippingDie] = payload.value
                 t.flippingDie = -1
                 t.flipperIndex = -1
+                t.selectedIndices = []
+                t.selectionScore = 0
+                t.selectionValid = false
+
+                if (!window.scoringSystem.hasPlayableDice(t.rolledDice)) {
+                    t.phase = 'bust'
+                    t.accumulatedScore = 0
+                } else {
+                    t.phase = 'selecting'
+                }
+            }, 'turn')
+
+            // ── TUNE_TARGET — player chose die to tune (Lv2+) ────────────
+            store.register('TUNE_TARGET', function(state, payload) {
+                var t = state.turn
+                if (t.phase !== 'tuneTargeting') return
+                var idx = payload.targetIndex
+                if (idx < 0 || idx >= t.rolledDice.length) return
+                t.tuningDie = idx
+                t.phase = 'tuning'
+            }, 'turn')
+
+            // ── TUNE_SETTLED — die shifted to new face ───────────────────
+            store.register('TUNE_SETTLED', function(state, payload) {
+                var t = state.turn
+                if (t.phase !== 'tuning') return
+                t.rolledDice[t.tuningDie] = payload.value
+                t.tuningDie = -1
+                t.tunerIndex = -1
+                t.tuneDirection = 0
                 t.selectedIndices = []
                 t.selectionScore = 0
                 t.selectionValid = false

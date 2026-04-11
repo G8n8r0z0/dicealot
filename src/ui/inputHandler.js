@@ -125,10 +125,20 @@
         if (_store.state.match.activePlayer !== 'player') return
         if (t.phase !== 'selecting' || !t.selectionValid) return
 
+        var selVals = []
+        for (var si = 0; si < t.selectedIndices.length; si++) selVals.push(t.rolledDice[t.selectedIndices[si]])
         var scored = t.selectionScore
         _store.dispatch('SCORE_SELECTION')
 
-        if (window.battleUI) window.battleUI.logHistory('Player scored +' + scored, '#2ecc71')
+        if (window.battleUI) {
+            window.battleUI.logHistory('Player selected: [' + selVals.join(', ') + ']', '#8eaadb')
+            window.battleUI.logHistory('Player scored +' + scored, '#2ecc71')
+            var healed = _store.state.turn.lastHealAmount
+            if (healed > 0) {
+                window.battleUI.showHeal(healed)
+                window.battleUI.logHistory('Bandie heals +' + healed + ' HP', '#4ade80')
+            }
+        }
 
         if (_store.state.turn.hotHandTriggered) {
             handleHotHand()
@@ -142,10 +152,20 @@
         if (_store.state.match.activePlayer !== 'player') return
         if (t.phase !== 'selecting' || !t.selectionValid) return
 
+        var selVals = []
+        for (var si = 0; si < t.selectedIndices.length; si++) selVals.push(t.rolledDice[t.selectedIndices[si]])
         var scored = t.selectionScore
         _store.dispatch('SCORE_SELECTION')
 
-        if (window.battleUI) window.battleUI.logHistory('Player scored +' + scored, '#2ecc71')
+        if (window.battleUI) {
+            window.battleUI.logHistory('Player selected: [' + selVals.join(', ') + ']', '#8eaadb')
+            window.battleUI.logHistory('Player scored +' + scored, '#2ecc71')
+            var healed2 = _store.state.turn.lastHealAmount
+            if (healed2 > 0) {
+                window.battleUI.showHeal(healed2)
+                window.battleUI.logHistory('Bandie heals +' + healed2 + ' HP', '#4ade80')
+            }
+        }
 
         if (_store.state.turn.hotHandTriggered) {
             handleHotHand()

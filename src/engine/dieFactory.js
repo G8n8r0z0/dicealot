@@ -188,6 +188,12 @@ export const PIP_SHAPES = {
     return idx % 2 === 0 ? r : inner;
   },
   heart: (a, r) => _heartRadius(a) * r,
+  blob: (a, r) => {
+    const ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
+    const base = r / Math.pow(Math.pow(ca, 4) + Math.pow(sa, 4), 0.25);
+    return base * (1 + 0.04 * Math.sin(5 * a) + 0.02 * Math.sin(7 * a));
+  },
+  diamond: (a, r) => r / (Math.abs(Math.cos(a)) + Math.abs(Math.sin(a))),
 };
 
 /** 21 flat pips across 6 faces. Returns BABYLON.VertexData.
@@ -223,9 +229,11 @@ export function createPipsVertexData(pipR = 0.1, pipOffset = PIP_OFFSET, pipShap
     const outline = outlineForFace(val);
     if (!outline) continue;
     const PR = prForFace(val);
-    const isCircle = outline === PIP_SHAPES.circle;
-    const isHeart  = outline === PIP_SHAPES.heart;
-    const SEG = isCircle ? 16 : isHeart ? 24 : 10;
+    const isCircle  = outline === PIP_SHAPES.circle;
+    const isHeart   = outline === PIP_SHAPES.heart;
+    const isBlob    = outline === PIP_SHAPES.blob;
+    const isDiamond = outline === PIP_SHAPES.diamond;
+    const SEG = isCircle ? 16 : isHeart ? 24 : isBlob ? 20 : isDiamond ? 4 : 10;
     for (const [cu, cv] of pips) {
       const base = positions.length / 3, nn = [0,0,0]; nn[fA] = sign;
       const cc = [0,0,0]; cc[fA] = fV; cc[uA] = cu; cc[vA] = cv;
@@ -361,6 +369,84 @@ function drawHeart(ctx2d, size, color, bgColor) {
   ctx2d.restore();
 }
 
+function drawCross(ctx2d, size, color, bgColor) {
+  const cx = size / 2, cy = size / 2;
+  const arm = size * 0.36, w = size * 0.14;
+  ctx2d.save();
+  ctx2d.clearRect(0, 0, size, size);
+  if (bgColor) {
+    ctx2d.fillStyle = bgColor;
+    ctx2d.fillRect(0, 0, size, size);
+  }
+  ctx2d.fillStyle = color;
+  ctx2d.fillRect(cx - w, cy - arm, w * 2, arm * 2);
+  ctx2d.fillRect(cx - arm, cy - w, arm * 2, w * 2);
+  ctx2d.restore();
+}
+
+function drawPentagram(ctx2d, size, color, bgColor) {
+  const cx = size / 2, cy = size / 2;
+  const R = size * 0.5;
+  ctx2d.save();
+  ctx2d.clearRect(0, 0, size, size);
+  if (bgColor) {
+    ctx2d.fillStyle = bgColor;
+    ctx2d.fillRect(0, 0, size, size);
+  }
+  ctx2d.strokeStyle = color;
+  ctx2d.lineWidth = size * 0.06;
+  ctx2d.lineCap = 'round';
+  ctx2d.lineJoin = 'round';
+
+  const pts = [];
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+    pts.push({ x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) });
+  }
+
+  ctx2d.beginPath();
+  ctx2d.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx2d.stroke();
+
+  ctx2d.beginPath();
+  const order = [0, 2, 4, 1, 3];
+  ctx2d.moveTo(pts[order[0]].x, pts[order[0]].y);
+  for (let i = 1; i <= 5; i++) {
+    ctx2d.lineTo(pts[order[i % 5]].x, pts[order[i % 5]].y);
+  }
+  ctx2d.closePath();
+  ctx2d.stroke();
+
+  ctx2d.restore();
+}
+
+function drawTunerArrows(ctx2d, size, color, bgColor) {
+  const cx = size / 2;
+  const arrowH = size * 0.22, arrowW = size * 0.30;
+  ctx2d.save();
+  ctx2d.clearRect(0, 0, size, size);
+  if (bgColor) {
+    ctx2d.fillStyle = bgColor;
+    ctx2d.fillRect(0, 0, size, size);
+  }
+  ctx2d.fillStyle = color;
+  const topY = size * 0.22;
+  ctx2d.beginPath();
+  ctx2d.moveTo(cx, topY - arrowH);
+  ctx2d.lineTo(cx + arrowW, topY + arrowH * 0.4);
+  ctx2d.lineTo(cx - arrowW, topY + arrowH * 0.4);
+  ctx2d.closePath();
+  ctx2d.fill();
+  const botY = size * 0.78;
+  ctx2d.beginPath();
+  ctx2d.moveTo(cx, botY + arrowH);
+  ctx2d.lineTo(cx + arrowW, botY - arrowH * 0.4);
+  ctx2d.lineTo(cx - arrowW, botY - arrowH * 0.4);
+  ctx2d.closePath();
+  ctx2d.fill();
+  ctx2d.restore();
+}
+
 function drawStar(ctx2d, size, color, bgColor) {
   const cx = size / 2, cy = size / 2;
   const outerR = size * 0.44, innerR = size * 0.18;
@@ -470,6 +556,30 @@ export function createMarkTexture(mark, name, scene) {
     dt.update(false);
     return dt;
   }
+  if (mark.shape === 'cross') {
+    const dt = new BABYLON.DynamicTexture(name, sz, scene, true);
+    dt.hasAlpha = true;
+    const ctx2d = dt.getContext();
+    drawCross(ctx2d, sz, mark.color || '#cc2222', mark.bg || null);
+    dt.update(false);
+    return dt;
+  }
+  if (mark.shape === 'pentagram') {
+    const dt = new BABYLON.DynamicTexture(name, sz, scene, true);
+    dt.hasAlpha = true;
+    const ctx2d = dt.getContext();
+    drawPentagram(ctx2d, sz, mark.color || '#ff4444', mark.bg || null);
+    dt.update(false);
+    return dt;
+  }
+  if (mark.shape === 'tunerArrows') {
+    const dt = new BABYLON.DynamicTexture(name, sz, scene, true);
+    dt.hasAlpha = true;
+    const ctx2d = dt.getContext();
+    drawTunerArrows(ctx2d, sz, mark.color || '#1abc9c', mark.bg || null);
+    dt.update(false);
+    return dt;
+  }
   if (mark.texture) {
     const tex = new BABYLON.Texture(mark.texture, scene);
     tex.hasAlpha = true;
@@ -502,7 +612,7 @@ let _idCounter = 0;
  */
 export function buildDie(ctx, opts = {}) {
   const id = _idCounter++;
-  const sc = ctx.tune.mesh.dieScale;
+  const sc = opts.dieScale || ctx.tune.mesh.dieScale;
 
   const spec = opts.specular != null ? opts.specular : 0.15;
   const oMat = new BABYLON.StandardMaterial(`o${id}`, ctx.scene);
