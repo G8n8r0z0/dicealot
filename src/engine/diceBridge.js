@@ -14,8 +14,8 @@
  * ES module. Depends on: window.BABYLON, ./diceEngine.js, ./dieFactory.js
  */
 import * as CANNON from 'cannon-es';
-import * as engine from './diceEngine.js';
-import { createDiceVertexData, createPipsVertexData, createMarkTexture, readFaceValue, readFaceValueForced, FACE_UP_QUATS } from './dieFactory.js';
+import * as engine from './diceEngine.js?v=8';
+import { createDiceVertexData, createPipsVertexData, createMarkTexture, readFaceValue, readFaceValueForced, teardownDie, FACE_UP_QUATS } from './dieFactory.js?v=8';
 
 const BABYLON = window.BABYLON;
 
@@ -65,6 +65,17 @@ export function init(canvas, store, opts) {
                 if (state.turn.phase === 'jumping') {
                     onJump(state.turn.jumpingDie);
                 }
+                if (state.turn.phase === 'flipping') {
+                    onFlip(state.turn.flippingDie);
+                }
+                if (state.turn.phase === 'flipTargeting') {
+                    onFlipTargeting();
+                }
+                break;
+            case 'FLIP_TARGET':
+                if (state.turn.phase === 'flipping') {
+                    onFlip(state.turn.flippingDie);
+                }
                 break;
         }
     });
@@ -93,6 +104,8 @@ function buildDieConfigs(count) {
         if (v.pipR != null)     cfg.pipR = v.pipR;
         if (v.pipShape)         cfg.pipShape = v.pipShape;
         if (v.pipColors)        cfg.pipColors = v.pipColors;
+        if (v.notchD != null)   cfg.notchD = v.notchD;
+        if (v.skipNotchFaces)   cfg.skipNotchFaces = v.skipNotchFaces;
         if (def.biasOffset) {
             if (def.biasFaces) {
                 cfg.bias = { faces: def.biasFaces, magnitude: def.biasOffset };
@@ -299,6 +312,173 @@ function handleJumpEdge(dice) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  FLIPPER FLIP — deterministic opposite-face flip
+// ═══════════════════════════════════════════════════════════════════════════
+
+var OPPOSITE = { 1:6, 6:1, 2:5, 5:2, 3:4, 4:3 };
+var _flipCandidates = [];
+
+var FLIP = {
+    upSpeed:    55,
+    upRandom:   10,
+    hSpeed:     4,
+    spinSlow:   6,
+    slerpDur:   400,
+    blue: null
+};
+
+function getFlipBlue() {
+    if (!FLIP.blue) FLIP.blue = new BABYLON.Color3(0.15, 0.55, 0.95);
+    return FLIP.blue;
+}
+
+function onFlipTargeting() {
+    var dice = engine.getDice(_ctx);
+    var t    = _store.state.turn;
+    var flipperIdx = t.flipperIndex;
+    var level = 1;
+
+    clearHighlights();
+    stopBlinkLoops();
+    _flipCandidates = [];
+
+    if (level >= 3) {
+        for (var i = 0; i < dice.length; i++) _flipCandidates.push(i);
+    } else {
+        _flipCandidates.push(flipperIdx);
+        var nearIdx = -1, nearDist = Infinity;
+        var fp = dice[flipperIdx].body.position;
+        for (var j = 0; j < dice.length; j++) {
+            if (j === flipperIdx) continue;
+            var dp = dice[j].body.position;
+            var dx = dp.x - fp.x, dz = dp.z - fp.z;
+            var dist = dx * dx + dz * dz;
+            if (dist < nearDist) { nearDist = dist; nearIdx = j; }
+        }
+        if (nearIdx !== -1) _flipCandidates.push(nearIdx);
+    }
+
+    var blue = getFlipBlue();
+    for (var k = 0; k < _flipCandidates.length; k++) {
+        engine.highlightDie(_ctx, dice[_flipCandidates[k]], true, blue);
+    }
+}
+
+function onFlip(dieIndex) {
+    var dice = engine.getDice(_ctx);
+    if (dieIndex < 0 || dieIndex >= dice.length) return;
+    var d = dice[dieIndex];
+
+    var currentValue = readFaceValue(d.body);
+    if (currentValue === null) currentValue = readFaceValueForced(d.body);
+    var targetValue = OPPOSITE[currentValue] || 6;
+
+    stopBlinkLoops();
+    clearHighlights();
+    _flipCandidates = [];
+
+    startFlipAnimation(d, dieIndex, targetValue);
+}
+
+function startFlipAnimation(d, dieIndex, targetValue) {
+    d.settled = false;
+    d.value = null;
+
+    d.body.type = CANNON.Body.DYNAMIC;
+    d.body.sleepState = 0;
+    d.body.allowSleep = false;
+    d.body.wakeUp();
+
+    _ctx._allSettledFired = true;
+    _ctx._settleFrames = 0;
+
+    d.body.velocity.set(
+        (Math.random() - 0.5) * FLIP.hSpeed,
+        FLIP.upSpeed + Math.random() * FLIP.upRandom,
+        (Math.random() - 0.5) * FLIP.hSpeed
+    );
+    d.body.angularVelocity.set(
+        (Math.random() - 0.5) * FLIP.spinSlow,
+        (Math.random() - 0.5) * FLIP.spinSlow,
+        (Math.random() - 0.5) * FLIP.spinSlow
+    );
+
+    var targetQuat = FACE_UP_QUATS[targetValue] || BABYLON.Quaternion.Identity();
+    var tableY = _ctx.td.floorY + engine.getDieEdge(_ctx) * 0.5;
+
+    function monitorApex() {
+        if (d.body.velocity.y > 0) {
+            requestAnimationFrame(monitorApex);
+            return;
+        }
+
+        var posX = d.body.position.x;
+        var posZ = d.body.position.z;
+        var posY = d.body.position.y;
+
+        d.body.type = CANNON.Body.STATIC;
+        d.body.velocity.set(0, 0, 0);
+        d.body.angularVelocity.set(0, 0, 0);
+
+        var startQuat = d.root.rotationQuaternion.clone();
+        var startY = posY;
+        var startTime = performance.now();
+
+        function animateSlerp() {
+            var elapsed = performance.now() - startTime;
+            var progress = Math.min(1, elapsed / FLIP.slerpDur);
+            var ease = 1 - (1 - progress) * (1 - progress);
+
+            BABYLON.Quaternion.SlerpToRef(startQuat, targetQuat, ease, d.root.rotationQuaternion);
+            d.root.position.y = startY + (tableY - startY) * ease;
+
+            d.body.quaternion.set(
+                d.root.rotationQuaternion.x,
+                d.root.rotationQuaternion.y,
+                d.root.rotationQuaternion.z,
+                d.root.rotationQuaternion.w
+            );
+            d.body.position.set(posX, d.root.position.y, posZ);
+
+            if (progress < 1) {
+                requestAnimationFrame(animateSlerp);
+                return;
+            }
+
+            d.body.position.set(posX, tableY, posZ);
+            d.root.position.y = tableY;
+            d.body.type = CANNON.Body.DYNAMIC;
+            d.body.velocity.set(0, 0, 0);
+            d.body.angularVelocity.set(0, 0, 0);
+            d.body.allowSleep = false;
+
+            d.value = targetValue;
+            d.settled = true;
+
+            handleFlipSettled(dieIndex, targetValue);
+        }
+
+        requestAnimationFrame(animateSlerp);
+    }
+
+    requestAnimationFrame(monitorApex);
+}
+
+function handleFlipSettled(dieIndex, targetValue) {
+    var dice = engine.getDice(_ctx);
+    startBlinkLoops(dice);
+
+    console.log('[FLIP_SETTLED] Flipper flipped die', dieIndex, 'to', targetValue);
+    _store.dispatch('FLIP_SETTLED', { dieIndex: dieIndex, value: targetValue });
+
+    if (_store.state.turn.phase === 'bust') {
+        if (window.inputHandler) window.inputHandler.handleBust();
+    } else {
+        if (window.inputHandler) window.inputHandler.unlock();
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  SELECTION highlights
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -332,6 +512,7 @@ function onScoreSelection() {
     if (state.hotHandTriggered) {
         clearHighlights();
         disposeHeldDice();
+        engine.clearSettleTimer(_ctx);
         engine.syncActiveDice(_ctx, 0);
         _lastSelected = [];
         _settled = false;
@@ -390,25 +571,9 @@ function resetScene() {
 }
 
 function disposeHeldDice() {
-    for (var i = 0; i < _ctx.heldDice.length; i++) {
-        var d = _ctx.heldDice[i];
-        if (d.markMeshes) {
-            for (var m = 0; m < d.markMeshes.length; m++) {
-                if (d.markMeshes[m].material) d.markMeshes[m].material.dispose();
-                d.markMeshes[m].dispose();
-            }
-        }
-        if (d._pipMat) d._pipMat.dispose();
-        if (d._extraPipMeshes) {
-            for (var ep = 0; ep < d._extraPipMeshes.length; ep++) d._extraPipMeshes[ep].dispose();
-        }
-        if (d._extraPipMats) {
-            for (var em = 0; em < d._extraPipMats.length; em++) d._extraPipMats[em].dispose();
-        }
-        d.pips.dispose(); d.backing.dispose(); d.outer.dispose();
-        d.root.dispose(); d.oMat.dispose();
+    while (_ctx.heldDice.length) {
+        teardownDie(_ctx.heldDice.pop(), _ctx);
     }
-    _ctx.heldDice.length = 0;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -583,6 +748,20 @@ function handlePointer(info) {
         }
     }
 
+    // ── Flip targeting click (flipTargeting phase) ────────────────────────
+    if (phase === 'flipTargeting' && isPlayerTurn) {
+        if (info.type === BABYLON.PointerEventTypes.POINTERUP && ev.button === 0) {
+            var tDie = engine.findDieAtPick(_ctx, info.pickInfo);
+            if (!tDie) return;
+            var tDiceArr = engine.getDice(_ctx);
+            var tIdx = tDiceArr.indexOf(tDie);
+            if (tIdx === -1) return;
+            if (_flipCandidates.indexOf(tIdx) === -1) return;
+            _store.dispatch('FLIP_TARGET', { targetIndex: tIdx });
+        }
+        return;
+    }
+
     // ── 3D die click (selecting phase, player only, after settle) ────────
     if (phase === 'selecting' && _settled && isPlayerTurn) {
         if (info.type === BABYLON.PointerEventTypes.POINTERUP && ev.button === 0) {
@@ -643,7 +822,13 @@ export function renderSlotPreview(canvasEl, faceValue, opts) {
     var spec    = vis.specular != null ? vis.specular : 0.18;
 
     // ── Geometry ──────────────────────────────────────────────────────────
-    var outerVD = createDiceVertexData(vis.edgeR != null ? vis.edgeR : undefined);
+    var outerVD = createDiceVertexData(
+        vis.edgeR != null ? vis.edgeR : undefined,
+        undefined,
+        vis.notchD != null ? vis.notchD : undefined,
+        undefined,
+        vis.skipNotchFaces || null
+    );
 
     var oMat = new BABYLON.StandardMaterial('po', scene);
     oMat.diffuseColor  = BABYLON.Color3.FromHexString(bodyHex);

@@ -52,7 +52,7 @@ Game logic (IIFE, window globals)
 Visual output (BabylonJS canvas)
 ```
 
-- `diceBridge.js` subscribes to the store via `store.subscribe(fn)` and reacts to action types: `ROLL_DICE`, `SELECT_DIE`, `DESELECT_DIE`, `SCORE_SELECTION`, `START_TURN`.
+- `diceBridge.js` subscribes to the store via `store.subscribe(fn)` and reacts to action types: `ROLL_DICE`, `SELECT_DIE`, `DESELECT_DIE`, `SCORE_SELECTION`, `START_TURN`, `USE_ABILITY` (jump/flip phases), `FLIP_TARGET`.
 - **Physics determines face values** — no PRNG face correction. After dice settle, the bridge reads each die's physics face value and dispatches `DICE_SETTLED` with the actual values. The store then re-evaluates bust/selecting.
 - User interaction on 3D dice dispatches `store.dispatch('SELECT_DIE', { index })` / `DESELECT_DIE`.
 - The engine never mutates `store.state` directly — all changes go through `dispatch`.
@@ -67,6 +67,8 @@ Button/Sling → ROLL_DICE → bridge throws dice → physics settle
 ```
 
 **ROLL_DICE / DICE_SETTLED contract (v1.0.9):** `ROLL_DICE` generates PRNG values for 2D fallback and detects bust via `hasPlayableDice()`, setting `phase = 'bust'`. However, it does **not** reset `accumulatedScore` — that is only done by the explicit `BUST` handler (dispatched by `inputHandler` or `botSystem` after bust is confirmed). In 3D mode, `DICE_SETTLED` overrides both `rolledDice` and `phase` with physics results, so a PRNG bust may be reversed by physics. If `ROLL_DICE` cleared `accumulatedScore`, the player's turn score would be silently lost when PRNG and physics disagree.
+
+**FLIP action flow (v1.0.10):** `USE_ABILITY` (flip) → `turnSystem` sets `flipUsed = true`, phase → `flipping` (Lv1: self) or `flipTargeting` (Lv2+: player picks target). In `flipTargeting`, bridge highlights candidates with blue glow; pointer click on candidate → `FLIP_TARGET` → phase → `flipping`. Bridge's `onFlip()` launches the die upward, at apex switches to kinematic slerp toward `FACE_UP_QUATS[oppositeValue]`, on landing dispatches `FLIP_SETTLED` which updates `rolledDice[idx]` and re-evaluates bust.
 
 **Sling SVG visualization:** `#slingVizSvg` overlay shows wedge indicator (direction + strength %) during drag, ported from `battle.html`.
 
@@ -459,8 +461,8 @@ project/
 │   │   └── scoringSystem.js#   pure scoring functions (bitmask DP, bust detection)
 │   ├── engine/             # 3D rendering layer (ES modules, BabylonJS + cannon-es)
 │   │   ├── diceEngine.js   #   scene setup, physics world, render loop, throwPlayer/throwBot
-│   │   ├── dieFactory.js   #   createDiceVertexData, createPipsVertexData, buildDie, PIP_SHAPES, FACE_UP_QUATS, createMarkTexture
-│   │   └── diceBridge.js   #   store subscriber → 3D commands, pointer → dispatch, sling SVG viz, DICE_SETTLED, renderSlotPreview, buildDieConfigs
+│   │   ├── dieFactory.js   #   createDiceVertexData (skipNotchFaces, notchD), createPipsVertexData, buildDie, teardownDie, PIP_SHAPES, FACE_UP_QUATS, createMarkTexture (seg7, dolphin SVG)
+│   │   └── diceBridge.js   #   store subscriber → 3D commands, pointer → dispatch, sling SVG viz, DICE_SETTLED, FLIP animation, renderSlotPreview, buildDieConfigs
 │   ├── vendor/             # Vendored libs inside src/ for Cloudflare Pages deploy
 │   │   ├── babylon.js
 │   │   └── cannon-es.js
@@ -597,7 +599,7 @@ TransformNode (root)
 └── CANNON.Body          — Box(0.48 * scale), mass, sleep events, optional center-of-mass offset
 ```
 
-Per-die visual customization: `buildDie(ctx, opts)` accepts `bodyColor`, `pipColor`, `specular`, `edgeR`, `pipR` (number or per-face object), `pipShape` (string or per-face object), `pipColors` (object `{default, N}` for per-face pip colors), `faceMarks` (array of `{face, shape, color, bg}`), `bias` (`{face, magnitude}`). Custom geometry generated on the fly when params differ from defaults; otherwise shared cached `VertexData` is used.
+Per-die visual customization: `buildDie(ctx, opts)` accepts `bodyColor`, `pipColor`, `specular`, `edgeR`, `pipR` (number or per-face object), `pipShape` (string or per-face object), `pipColors` (object `{default, N}` for per-face pip colors), `faceMarks` (array of `{face, shape, color, bg}`), `bias` (`{face, magnitude}`), `notchD` (depression depth, default standard; `0` = flat), `skipNotchFaces` (array of face values to skip notches on). Custom geometry generated on the fly when params differ from defaults; otherwise shared cached `VertexData` is used.
 
 When `pipColors` is set, faces are grouped by color and each group gets its own pip mesh with a dedicated material. Extra pip meshes are stored in `_extraPipMeshes` / `_extraPipMats` and disposed with the die.
 
@@ -654,9 +656,11 @@ const localUp = body.quaternion.conjugate().vmult(up)
 | Engine → State | `store.dispatch(type, payload)` | Click on die → `dispatch('SELECT_DIE', { dieIndex })` |
 | Config → Engine | Read `window.DICE.roster[id]` | Load die color, pip shape/size/color, bias from config |
 
-**Per-die config pipeline:** `diceBridge.buildDieConfigs(count)` reads `store.state.loadout.slots`, looks up each die in `DICE.roster`, and constructs per-die config objects with `bodyColor`, `pipColor`, `specular`, `edgeR`, `pipR`, `pipShape`, `pipColors`, `faceMarks`, `bias`. These are passed to `engine.syncActiveDice(count, dieConfigs)` → `dieFactory.buildDie(ctx, opts)`.
+**Per-die config pipeline:** `diceBridge.buildDieConfigs(count)` reads `store.state.loadout.slots`, looks up each die in `DICE.roster`, and constructs per-die config objects with `bodyColor`, `pipColor`, `specular`, `edgeR`, `pipR`, `pipShape`, `pipColors`, `faceMarks`, `bias`, `notchD`, `skipNotchFaces`. These are passed to `engine.syncActiveDice(count, dieConfigs)` → `dieFactory.buildDie(ctx, opts)`.
 
 **Physics bias:** center-of-mass offset implemented by shifting the collision shape relative to body origin: `body.addShape(boxShape, new CANNON.Vec3(fl.x * mag, fl.y * mag, fl.z * mag))` where `fl` is the `FACE_LOCALS` direction for the bias face and `mag` is the bias magnitude.
+
+**Geometry overrides:** `createDiceVertexData(edgeR, notchR, notchD, pipOffset, skipNotchFaces)` supports per-die customization. `notchD = 0` produces flat faces (no pip depressions) — used by Mathematician. `skipNotchFaces = [1]` skips notches on specific faces — used by Flipper (face 1 has dolphin mark instead of pip notch). Custom geometry is generated when any parameter differs from defaults; otherwise shared cached `VertexData` is reused.
 
 The engine never stores game-relevant data. All authoritative state lives in `store.state`.
 

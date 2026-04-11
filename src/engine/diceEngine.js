@@ -14,7 +14,7 @@ import {
   readFaceValue,
   FACE_UP_QUATS,
   applyStaticEnvCollision,
-} from './dieFactory.js';
+} from './dieFactory.js?v=8';
 
 const BABYLON = window.BABYLON;
 
@@ -728,8 +728,14 @@ export function forceSettleDice(ctx) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export function highlightDie(ctx, die, on, color) {
-  if (on) ctx.hl.addMesh(die.outer, color || new BABYLON.Color3(0.1, 0.9, 0.15));
-  else    ctx.hl.removeMesh(die.outer);
+  const c = color || new BABYLON.Color3(0.1, 0.9, 0.15);
+  if (on) {
+    ctx.hl.addMesh(die.outer, c);
+    if (die.markMeshes) for (const m of die.markMeshes) ctx.hl.addMesh(m, c);
+  } else {
+    ctx.hl.removeMesh(die.outer);
+    if (die.markMeshes) for (const m of die.markMeshes) ctx.hl.removeMesh(m);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -819,10 +825,7 @@ export function findDieAtPick(ctx, pickInfo) {
 export function dispose(ctx) {
   clearSettleTimer(ctx);
   while (ctx.dice.length) teardownDie(ctx.dice.pop(), ctx);
-  while (ctx.heldDice.length) {
-    const d = ctx.heldDice.pop();
-    d.pips.dispose(); d.backing.dispose(); d.outer.dispose(); d.root.dispose(); d.oMat.dispose();
-  }
+  while (ctx.heldDice.length) teardownDie(ctx.heldDice.pop(), ctx);
   ctx.eng.dispose();
 }
 

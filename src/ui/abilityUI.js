@@ -47,10 +47,17 @@
     function isAbilityUsed(abilityType) {
         var t = _store.state.turn
         if (abilityType === 'reroll') return !!t.jumpUsed
+        if (abilityType === 'flip')   return !!t.flipUsed
         return false
     }
 
     function refresh() {
+        var t = _store.state.turn
+        if (t.phase === 'flipTargeting' || t.phase === 'flipping') {
+            hide()
+            return
+        }
+
         var info = getSelectedAbilityDie()
         if (!info) {
             hide()

@@ -529,6 +529,33 @@ Same roll/select/score/bank structure as player. Automated decision-making.
 
 ---
 
+## ── MILESTONE: Flipper Die + Held Dice Cleanup — v1.0.10 (COMPLETE 2026-04-10) ──
+
+> Flipper FLIP ability fully implemented. Mathematician visual reworked to 7-segment LED. Held dice cleanup hardened.
+
+- [x] **Flipper Die — FLIP ability** — full implementation: ocean blue body (#2878a8), ivory pips, dolphin SVG silhouette on face 1 (Path2D from traced SVG, skipNotchFaces on face 1, pipShape hidden on face 1). **FLIP mechanic:** opposite face mapping 1↔6, 2↔5, 3↔4. Lv1 = auto-flip self. Lv2+ = targeting (nearest or any). 3D animation: die launches upward, at apex switches to kinematic slerp to `FACE_UP_QUATS[targetValue]`, then settles. Once per turn (`flipUsed` flag). Actions: `USE_ABILITY` (flip), `FLIP_TARGET`, `FLIP_SETTLED`. Pointer handler for `flipTargeting` phase. Bot AI uses FLIP via ability system.
+  - Files: `src/config/dice.js`, `src/systems/turnSystem.js`, `src/engine/diceBridge.js`, `src/engine/dieFactory.js`, `src/ui/abilityUI.js`, `src/ui/loadoutUI.js`, `src/index.html`
+
+- [x] **Mathematician Die — 7-segment LED visual** — reworked from chalk/serif digits to procedural 7-segment display rendering. Dark body (`#1a1a1a`), green LED digits (`#66ff66`), `notchD: 0` (flat faces, no pip depressions). `drawSeg7Digit()` / `drawSeg7Face()` / `drawSeg7_314()` replace old `drawDigit()` / `drawDigits314()`. Removed from IMPLEMENTED (ability not yet functional).
+  - Files: `src/config/dice.js`, `src/engine/dieFactory.js`
+
+- [x] **skipNotchFaces support** — `createDiceVertexData()` now accepts optional `skipNotchFaces` array to skip pip notch depressions on specified faces. Used by Flipper (face 1 has dolphin instead of pip notch). Plumbed through `buildDie()` and `renderSlotPreview()`.
+  - Files: `src/engine/dieFactory.js`, `src/engine/diceBridge.js`
+
+- [x] **notchD override** — per-die `notchD` config (default = standard depression depth). Set to `0` for flat-face dice like Mathematician. Plumbed through `buildDie()`, `buildDieConfigs()`, `renderSlotPreview()`.
+  - Files: `src/engine/dieFactory.js`, `src/engine/diceBridge.js`
+
+- [x] **FIX: Held dice ghost accumulation (Hot Hand)** — `disposeHeldDice()` in `diceBridge.js` rewritten to use `teardownDie()` for complete mesh/material/highlight/shadow cleanup. `engine.clearSettleTimer(_ctx)` added to Hot Hand path. `diceEngine.dispose()` also uses `teardownDie()` for held dice. Prevents visual artifact accumulation after bot Hot Hand.
+  - Files: `src/engine/diceBridge.js`, `src/engine/diceEngine.js`
+
+- [x] **Mini-die Flipper visual** — CSS mini-die for loadout: blue gradient background, inline SVG dolphin mark centered on face 1, `SHOWCASE_FACE` set to 1. Comrade star SVG scaled to 160%.
+  - Files: `src/index.html`, `src/ui/loadoutUI.js`
+
+- [x] **Cache busting** — ES module imports in `index.html` and `diceBridge.js` use `?v=8` query param to force fresh loads after code changes.
+  - Files: `src/index.html`, `src/engine/diceBridge.js`
+
+---
+
 ## H. Common Dice — Passive Mechanics
 
 Weighted rolls and passive triggers. No player activation button needed.
@@ -570,9 +597,9 @@ Require player activation via a button press.
   - Ref: DESIGN §8.5 Frog
   - File: `src/engine/diceBridge.js`, `src/systems/turnSystem.js`
 
-- [ ] **I3.** Flipper — FLIP: change die to opposite face (1↔6, 2↔5, 3↔4). Level line: self → adjacent → any.
+- [x] **I3.** Flipper — FLIP: change die to opposite face (1↔6, 2↔5, 3↔4). Level line: self → adjacent → any. **Done in v1.0.10:** full 3D animation (launch + slerp), targeting for Lv2+, pointer handler for `flipTargeting` phase. Actions: `USE_ABILITY` (flip), `FLIP_TARGET`, `FLIP_SETTLED`.
   - Ref: DESIGN §8.5 Flipper
-  - File: `src/systems/turnSystem.js`, `src/engine/diceBridge.js`
+  - Files: `src/systems/turnSystem.js`, `src/engine/diceBridge.js`, `src/ui/abilityUI.js`
 
 - [x] **I4.** Ability button UI — `abilityUI.js` mounted in `main.js`. Context-sensitive panel: shows JUMP when single Frog selected, extensible for TUNE ±1. Uses `dieSlotMap` for correct die-to-loadout mapping.
   - Ref: DESIGN §10.5
@@ -898,6 +925,7 @@ Visual and audio juice.
 | **v1.0.7 — Loadout & Rules Split** | 0 + A–G + K3 | Two-mode modal (Rules & Dices / Loadout), inventory grid, bigger dice slots, Clear Loadout, 7-slot bug fix | **DONE** (2026-04-10) |
 | **v1.0.8 — Frog Die + Loadout Polish** | 0 + A–G + K3 + I1–I2,I4–I5 | Frog JUMP (physics reroll, blink animation), Ability Panel, Even/Odd physics bias, mini-die visuals, drag-and-drop, loadout persistence, IMPLEMENTED filter, version tag | **DONE** (2026-04-10) |
 | **v1.0.9 — Critical Bugfix + Calibration** | — | Fix ROLL_DICE/DICE_SETTLED accumulatedScore race, remove slime/joker from IMPLEMENTED, recalibrate Even/Odd bias 0.50→0.55, default loadout updated | **DONE** (2026-04-10) |
+| **v1.0.10 — Flipper Die + Held Dice Cleanup** | I3 | Flipper FLIP (3D animation, targeting, FLIP_SETTLED), Mathematician 7-segment LED visual, skipNotchFaces/notchD support, held dice ghost fix, mini-die Flipper visual | **DONE** (2026-04-10) |
 | **Full Common Layer** | 0 + A–L | All Common dice, hub, loadout, progression | Pending |
 | **Full Dice Roster** | 0 + A–O | All dice types, full progression ladder | Pending |
 | **Feature Complete** | 0 + A–S | Tutorial, themes, polish, tests passing | Pending |

@@ -83,7 +83,7 @@ export function readFaceValueForced(body) {
 
 /** Rounded box with pip notches. Returns BABYLON.VertexData.
  *  All params optional — defaults match production constants. */
-export function createDiceVertexData(edgeR = EDGE_R, notchR = NOTCH_R, notchD = NOTCH_D, pipOffset = PIP_OFFSET) {
+export function createDiceVertexData(edgeR = EDGE_R, notchR = NOTCH_R, notchD = NOTCH_D, pipOffset = PIP_OFFSET, skipNotchFaces = null) {
   const s = SEGMENTS, positions = [], indices = [];
   const faces = [
     [1,+.5,0,2],[1,-.5,0,2],[0,+.5,2,1],[0,-.5,2,1],[2,+.5,1,0],[2,-.5,1,0],
@@ -112,12 +112,13 @@ export function createDiceVertexData(edgeR = EDGE_R, notchR = NOTCH_R, notchD = 
     else if (oy && oz)  { const l = Math.hypot(ay,az)||1;    y = sy+ay/l*edgeR; z = sz+az/l*edgeR; }
     const nw = v => { v = v / notchR; v = Math.PI * Math.max(-1, Math.min(1, v)); return notchD * (Math.cos(v) + 1); };
     const n = (a, b) => nw(a) * nw(b), o = pipOffset;
-    if      (y ===  .5) { y -= n(x,z); }
-    else if (x ===  .5) { x -= n(y+o,z+o); x -= n(y-o,z-o); }
-    else if (z ===  .5) { z -= n(x-o,y+o); z -= n(x,y); z -= n(x+o,y-o); }
-    else if (z === -.5) { z += n(x+o,y+o); z += n(x+o,y-o); z += n(x-o,y+o); z += n(x-o,y-o); }
-    else if (x === -.5) { x += n(y+o,z+o); x += n(y+o,z-o); x += n(y,z); x += n(y-o,z+o); x += n(y-o,z-o); }
-    else if (y === -.5) { y += n(x+o,z+o); y += n(x+o,z); y += n(x+o,z-o); y += n(x-o,z+o); y += n(x-o,z); y += n(x-o,z-o); }
+    const sk = skipNotchFaces;
+    if      (y ===  .5) { if (!sk || sk.indexOf(1) === -1) y -= n(x,z); }
+    else if (x ===  .5) { if (!sk || sk.indexOf(2) === -1) { x -= n(y+o,z+o); x -= n(y-o,z-o); } }
+    else if (z ===  .5) { if (!sk || sk.indexOf(3) === -1) { z -= n(x-o,y+o); z -= n(x,y); z -= n(x+o,y-o); } }
+    else if (z === -.5) { if (!sk || sk.indexOf(4) === -1) { z += n(x+o,y+o); z += n(x+o,y-o); z += n(x-o,y+o); z += n(x-o,y-o); } }
+    else if (x === -.5) { if (!sk || sk.indexOf(5) === -1) { x += n(y+o,z+o); x += n(y+o,z-o); x += n(y,z); x += n(y-o,z+o); x += n(y-o,z-o); } }
+    else if (y === -.5) { if (!sk || sk.indexOf(6) === -1) { y += n(x+o,z+o); y += n(x+o,z); y += n(x+o,z-o); y += n(x-o,z+o); y += n(x-o,z); y += n(x-o,z-o); } }
     positions[i] = x; positions[i+1] = y; positions[i+2] = z;
   }
   const normals = [];
@@ -249,39 +250,70 @@ export function createPipsVertexData(pipR = 0.1, pipOffset = PIP_OFFSET, pipShap
 
 // ── Procedural mark textures ─────────────────────────────────────────────────
 
-function drawDigit(ctx2d, size, digit, color, bgColor) {
+// 7-segment digit segments: [a,b,c,d,e,f,g] top,TR,BR,bot,BL,TL,mid
+const SEG7_MAP = {
+  0: [1,1,1,1,1,1,0], 1: [0,1,1,0,0,0,0], 2: [1,1,0,1,1,0,1],
+  3: [1,1,1,1,0,0,1], 4: [0,1,1,0,0,1,1], 5: [1,0,1,1,0,1,1],
+  6: [1,0,1,1,1,1,1], 7: [1,1,1,0,0,0,0], 8: [1,1,1,1,1,1,1],
+  9: [1,1,1,1,0,1,1],
+};
+
+function drawSeg7Single(ctx2d, cx, cy, h, color) {
+  const w = h * 0.55, sw = h * 0.12, hw = w / 2, hh = h / 2;
+  const gap = sw * 0.3;
+  ctx2d.strokeStyle = color;
+  ctx2d.lineWidth = sw;
+  ctx2d.lineCap = 'round';
+  const segs = [
+    [cx - hw + gap, cy - hh,        cx + hw - gap, cy - hh],
+    [cx + hw,       cy - hh + gap,   cx + hw,       cy - gap],
+    [cx + hw,       cy + gap,        cx + hw,       cy + hh - gap],
+    [cx - hw + gap, cy + hh,        cx + hw - gap, cy + hh],
+    [cx - hw,       cy + gap,        cx - hw,       cy + hh - gap],
+    [cx - hw,       cy - hh + gap,   cx - hw,       cy - gap],
+    [cx - hw + gap, cy,              cx + hw - gap, cy],
+  ];
+  return segs;
+}
+
+function drawSeg7Digit(ctx2d, cx, cy, h, digit, color) {
+  const map = SEG7_MAP[digit];
+  if (!map) return;
+  const segs = drawSeg7Single(ctx2d, cx, cy, h, color);
+  for (let i = 0; i < 7; i++) {
+    if (!map[i]) continue;
+    const s = segs[i];
+    ctx2d.beginPath();
+    ctx2d.moveTo(s[0], s[1]);
+    ctx2d.lineTo(s[2], s[3]);
+    ctx2d.stroke();
+  }
+}
+
+function drawSeg7Face(ctx2d, size, digit, color, bgColor) {
   ctx2d.save();
   ctx2d.clearRect(0, 0, size, size);
-  if (bgColor) {
-    ctx2d.fillStyle = bgColor;
-    ctx2d.fillRect(0, 0, size, size);
-  }
-  ctx2d.fillStyle = color;
-  ctx2d.textAlign = 'center';
-  ctx2d.textBaseline = 'middle';
-  ctx2d.font = `bold ${Math.round(size * 0.72)}px serif`;
-  ctx2d.fillText(String(digit), size / 2, size / 2 + size * 0.04);
+  if (bgColor) { ctx2d.fillStyle = bgColor; ctx2d.fillRect(0, 0, size, size); }
+  const h = size * 0.6;
+  drawSeg7Digit(ctx2d, size / 2, size / 2, h, parseInt(digit), color);
   ctx2d.restore();
 }
 
-function drawDigits314(ctx2d, size, color, bgColor) {
+function drawSeg7_314(ctx2d, size, color, bgColor) {
   ctx2d.save();
   ctx2d.clearRect(0, 0, size, size);
-  if (bgColor) {
-    ctx2d.fillStyle = bgColor;
-    ctx2d.fillRect(0, 0, size, size);
-  }
-  ctx2d.fillStyle = color;
-  ctx2d.textAlign = 'center';
-  ctx2d.textBaseline = 'middle';
-  const fs = Math.round(size * 0.34);
-  ctx2d.font = `bold ${fs}px serif`;
+  if (bgColor) { ctx2d.fillStyle = bgColor; ctx2d.fillRect(0, 0, size, size); }
+  const h = size * 0.28;
   const off = size * 0.27;
-  ctx2d.fillText('3', size / 2 - off, size / 2 - off);
-  ctx2d.fillText('1', size / 2,       size / 2);
-  ctx2d.fillText('4', size / 2 + off, size / 2 + off);
+  const cx = size / 2, cy = size / 2;
+  drawSeg7Digit(ctx2d, cx + off, cy - off, h, 3, color);
+  drawSeg7Digit(ctx2d, cx,       cy,       h, 1, color);
+  drawSeg7Digit(ctx2d, cx - off, cy + off, h, 4, color);
   ctx2d.restore();
 }
+
+const DOLPHIN_SVG_D = 'M 574.500 110.651 C 568.481 111.626, 561.071 114.151, 557.825 116.334 C 552.017 120.238, 552.734 121.995, 563.398 129.975 C 574.601 138.359, 579.872 144.056, 583.918 152.151 C 591.505 167.334, 590.394 184.361, 580.847 199.239 C 579.020 202.086, 569.464 212.760, 559.613 222.958 C 530.936 252.643, 515.030 272.073, 497.766 298.504 C 453.530 366.232, 428.572 436.028, 423.031 507.500 C 421.210 530.997, 421.366 530.322, 416.690 534.997 C 414.386 537.301, 407.550 542.460, 401.500 546.462 C 371.541 566.277, 351.688 585.830, 335.972 611 C 327.277 624.927, 319.703 643.887, 318.808 653.970 C 318.304 659.644, 320.931 658.851, 330.961 650.304 C 346.602 636.977, 349.261 635.045, 357.500 631.019 C 366.181 626.777, 374.858 624.374, 393.565 621.030 C 407.796 618.486, 415.769 614.696, 420.500 608.225 C 423.711 603.833, 425 603.067, 425 605.550 C 425 608.530, 428.061 612.980, 431.243 614.626 C 433.408 615.745, 438.364 616.505, 446.476 616.962 C 455.756 617.484, 459.690 618.161, 463.714 619.927 C 469.493 622.463, 476.134 628.960, 480.415 636.265 C 481.941 638.869, 483.580 641, 484.056 641 C 485.306 641, 487.900 631.764, 489.212 622.642 C 490.053 616.793, 490.052 612.312, 489.208 605.117 C 487.125 587.366, 481.998 574.843, 469.724 557.525 C 465.816 552.011, 461.979 545.598, 461.198 543.274 L 459.778 539.047 L 465.946 526.274 C 484.314 488.233, 506.818 455.545, 533.500 428.152 C 588.334 371.857, 662.503 332.033, 769.344 301.521 C 780.258 298.404, 789.397 296.064, 789.654 296.321 C 790.553 297.220, 784.330 311.663, 780.666 317.185 C 777.025 322.669, 772.788 326.945, 761.861 336.164 C 758.821 338.729, 755.591 342.329, 754.684 344.164 C 753.090 347.389, 753.109 347.562, 755.268 349.370 C 757.234 351.018, 758.571 351.161, 766.500 350.571 C 804.275 347.763, 832.074 331.874, 860.800 296.675 C 866.556 289.621, 872.444 283.386, 873.883 282.819 C 878.373 281.052, 907.261 281.588, 931.500 283.888 C 978.049 288.306, 982.379 289.047, 1014 298.010 C 1043.042 306.241, 1048.622 306.576, 1054.750 300.449 C 1058.784 296.416, 1058.918 293.235, 1055.355 286.085 C 1053.125 281.610, 1050.491 279.014, 1038.571 269.539 C 1021.679 256.114, 1019.006 253.199, 1018.983 248.173 C 1018.928 236.512, 1011.524 218.258, 1001.242 204.430 C 982.884 179.743, 953.748 161.367, 910.157 146.983 C 878.239 136.451, 856.586 132.247, 822.500 129.963 C 793.306 128.008, 761.466 130.210, 732.500 136.188 C 693.969 144.139, 691.945 143.968, 659.012 129.964 C 625.708 115.803, 609.105 111.165, 589.500 110.545 C 582.900 110.336, 576.150 110.383, 574.500 110.651 Z';
+const DOLPHIN_BB = { x: 318.3, y: 110.3, w: 740.6, h: 549.3 };
 
 function drawDolphin(ctx2d, size, color, bgColor) {
   ctx2d.save();
@@ -290,28 +322,21 @@ function drawDolphin(ctx2d, size, color, bgColor) {
     ctx2d.fillStyle = bgColor;
     ctx2d.fillRect(0, 0, size, size);
   }
-  const cx = size / 2, cy = size / 2;
-  const s = size / 128;
+
+  const margin = size * 0.03;
+  const avail = size - margin * 2;
+  const bb = DOLPHIN_BB;
+  const scale = Math.min(avail / bb.w, avail / bb.h);
+  const dx = (size - bb.w * scale) / 2 - bb.x * scale;
+  const dy = (size - bb.h * scale) / 2 - bb.y * scale;
+
+  ctx2d.translate(dx, dy);
+  ctx2d.scale(scale, scale);
+
   ctx2d.fillStyle = color;
-  ctx2d.beginPath();
-  ctx2d.moveTo(cx + 28*s, cy - 32*s);
-  ctx2d.quadraticCurveTo(cx + 36*s, cy - 44*s, cx + 24*s, cy - 48*s);
-  ctx2d.quadraticCurveTo(cx + 18*s, cy - 44*s, cx + 16*s, cy - 36*s);
-  ctx2d.quadraticCurveTo(cx + 6*s,  cy - 42*s, cx - 10*s, cy - 36*s);
-  ctx2d.quadraticCurveTo(cx - 28*s, cy - 26*s, cx - 34*s, cy - 6*s);
-  ctx2d.quadraticCurveTo(cx - 38*s, cy + 8*s,  cx - 30*s, cy + 20*s);
-  ctx2d.quadraticCurveTo(cx - 22*s, cy + 30*s, cx - 8*s,  cy + 36*s);
-  ctx2d.quadraticCurveTo(cx - 18*s, cy + 42*s, cx - 30*s, cy + 44*s);
-  ctx2d.quadraticCurveTo(cx - 18*s, cy + 48*s, cx - 6*s,  cy + 42*s);
-  ctx2d.quadraticCurveTo(cx + 10*s, cy + 34*s, cx + 22*s, cy + 18*s);
-  ctx2d.quadraticCurveTo(cx + 30*s, cy + 6*s,  cx + 34*s, cy - 10*s);
-  ctx2d.quadraticCurveTo(cx + 36*s, cy - 22*s, cx + 28*s, cy - 32*s);
-  ctx2d.closePath();
-  ctx2d.fill();
-  ctx2d.fillStyle = bgColor || '#2878a8';
-  ctx2d.beginPath();
-  ctx2d.arc(cx - 14*s, cy - 14*s, 3*s, 0, Math.PI * 2);
-  ctx2d.fill();
+  const p = new Path2D(DOLPHIN_SVG_D);
+  ctx2d.fill(p, 'evenodd');
+
   ctx2d.restore();
 }
 
@@ -405,23 +430,27 @@ export function createMarkTexture(mark, name, scene) {
     dt.update(false);
     return dt;
   }
-  if (mark.shape === 'letter' || mark.shape === 'digit') {
+  if (mark.shape === 'letter') {
     const dt = new BABYLON.DynamicTexture(name, sz, scene, true);
     dt.hasAlpha = true;
     const ctx2d = dt.getContext();
-    if (mark.shape === 'digit') {
-      drawDigit(ctx2d, sz, mark.text || '?', mark.color || '#ffffff', mark.bg || null);
-    } else {
-      drawLetter(ctx2d, sz, mark.text || '?', mark.color || '#ffffff', mark.bg || null);
-    }
+    drawLetter(ctx2d, sz, mark.text || '?', mark.color || '#ffffff', mark.bg || null);
     dt.update(false);
     return dt;
   }
-  if (mark.shape === 'digits314') {
+  if (mark.shape === 'seg7') {
     const dt = new BABYLON.DynamicTexture(name, sz, scene, true);
     dt.hasAlpha = true;
     const ctx2d = dt.getContext();
-    drawDigits314(ctx2d, sz, mark.color || '#e8dfc8', mark.bg || null);
+    drawSeg7Face(ctx2d, sz, mark.text || '0', mark.color || '#66ff66', mark.bg || null);
+    dt.update(false);
+    return dt;
+  }
+  if (mark.shape === 'seg7_314') {
+    const dt = new BABYLON.DynamicTexture(name, sz, scene, true);
+    dt.hasAlpha = true;
+    const ctx2d = dt.getContext();
+    drawSeg7_314(ctx2d, sz, mark.color || '#66ff66', mark.bg || null);
     dt.update(false);
     return dt;
   }
@@ -484,9 +513,11 @@ export function buildDie(ctx, opts = {}) {
   root.rotationQuaternion = BABYLON.Quaternion.Identity();
   root.scaling.setAll(sc);
 
-  const hasCustomGeom = opts.edgeR != null || opts.pipR != null || opts.pipShape != null;
+  const useNotchD = opts.notchD != null ? opts.notchD : NOTCH_D;
+  const skipNF = opts.skipNotchFaces || null;
+  const hasCustomGeom = opts.edgeR != null || opts.pipR != null || opts.pipShape != null || useNotchD !== NOTCH_D || skipNF;
   const outerVD = hasCustomGeom
-    ? createDiceVertexData(opts.edgeR ?? EDGE_R, NOTCH_R, NOTCH_D, PIP_OFFSET)
+    ? createDiceVertexData(opts.edgeR ?? EDGE_R, NOTCH_R, useNotchD, PIP_OFFSET, skipNF)
     : ctx.cachedOuterVD;
 
   const outer = new BABYLON.Mesh(`outer${id}`, ctx.scene);

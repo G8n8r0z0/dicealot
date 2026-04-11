@@ -79,12 +79,14 @@
 
         flipper: {
             id: 'flipper', name: 'Flipper', rarity: 'common', utility: false, maxLevel: 3,
-            desc: 'Flip a die to its opposite face once per turn.',
+            desc: 'Flip a die to its opposite face once per turn. 1\u21946  2\u21945  3\u21944',
             ability: { type: 'flip', button: 'FLIP', passive: false },
             weights: null,
             visual: {
                 body: '#2878a8', pips: '#f0ece2',
                 specular: 0.14, edgeR: 0.18, pipR: 0.105,
+                skipNotchFaces: [1],
+                pipShape: { default: 'circle', 1: 'hidden' },
                 marks: [{ face: 1, shape: 'dolphin', color: '#f0ece2' }]
             }
         },
@@ -127,15 +129,16 @@
             biasOffset: 0.325,
             biasFaces: [1, 3, 3],
             visual: {
-                body: '#2d4a3a', pips: '#e8dfc8',
-                specular: 0.03, edgeR: 0.10, pipR: 0.105,
+                body: '#1a1a1a', pips: '#66ff66',
+                specular: 0.05, edgeR: 0.10, pipR: 0.105,
+                notchD: 0,
                 marks: [
-                    { face: 1, shape: 'digit', text: '1', color: '#e8dfc8' },
-                    { face: 2, shape: 'digit', text: '2', color: '#e8dfc8' },
-                    { face: 3, shape: 'digits314', color: '#e8dfc8' },
-                    { face: 4, shape: 'digit', text: '4', color: '#e8dfc8' },
-                    { face: 5, shape: 'digit', text: '5', color: '#e8dfc8' },
-                    { face: 6, shape: 'digit', text: '6', color: '#e8dfc8' }
+                    { face: 1, shape: 'seg7', text: '1', color: '#66ff66' },
+                    { face: 2, shape: 'seg7', text: '2', color: '#66ff66' },
+                    { face: 3, shape: 'seg7_314', color: '#66ff66' },
+                    { face: 4, shape: 'seg7', text: '4', color: '#66ff66' },
+                    { face: 5, shape: 'seg7', text: '5', color: '#66ff66' },
+                    { face: 6, shape: 'seg7', text: '6', color: '#66ff66' }
                 ],
                 pipShape: { default: 'hidden' }
             }
@@ -421,7 +424,7 @@
 
     var IMPLEMENTED = [
         'base', 'frog', 'oneLove', 'comrade',
-        'evenDie', 'oddDie', 'flipper', 'mathematician'
+        'evenDie', 'oddDie', 'flipper'
     ]
 
     window.DICE = {

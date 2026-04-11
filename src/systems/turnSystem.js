@@ -38,7 +38,10 @@
                 lastBankedScore:   0,
                 hotHandTriggered:  false,
                 jumpUsed:          false,
-                jumpingDie:        -1
+                jumpingDie:        -1,
+                flipUsed:          false,
+                flippingDie:       -1,
+                flipperIndex:      -1
             }
 
             // ── START_TURN ─────────────────────────────────────────
@@ -61,6 +64,9 @@
                 t.hotHandTriggered  = false
                 t.jumpUsed          = false
                 t.jumpingDie        = -1
+                t.flipUsed          = false
+                t.flippingDie       = -1
+                t.flipperIndex      = -1
                 initSlotMap(t)
                 t.phase             = 'idle'
             }, 'turn')
@@ -185,6 +191,9 @@
                 t.hotHandTriggered  = false
                 t.jumpUsed          = false
                 t.jumpingDie        = -1
+                t.flipUsed          = false
+                t.flippingDie       = -1
+                t.flipperIndex      = -1
                 initSlotMap(t)
                 t.phase             = 'idle'
             }, 'turn')
@@ -224,6 +233,22 @@
                     t.selectionValid = false
                     t.phase = 'jumping'
                 }
+
+                if (payload.ability === 'flip') {
+                    if (t.flipUsed) return
+                    t.flipUsed = true
+                    t.selectedIndices = []
+                    t.selectionScore = 0
+                    t.selectionValid = false
+                    var level = 1
+                    if (level === 1) {
+                        t.flippingDie = idx
+                        t.phase = 'flipping'
+                    } else {
+                        t.flipperIndex = idx
+                        t.phase = 'flipTargeting'
+                    }
+                }
             }, 'turn')
 
             // ── JUMP_SETTLED — Frog landed after JUMP ───────────────
@@ -232,6 +257,38 @@
                 if (t.phase !== 'jumping') return
                 t.rolledDice[t.jumpingDie] = payload.value
                 t.jumpingDie = -1
+                t.selectedIndices = []
+                t.selectionScore = 0
+                t.selectionValid = false
+
+                if (!window.scoringSystem.hasPlayableDice(t.rolledDice)) {
+                    t.phase = 'bust'
+                    t.accumulatedScore = 0
+                } else {
+                    t.phase = 'selecting'
+                }
+            }, 'turn')
+
+            // ── FLIP_TARGET — player picked a target during flipTargeting ──
+            store.register('FLIP_TARGET', function(state, payload) {
+                var t = state.turn
+                if (t.phase !== 'flipTargeting') return
+                var idx = payload.targetIndex
+                if (idx < 0 || idx >= t.rolledDice.length) return
+                t.flippingDie = idx
+                t.selectedIndices = []
+                t.selectionScore = 0
+                t.selectionValid = false
+                t.phase = 'flipping'
+            }, 'turn')
+
+            // ── FLIP_SETTLED — die landed on opposite face ───────────────
+            store.register('FLIP_SETTLED', function(state, payload) {
+                var t = state.turn
+                if (t.phase !== 'flipping') return
+                t.rolledDice[t.flippingDie] = payload.value
+                t.flippingDie = -1
+                t.flipperIndex = -1
                 t.selectedIndices = []
                 t.selectionScore = 0
                 t.selectionValid = false

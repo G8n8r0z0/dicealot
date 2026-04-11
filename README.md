@@ -1,6 +1,6 @@
 # Dice-a-Lot — 3D Dice Battle Game
 
-**v1.0.9 — Critical bugfix: ROLL_DICE/DICE_SETTLED scoring race condition, Even/Odd bias recalibrated, non-working dice (slime/joker) removed from loadout**
+**v1.0.10 — Flipper Die (FLIP ability, dolphin visual, 3D flip animation), Mathematician 7-segment LED visual, held dice ghost cleanup fix**
 
 A browser-first dice RPG prototype inspired by Farkle. Special dice with unique abilities, loadout building, PvE bot battles, HP-based combat, and a full progression ladder — all rendered with 3D physics dice.
 
@@ -22,12 +22,14 @@ A browser-first dice RPG prototype inspired by Farkle. Special dice with unique 
 - **One Love die** — pink (#ff5ccd), white pips, red heart-shaped pip on face 1 (via PIP_SHAPES.heart), ~30% bias toward 1 (physics center-of-mass offset)
 - **Comrade die** — bright red (#cc0000), gold star pips on face 5, circle pips on other faces, ~30% bias toward 5 (physics center-of-mass offset)
 - **Frog die** — green body (#2c8217), gold pips, animated blinking eye on face 1 (DynamicTexture). **JUMP ability**: physics-based reroll (die jumps from table, re-settles on new face), once per turn
+- **Flipper die** — ocean blue (#2878a8), ivory pips, dolphin SVG silhouette on face 1. **FLIP ability**: flips a die to its opposite face (1↔6, 2↔5, 3↔4). 3D animation: die launches upward, slerps to target rotation at apex, settles. Once per turn. Lv1 = self, Lv2+ = targeting
+- **Mathematician die** — dark body (#1a1a1a), green 7-segment LED digits (#66ff66), flat faces (notchD: 0). Face 3 shows digits 3-1-4 (π easter egg). Physics bias toward 3 > 1 > 4
 - **Even/Odd dice** — physics bias (diagonal center-of-mass offset 0.55, calibrated ~77% target parity) for parity-biased rolling
-- **Ability Panel** — context-sensitive button (JUMP for Frog, TUNE for Tuner) that appears when a single ability die is selected
+- **Ability Panel** — context-sensitive button (JUMP for Frog, FLIP for Flipper, TUNE for Tuner) that appears when a single ability die is selected
 - **Mini-die 2D visuals** — CSS 3×3 grid with gradient backgrounds, animated marks (frog blink, love heartbeat, comrade stars), synced with dice.js colors
 - **Loadout drag-and-drop** — pointer-event-based drag between inventory tiles and loadout slots
 - **Loadout persistence** — saved to localStorage, survives browser reload
-- **Version tag** — current version displayed in bottom-left corner
+- **Version tag** — current version (v1.0.10) displayed in bottom-left corner
 - **Per-die visual system** — custom body/pip colors, specular, edge rounding, pip size/shape per face, per-face pip colors (multiple pip meshes per die)
 - **Dice Constructor** (`tools/dice-constructor.html`) — interactive 3D tool for designing die visuals with per-face overrides (shape/size/color per face), config export
 
@@ -85,7 +87,7 @@ Pushes to **`main`** deploy the repo root to **Cloudflare Pages** via `.github/w
 
 The coding agent checks every change against the architecture and design rules. If your request would violate a rule, it warns you and proposes alternatives before writing any code.
 
-**Production game (`src/index.html`)** today: fullscreen 3D Farkle vs bot, **vendored** Babylon.js + cannon-es, **pull-back sling** (single-point cluster, 1 die visible during aim) + **ROLL**. **UI (v1.0.9):** compact HP widgets, damage fly-up + HP flash/shake, side turn indicators, compact top-docked info bar, green valid / red invalid selection colors, centered banners (incl. REROLL!), 9×9 held zones with correct face-up display, auto-hiding action buttons, imperative Round History log, **Ability Panel** (JUMP for Frog), **version tag** (bottom-left). **Two-mode modal:** RULES & DICES (read-only rules + scoring combos + mini-die visuals) and LOADOUT (inventory grid with IMPLEMENTED filter, editable slots, drag-and-drop, Save/Clear, localStorage persistence). **Special dice:** Frog (animated blink + JUMP), One Love (heart pip + bias), Comrade (star pips + bias), Even/Odd (diagonal physics bias, calibrated 0.55). **Physics baseline:** unified ROLL/sling impulse, gravity −300, mass 3.0, dieScale 3.06. **Stacked dice reroll** mechanic (player taps, bot auto). **`throw-lab.html`** — throw-only sandbox with the same `battle_tune_json_v1` tuning. Details: `ARCHITECTURE.md` (Battle Prototype, Throw lab), `DESIGN.md` section 10.3 + 14.
+**Production game (`src/index.html`)** today: fullscreen 3D Farkle vs bot, **vendored** Babylon.js + cannon-es, **pull-back sling** (single-point cluster, 1 die visible during aim) + **ROLL**. **UI (v1.0.10):** compact HP widgets, damage fly-up + HP flash/shake, side turn indicators, compact top-docked info bar, green valid / red invalid selection colors, centered banners (incl. REROLL!), 9×9 held zones with correct face-up display, auto-hiding action buttons, imperative Round History log, **Ability Panel** (JUMP for Frog, FLIP for Flipper), **version tag** (bottom-left). **Two-mode modal:** RULES & DICES (read-only rules + scoring combos + mini-die visuals) and LOADOUT (inventory grid with IMPLEMENTED filter, editable slots, drag-and-drop, Save/Clear, localStorage persistence). **Special dice:** Frog (animated blink + JUMP), Flipper (dolphin SVG + FLIP), One Love (heart pip + bias), Comrade (star pips + bias), Even/Odd (diagonal physics bias, calibrated 0.55). **Physics baseline:** unified ROLL/sling impulse, gravity −300, mass 3.0, dieScale 3.06. **Stacked dice reroll** mechanic (player taps, bot auto). **`throw-lab.html`** — throw-only sandbox with the same `battle_tune_json_v1` tuning. Details: `ARCHITECTURE.md` (Battle Prototype, Throw lab), `DESIGN.md` section 10.3 + 14.
 
 For subsequent changes (new features, balance tweaks, mechanic removals), use `NEXT_ITERATION_PROMPT.md` — it ensures the agent updates `DESIGN.md` first, then plans and implements, rather than jumping straight to code.
 

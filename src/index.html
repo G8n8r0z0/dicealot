@@ -307,7 +307,7 @@
       width:100%;aspect-ratio:1/1;border-radius:20%;
       border:2px solid rgba(255,255,255,.08);
       display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);
-      padding:12%;gap:3px;overflow:hidden;
+      padding:12%;gap:4%;overflow:hidden;
     }
     .mini-die::before{
       content:"";position:absolute;inset:2px;border-radius:inherit;
@@ -348,6 +348,20 @@
     }
     .mini-die.comrade .pip{background:linear-gradient(180deg,#ffe680 0%,#ffd700 72%,#d89c24 100%)}
 
+    .mini-die.flipper{
+      border-color:rgba(40,120,168,.22);
+      background:radial-gradient(circle at 28% 18%,rgba(255,255,255,.20),transparent 34%),
+                  radial-gradient(circle at 72% 78%,rgba(10,50,80,.20),transparent 48%),
+                  linear-gradient(145deg,#3a9ac4 0%,#2878a8 58%,#1a5e8a 100%);
+    }
+    .mini-die.flipper .pip{background:linear-gradient(180deg,#f0ece2 0%,#e0dcd0 100%)}
+
+    .mini-flippermark{
+      position:absolute;left:50%;top:50%;width:90%;height:90%;
+      transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;z-index:1;
+    }
+    .mini-flippermark svg{display:block;width:100%;height:100%;filter:drop-shadow(0 1px 2px rgba(0,0,0,.18))}
+
     .mini-die.evenDie,.mini-die.oddDie{background:#dde2ec;border-color:rgba(180,190,210,.15)}
     .mini-die.evenDie .pip,.mini-die.oddDie .pip{background:#1d2431}
 
@@ -376,7 +390,7 @@
     }
     .mini-pip-comrade-star{
       position:absolute;left:50%;top:50%;
-      width:24px;height:24px;
+      width:160%;height:160%;
       transform:translate(-50%,-50%);
       filter:drop-shadow(0 1px 2px rgba(72,18,9,.18));
     }
@@ -641,11 +655,11 @@
   { "imports": { "cannon-es": "./vendor/cannon-es.js" } }
   </script>
   <script type="module">
-    import * as bridge from './engine/diceBridge.js';
+    import * as bridge from './engine/diceBridge.js?v=8';
     const canvas = document.getElementById('renderCanvas');
     bridge.init(canvas, window.store);
     window.bridge3D = bridge;
   </script>
-  <div class="version-tag" id="versionTag">v1.0.9</div>
+  <div class="version-tag" id="versionTag">v1.0.10</div>
 </body>
 </html>
